@@ -1,6 +1,7 @@
 classdef Shape < matlab.mixin.Copyable
     properties
         points (:, 2) double
+        length
     end
     methods
         function obj = Shape
@@ -11,9 +12,6 @@ classdef Shape < matlab.mixin.Copyable
         function plot(obj)
             pts = [obj.points; obj.points(1,:)];
             plot(pts(:, 1), pts(:, 2));
-        end
-        function y = npoints(obj)
-            y = size(obj.points, 1);
         end
     end
 end

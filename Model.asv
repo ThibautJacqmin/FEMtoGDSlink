@@ -8,7 +8,7 @@ classdef Model < handle
     end
     properties (Constant)
         % Set unit length (1 is 1 µm, and default is 1 nm)
-        pydbu = 1
+        pydbu = 0.001
     end
     methods
         function obj = Model
@@ -27,19 +27,19 @@ classdef Model < handle
         function layer = create_layer(obj, number)
             layer = obj.pylayout.layer(number, 0);
         end
-        function add_to_layer(obj, layer, shape)
+        function add_to_layer(obj, layer_name, shape)
             py_shape = shape.get_python_obj(obj.pya);
-            obj.pycell.shapes(layer).insert(py_shape);
+            obj.pycell.shapes(layer_name).insert(py_shape);
             obj.shape_list{end+1} = shape;
         end
-        function mark = add_alignment_mark(obj, layer)
-            layout_temp = obj.pya.Layout();
-            layout_temp.read('C:\Users\ThibautJacqmin\Documents\GitHub\FEMtoGDSlink\Library\alignment_mark.gds')
-            cell = layout_temp.top_cell();
-            new_cell = obj.pylayout.create_cell("AlignmentMark");
-            new_cell.copy_shapes(cell);
-            mark = new_cell.shapes(1);
-            obj.pycell.shapes(layer).insert(mark);
+        function mark = add_alignment_mark(obj, layer_name)
+            layout2 = obj.pya.Layout();
+            layout2.read('/Library/alignment mark.gds')
+            tc = layout2.top_cell();
+            bottom = layout.create_cell("");
+            bottom.copy_shapes(tc)
+            top.shapes(l2).insert(bottom.shapes(1))
+        end
         end
         function write(obj, filename)
             obj.pylayout.write(filename);

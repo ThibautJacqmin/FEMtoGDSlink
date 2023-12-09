@@ -30,7 +30,7 @@ classdef Box < Shape
             fields = string(fieldnames(args));
             if length(intersect(fields, ["center", "width", "height"]))==3
                 obj.set_center_height_width(args.center, args.height, args.width);
-            elseif length(intersect(fields, ["left", "right", "top", "bottom"]))==4
+            elseif length(intersect(fields, ["left", "right", "bottom", "top"]))==4
                 obj.set_left_right_bottom_top(args.left, args.right, args.bottom, args.top);
             elseif length(intersect(fields, ["bottom-left", "top-right"]))==2
                 obj.set_bottomleft_topright(args.bottom_left, args.top_right);
@@ -68,7 +68,7 @@ classdef Box < Shape
             b = obj.points(1, 2);
         end
         function t = get.top(obj)
-            t = obj.points(4, 1);
+            t = obj.points(3, 2);
         end
         function tl = get.top_left(obj)
             tl = [obj.left, obj.top];
@@ -111,7 +111,7 @@ classdef Box < Shape
     end
     methods (Hidden)
         function py_obj = get_python_obj(obj, pya)
-            py_obj = pya.Box(obj.left, obj.right, obj.bottom, obj.top);
+            py_obj = pya.Box(obj.left, obj.bottom, obj.right, obj.top);
         end
     end
 end

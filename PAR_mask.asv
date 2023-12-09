@@ -59,10 +59,10 @@ for tether_width=tether_widths
     previous_tether_width(end+1) = tether_width;
     i = i+1;
     tether_list{end+1} = tether;
-    model.add_to_layer(front_side_layer, tether);
+    model.add_to_layer(back_side_layer, tether);
 end
 
-mark = model.add_alignment_mark(front_side_layer);
-
+c = model.pylayout.read('C:\Users\ThibautJacqmin\KLayout\libraries\alignment mark.gds')
+model.pylayout.
 model.plot;
 model.write("Par_mask_matlab.gds")

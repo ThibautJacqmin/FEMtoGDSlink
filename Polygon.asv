@@ -1,16 +1,18 @@
 classdef Polygon < Klayout & matlab.mixin.Copyable
     properties (Dependent)
         Vertices
+        BoundingBoxHSize
+        BoundingBoxVSize
     end
     properties %(Access=private)
         p % matlab polygon
     end
     methods
-        function obj = Polygon(args)
+        function obj = Polygon(vertices)
             arguments
-                args.vertices (:, 2) double = []
+                vertices (:, 2) double = []
             end
-            obj.p = polyshape(args.vertices);
+            obj.p = polyshape(vertices);
         end
         function y = get.Vertices(obj)
             y = obj.p.Vertices;
@@ -34,7 +36,7 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
                 end
                 sub_obj = subtract(sub_obj, o.p);
             end
-            sub_obj = Polygon(vertices=sub_obj.Vertices);
+            sub_obj = Polygon(sub_obj.Vertices);
         end
         function add_obj = plus(obj, objects_to_add)
             add_obj = obj.p;
@@ -44,7 +46,7 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
                 end
                 add_obj = union(add_obj, o.p);
             end
-            add_obj = Polygon(vertices=add_obj.Vertices);
+            add_obj = Polygon(add_obj.Vertices);
         end
         function plot(obj)
             figure(1)
@@ -67,8 +69,24 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
         function scaled_obj = scale(obj, factor)
             % factor can be a number or a two components vector
             scaled_obj = obj.p.scale(factor);
-            scaled_obj = Polygon(vertices=scaled_obj.Vertices);
+            scaled_obj = Polygon(scaled_obj.Vertices);
         end
+        function y = get.BoundingBoxHSize(obj)
+            y = obj.p.boundingbox;
+            y = 
+        end
+        function set.BoundingBoxHSize(obj, val)
+            obj = obj.scale([val/obj.BoundingBoxHSize, 1]);
+            obj.BoundingBoxHSize = val;
+        end
+        function y = get.BoundingBoxVSize(obj)
+            y = obj.p.boundingbox(2);
+        end
+        function set.BoundingBoxVSize(obj, val)
+            obj = obj.scale([1, val/obj.BoundingBoxVSize]);
+            obj.BoundingBoxVSize = val;
+        end
+
     end
     methods (Hidden)
         function py_obj = get_python_obj(obj)

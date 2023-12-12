@@ -96,21 +96,11 @@ classdef Box < Polygon
             p1 = [obj.right + obj.fillet_width, obj.bottom];
             p2 = [obj.right, obj.bottom + obj.fillet_height];
             fillet_points = Utilities.bezier_fillet(p0, p1, p2);
-            fillet_polygon = Polygon(vertices=fillet_points);
+            fillet_polygon = Polygon(fillet_points);
             fillet_polygon.Vertices(end+1, :) = p0;
-            fillet_polygons{end+1} = fillet_polygon; 
-
-            fillet_polygon_1 = copy(fillet_polygon);
-            fillet_polygon_1.flip_horizontally((obj.left+obj.right)/2);
-            fillet_polygons{end+1} = fillet_polygon_1;
-
-            fillet_polygon_2 = copy(fillet_polygon);
-            fillet_polygon_2.flip_vertically((obj.top+obj.bottom)/2);
-            fillet_polygons{end+1} = fillet_polygon_2;  
-
-            fillet_polygon_3 = copy(fillet_polygon_2);
-            fillet_polygon_3.flip_horizontally((obj.left+obj.right)/2);
-            fillet_polygons{end+1} = fillet_polygon_3;  
+            fillet_polygon.flip_horizontally((obj.+obj.right)/2);
+            fillet_polygons{end+1} = fillet_polygon;     
+          
 
         end
     end

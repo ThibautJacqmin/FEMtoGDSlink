@@ -1,6 +1,5 @@
-classdef Model < handle
+classdef Model < Klayout
     properties
-        pya
         pylayout
         pycell
         shape_list = {}
@@ -8,13 +7,10 @@ classdef Model < handle
     end
     properties (Constant)
         % Set unit length (1 is 1 µm, and default is 1 nm)
-        pydbu = 1
+        pydbu = 0.001
     end
     methods
         function obj = Model
-            % Import python module lygadgets (layer on to of klayout)
-            mod = py.importlib.import_module('lygadgets');
-            obj.pya = mod.pya;
             % Create layout
             obj.pylayout = obj.pya.Layout();
             obj.pylayout.dbu = obj.pydbu;
@@ -28,18 +24,22 @@ classdef Model < handle
             layer = obj.pylayout.layer(number, 0);
         end
         function add_to_layer(obj, layer, shape)
-            py_shape = shape.get_python_obj(obj.pya);
+            py_shape = shape.get_python_obj;
             obj.pycell.shapes(layer).insert(py_shape);
             obj.shape_list{end+1} = shape;
         end
-        function mark = add_alignment_mark(obj, layer)
-            layout_temp = obj.pya.Layout();
-            layout_temp.read('C:\Users\ThibautJacqmin\Documents\GitHub\FEMtoGDSlink\Library\alignment_mark.gds')
-            cell = layout_temp.top_cell();
-            new_cell = obj.pylayout.create_cell("AlignmentMark");
-            new_cell.copy_shapes(cell);
-            mark = new_cell.shapes(1);
-            obj.pycell.shapes(layer).insert(mark);
+        function resulting_shape = subtract_other_from_first(obj, first_shape, other_shapes, layer)
+            % first_shape : SHape object
+            % other_shapes : cellarray of Shape objects
+            % layer : layer where to insert the result
+            region1 = obj.pya.Region();
+            region1.insert(first_shape.get_python_obj(obj.pya));
+            region2 = obj.pya.Region();
+            for shape=other_shapes
+                region2.insert(shape{1}.get_python_obj(obj.pya));
+            end
+            resulting_shape = region1+region2;
+            obj.pycell.shapes(layer).insert(resulting_shape);
         end
         function write(obj, filename)
             obj.pylayout.write(filename);
@@ -48,6 +48,18 @@ classdef Model < handle
             for shape=obj.shape_list
                 obj.fig;
                 shape{1}.plot;
+            end
+        end
+    end
+    methods (Static)
+        function mark = add_alignment_mark(type)
+            arguments
+                type = 1
+            end
+            data = load(fullfile("Library", "alignment_mark_type_" + num2str(type) +".mat"));
+            mark = Polygon;
+            for fieldname=string(fieldnames(data))'
+                mark.p = mark.p.addboundary(data.(fieldname));
             end
         end
     end

@@ -32,8 +32,7 @@ left_box = Box(left=top_box.left, ...
                bottom=top_box.bottom-mesa_rough_height-mesa_SI_suspension_width,...                   
                top=top_box.bottom-mesa_SI_suspension_width);
 % Right opening for mesa
-right_box = copy(left_box);
-right_box.translate([structure_width-mesa_SIN_suspension_width, 0]);
+right_box = left_box.translate([structure_width-mesa_SIN_suspension_width, 0]);
 % Bottom opening for mesa
 bottom_box = Box(left=left_box.left, ...
                  right=right_box.right, ...
@@ -47,7 +46,7 @@ model.add_to_layer(back_side_layer, top_box)
 
 % FRONT SIDE LAYER
 front_side_layer = model.create_layer(2);
-tether_list = {};
+filleted_tether_list = {};
 previous_tether_width = 0;
 i = 1;
 for tether_width=tether_widths
@@ -56,13 +55,32 @@ for tether_width=tether_widths
                  bottom=top_box.bottom + etching_distance, ...
                  right=left_box.right + tether_width + (i-1)*tether_spacing + accumulated_width,...
                  top=top_box.top - etching_distance);
+    tether.fillet_width = fillet_width;
+    tether.fillet_height = fillet_height;
+    filleted_tether = tether + tether.get_fillets;
     previous_tether_width(end+1) = tether_width;
     i = i+1;
-    tether_list{end+1} = tether;
-    model.add_to_layer(front_side_layer, tether);
+    if i==2 | i==length(tether_widths)+1
+        filleted_tether_list{end+1} = tether;
+    else
+        filleted_tether_list{end+1} = filleted_tether;
+    end
 end
 
-mark = model.add_alignment_mark(front_side_layer);
+% Create box for subtraction
+temp_box = Box(left=top_box.left,...
+               right=top_box.right,...
+               top=tether.top,...
+               bottom=tether.bottom);
+inverted_tethers = temp_box - filleted_tether_list;
+model.add_to_layer(front_side_layer, inverted_tethers)
+
+
+
+mark = model.add_alignment_mark(1);
+mark = mark.translate([0, bottom_box.bottom-1000]);
+model.add_to_layer(front_side_layer, mark);
+
 
 model.plot;
 model.write("Par_mask_matlab.gds")

@@ -1,4 +1,7 @@
-model = Model;
+% Transformer ce fichier en classe avec fonction pour ajouter les
+% propriétés automatiquement
+
+model = GDSModeler;
 
 wafer_thickness = 280;
 etching_angle = 54.74;
@@ -72,14 +75,12 @@ temp_box = Box(left=top_box.left,...
                right=top_box.right,...
                top=tether.top,...
                bottom=tether.bottom);
-inverted_tethers = temp_box - filleted_tether_list;
-model.add_to_layer(front_side_layer, inverted_tethers)
 
+model.add_to_layer(front_side_layer, temp_box-filleted_tether_list)
 
-
-mark = model.add_alignment_mark(1);
-mark = mark.translate([0, bottom_box.bottom-1000]);
-model.add_to_layer(front_side_layer, mark);
+% mark = model.add_alignment_mark(type=1);
+% mark = mark.translate([0, bottom_box.bottom-1000]);
+% model.add_to_layer(front_side_layer, mark);
 
 
 model.plot;

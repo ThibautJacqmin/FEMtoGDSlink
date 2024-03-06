@@ -73,10 +73,13 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
     methods (Hidden)
         function py_obj = get_python_obj(obj)
             pts_list = py.list();
-            for i=1:obj.npoints
-                pts_list.append(obj.pya.DPoint(obj.Vertices(i, 1), obj.Vertices(i, 2)));
+            % Find indices of NaN (Nan separate the hull and the holes)
+            x = find(isnan(obj.Vertices(:, 1)));
+            pts_list.extend();
+            py_obj = obj.pya.DPolygon(pts_list);            
+    
             end
-            py_obj = obj.pya.DPolygon(pts_list);
+            
         end
     end
 end

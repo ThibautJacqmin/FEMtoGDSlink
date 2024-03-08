@@ -1,3 +1,21 @@
+% Klayout
+k = Klayout;
+pgon = k.pya.Polygon.from_s("(1, 2; 2, 2; 0, 1)");
+% Translation
+pgon.move(1, 1);
+% Rotation
+% Calculate the rotation matrix
+angle = 30;
+% Create a transformation: translate from -x_ref, -y_ref rotate, translate
+% back
+pgon.move(-1, -2);
+transformation = k.pya.CplxTrans(1, 30, py.bool(0), 0, 0);
+pgon.transform(transformation);
+pgon.move(1, 2);
+
+
+
+
 % DSimplePolygon class
 p = DSimplePolygon(Vertices=[1, 2; 3, 1; 4, 5]);
 disp(p.Vertices)

@@ -53,7 +53,7 @@ front_side_layer = model.create_layer(2);
 filleted_tether_list = {};
 previous_tether_width = 0;
 i = 1;
-for tether_width=tether_widths(1)
+for tether_width=tether_widths
     accumulated_width = sum(previous_tether_width);
     tether = Box(left=left_box.right+(i-1)*tether_spacing + accumulated_width, ...
                  bottom=top_box.bottom + etching_distance, ...

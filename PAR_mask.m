@@ -35,7 +35,8 @@ left_box = Box(left=top_box.left, ...
                bottom=top_box.bottom-mesa_rough_height-mesa_SI_suspension_width,...                   
                top=top_box.bottom-mesa_SI_suspension_width);
 % Right opening for mesa
-right_box = left_box.translate([structure_width-mesa_SIN_suspension_width, 0]);
+right_box = left_box.copy;
+right_box.move([structure_width-mesa_SIN_suspension_width, 0]);
 % Bottom opening for mesa
 bottom_box = Box(left=left_box.left, ...
                  right=right_box.right, ...
@@ -52,7 +53,7 @@ front_side_layer = model.create_layer(2);
 filleted_tether_list = {};
 previous_tether_width = 0;
 i = 1;
-for tether_width=tether_widths
+for tether_width=tether_widths(1)
     accumulated_width = sum(previous_tether_width);
     tether = Box(left=left_box.right+(i-1)*tether_spacing + accumulated_width, ...
                  bottom=top_box.bottom + etching_distance, ...
@@ -70,7 +71,7 @@ for tether_width=tether_widths
     end
 end
 
-% Create box for subtraction
+% % Create box for subtraction
 temp_box = Box(left=top_box.left,...
                right=top_box.right,...
                top=tether.top,...
@@ -84,4 +85,4 @@ model.add_to_layer(front_side_layer, temp_box-filleted_tether_list)
 
 
 model.plot;
-model.write("Par_mask_matlab.gds")
+% model.write("Par_mask_matlab.gds")

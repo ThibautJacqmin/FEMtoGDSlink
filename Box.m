@@ -1,4 +1,4 @@
-classdef Box < Polygon
+classdef Box < DSimplePolygon
     properties (Dependent)
         center
         height
@@ -96,7 +96,7 @@ classdef Box < Polygon
             p1 = [obj.right + obj.fillet_width, obj.bottom];
             p2 = [obj.right, obj.bottom + obj.fillet_height];
             fillet_points = Utilities.bezier_fillet(p0, p1, p2);
-            fillet_polygon = Polygon(vertices=fillet_points);
+            fillet_polygon = DSimplePolygon(vertices=fillet_points);
             fillet_polygon.Vertices(end+1, :) = p0;
             fillet_polygons{end+1} = fillet_polygon; 
 
@@ -138,11 +138,6 @@ classdef Box < Polygon
             t = top_left(2);
             b = bottom_right(2);
             obj.Vertices = [l, b; l, t; r, t; r, b];
-        end
-    end
-    methods (Hidden)
-        function py_obj = get_python_obj(obj)
-            py_obj = obj.pya.DBox(obj.left, obj.bottom, obj.right, obj.top);
         end
     end
 end

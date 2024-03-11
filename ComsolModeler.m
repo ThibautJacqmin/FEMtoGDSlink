@@ -1,6 +1,7 @@
 classdef ComsolModeler < Comsol
     methods
         function obj = ComsolModeler
+            
         end
         function add_parameter(obj, name, value, unit, description)
             arguments

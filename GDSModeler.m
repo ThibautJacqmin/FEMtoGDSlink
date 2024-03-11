@@ -18,7 +18,7 @@ classdef GDSModeler < Klayout
             obj.pycell = obj.pylayout.create_cell("Main");
             % Figure
             obj.fig = figure(1);
-            hold on;
+            hold on
         end
         function layer = create_layer(obj, number)
             layer = obj.pylayout.layer(number, 0);

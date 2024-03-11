@@ -1,6 +1,8 @@
 classdef Comsol < handle
     properties
         model
+        component
+        geometry
     end
     methods
         function obj = Comsol
@@ -13,7 +15,12 @@ classdef Comsol < handle
             % Disable Comsol model history
             obj.model.hist.disable;
             % Set working path
-            %model.modelPath(pwd);
+            obj.model.modelPath(pwd);
+            % Create component
+            obj.component = obj.model.component.create('Component', true);
+            % Creat 2D geometry
+            obj.geometry = obj.component.geom.create('Geometry', 2);
+
         end
         function start_gui(obj)
             mphlaunch(obj.model)

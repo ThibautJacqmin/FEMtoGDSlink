@@ -13,7 +13,6 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
     properties 
         pgon % matlab polygon
         pgon_py  % python polygon
-        Vertices_py % Python vertices
     end
     methods
         function obj = Polygon(args)
@@ -22,7 +21,7 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
             end
             % Matlab polygon (polyshape)
             obj.pgon = polyshape(args.Vertices);
-            % Klayout (Python) polygon (DPolygon)
+            % Klayout (Python) Polygon
             obj.pgon_py = obj.pya.Polygon.from_s(...
                 Utilities.vertices_to_string(args.Vertices));
         end
@@ -84,6 +83,8 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
                 axis double = 0
             end
             obj.Vertices(:, 2) = 2*axis - obj.Vertices(:, 2);
+            % Python : Use Trans.M0, ... mirror and 90° rot implemented
+            % there
         end
 
         % Boolean operations
@@ -99,19 +100,21 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
         function xor_obj = xor(obj, objects_to_xor)
             xor_obj = obj.apply_operation(objects_to_xor, @xor);
         end
-        function temp_obj = apply_operation(obj, obj2, operation)
+        function res = apply_operation(obj, obj2, operation)
             % This is a wrapper for minus, plus, intersect, and boolean
             % operations. obj2 can be a cell array of objects and operation
             % the operation handle (for Matlab polyshape)
-            temp_obj = obj.pgon;
+            mat_pgon = obj.pgon;
             for o=obj2
                 if iscell(obj2)
                     o = o{1};
                 end
-                temp_obj = operation(temp_obj, o.pgon, ...
+                mat_pgon = operation(mat_pgon, o.pgon, ...
                     'KeepCollinearPoints', false);
             end
-            temp_obj = Polygon(Vertices=temp_obj.Vertices);
+            res = Polygon();
+            res.pgon = mat_pgon;
+            %res.pgon_py; See subtract_other_from_first in GDSModeler
         end
         % Plot functions
         function plot(obj, args)

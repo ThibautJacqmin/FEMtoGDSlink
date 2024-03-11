@@ -30,7 +30,7 @@ classdef Box < Polygon
                 args.top_right (2, 1) double
                 args.bottom_left (2, 1) double
                 args.bottom_right (2, 1) double
-                args.vertices (4, 2) double
+                args.Vertices (4, 2) double
             end
             fields = string(fieldnames(args));
             if length(intersect(fields, ["center", "width", "height"]))==3
@@ -42,7 +42,7 @@ classdef Box < Polygon
             elseif length(intersect(fields, ["bottom-right", "top_left"]))==2
                 obj.set_topleft_bottomright(args.bottom_right, args.top_left);
             elseif length(intersect(fields, "vertices"))==1
-                obj.Vertices = args.vertices;
+                obj.Vertices = args.Vertices;
             end
         end
         function c = get.center(obj)

@@ -16,8 +16,8 @@ pgon.move(1, 2);
 
 
 
-% DSimplePolygon class
-p = DSimplePolygon(Vertices=[1, 2; 3, 1; 4, 5]);
+% Polygon class
+p = Polygon(Vertices=[1, 2; 3, 1; 4, 5]);
 disp(p.Vertices)
 p.plot(FigIndex=1, FaceColor="blue")
 p.Vertices = [0, 2; 3, 2; 5, 8];
@@ -37,7 +37,7 @@ r = q+p;
 r.plot(FigIndex=2)
 
 % Difference
-p = DSimplePolygon(Vertices=[1, 10; 4, 1; 4, 5]);
+p = Polygon(Vertices=[1, 10; 4, 1; 4, 5]);
 r = q-p;
 r.plot(FigIndex=3)
 r = m-[p, q];
@@ -47,7 +47,7 @@ r = m-{p, q};
 r.plot(FigIndex=4)
 
 % Move
-p = DSimplePolygon(Vertices=[1, 10; 4, 1; 4, 5]);
+p = Polygon(Vertices=[1, 10; 4, 1; 4, 5]);
 q = p.copy;
 p.move([0, 2]);
 t = p.intersect(q);

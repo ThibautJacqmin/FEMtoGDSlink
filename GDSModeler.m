@@ -24,7 +24,7 @@ classdef GDSModeler < Klayout
             layer = obj.pylayout.layer(number, 0);
         end
         function add_to_layer(obj, layer, shape)
-            obj.pycell.shapes(layer).insert(shape.p_py);
+            obj.pycell.shapes(layer).insert(shape.pgon_py);
             obj.shape_list{end+1} = shape;
         end
         function resulting_shape = subtract_other_from_first(obj, first_shape, other_shapes, layer)
@@ -56,7 +56,7 @@ classdef GDSModeler < Klayout
                 args.type = 1
             end
             data = load(fullfile("Library", "alignment_mark_type_" + num2str(args.type) +".mat"));
-            mark = DSimplePolygon;
+            mark = Polygon;
             for fieldname=string(fieldnames(data))'
                 mark.p = mark.p.addboundary(data.(fieldname));
             end

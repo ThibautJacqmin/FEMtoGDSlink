@@ -18,13 +18,13 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
     methods
         function obj = Polygon(args)
             arguments
-                args.Vertices (:, 2) double
+                args.Vertices (:, 2) double = [0, 0]
             end
             % Matlab polygon (polyshape)
             obj.pgon = polyshape(args.Vertices);
             % Klayout (Python) polygon (DPolygon)
             obj.pgon_py = obj.pya.Polygon.from_s(...
-                Utilities.vertices_to_string(args.Vertices);
+                Utilities.vertices_to_string(args.Vertices));
         end
         function y = get.Vertices(obj)
             y = obj.pgon.Vertices;
@@ -103,15 +103,15 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
             % This is a wrapper for minus, plus, intersect, and boolean
             % operations. obj2 can be a cell array of objects and operation
             % the operation handle (for Matlab polyshape)
-            temp_obj = obj.p_mat;
+            temp_obj = obj.pgon;
             for o=obj2
                 if iscell(obj2)
                     o = o{1};
                 end
-                temp_obj = operation(temp_obj, o.p_mat, ...
+                temp_obj = operation(temp_obj, o.pgon, ...
                     'KeepCollinearPoints', false);
             end
-            temp_obj = DSimplePolygon(Vertices=temp_obj.Vertices);
+            temp_obj = Polygon(Vertices=temp_obj.Vertices);
         end
         % Plot functions
         function plot(obj, args)
@@ -122,7 +122,7 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
                 args.FaceAlpha = 0.4
             end
             figure(args.FigIndex)
-            obj.p_mat.plot(FaceColor=args.FaceColor, FaceAlpha=args.FaceAlpha);
+            obj.pgon.plot(FaceColor=args.FaceColor, FaceAlpha=args.FaceAlpha);
         end
     end
 end

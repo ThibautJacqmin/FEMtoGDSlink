@@ -1,4 +1,4 @@
-classdef Box < DSimplePolygon
+classdef Box < Polygon
     properties (Dependent)
         center
         height
@@ -96,7 +96,7 @@ classdef Box < DSimplePolygon
             p1 = [obj.right + obj.fillet_width, obj.bottom];
             p2 = [obj.right, obj.bottom + obj.fillet_height];
             fillet_points = Utilities.bezier_fillet(p0, p1, p2);
-            fillet_polygon = DSimplePolygon(vertices=fillet_points);
+            fillet_polygon = Polygon(vertices=fillet_points);
             fillet_polygon.Vertices(end+1, :) = p0;
             fillet_polygons{end+1} = fillet_polygon; 
 

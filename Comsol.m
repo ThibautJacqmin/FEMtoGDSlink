@@ -13,7 +13,10 @@ classdef Comsol < handle
             % Disable Comsol model history
             obj.model.hist.disable;
             % Set working path
-            model.modelPath(pwd);
+            %model.modelPath(pwd);
+        end
+        function start_gui(obj)
+            mphlaunch(obj.model)
         end
     end
 end

@@ -100,21 +100,25 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
         function xor_obj = xor(obj, objects_to_xor)
             xor_obj = obj.apply_operation(objects_to_xor, @xor);
         end
-        function res = apply_operation(obj, obj2, operation)
+        function y = apply_operation(obj, obj2, operation)
             % This is a wrapper for minus, plus, intersect, and boolean
             % operations. obj2 can be a cell array of objects and operation
             % the operation handle (for Matlab polyshape)
             mat_pgon = obj.pgon;
+            region1 = obj.pya.Region(); 
+            region1.insert(obj.pgon_py);
+            region2 = obj.pya.Region();
             for o=obj2
                 if iscell(obj2)
                     o = o{1};
                 end
                 mat_pgon = operation(mat_pgon, o.pgon, ...
                     'KeepCollinearPoints', false);
+                region2.insert(o.pgon_py);
             end
-            res = Polygon();
-            res.pgon = mat_pgon;
-            %res.pgon_py; See subtract_other_from_first in GDSModeler
+            y = Polygon();
+            y.pgon = mat_pgon;
+            y.pgon_py = region1+region2;
         end
         % Plot functions
         function plot(obj, args)

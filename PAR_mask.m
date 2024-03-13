@@ -72,12 +72,12 @@ for tether_width=tether_widths
 end
 
 % % Create box for subtraction
-temp_box = Box(left=top_box.left,...
-               right=top_box.right,...
-               top=tether.top,...
-               bottom=tether.bottom);
+% temp_box = Box(left=top_box.left,...
+%                right=top_box.right,...
+%                top=tether.top,...
+%                bottom=tether.bottom);
 
-modeler.add_to_layer(front_side_layer, temp_box-filleted_tether_list)
+%modeler.add_to_layer(front_side_layer, temp_box-filleted_tether_list)
 
 % mark = model.add_alignment_mark(type=1);
 % mark = mark.translate([0, bottom_box.bottom-1000]);
@@ -85,4 +85,4 @@ modeler.add_to_layer(front_side_layer, temp_box-filleted_tether_list)
 
 
 modeler.plot;
-% model.write("Par_mask_matlab.gds")
+modeler.write("Par_mask_matlab.gds")

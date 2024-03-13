@@ -2,7 +2,7 @@ classdef GDSModeler < Klayout
     properties
         pylayout
         pycell
-        shape_list = {}
+        shapes = {}
         fig
     end
     properties (Constant)
@@ -20,12 +20,12 @@ classdef GDSModeler < Klayout
             obj.fig = figure(1);
             hold on
         end
-        function layer = create_layer(obj, number)
-            layer = obj.pylayout.layer(number, 0);
+        function py_layer = create_layer(obj, number)
+            py_layer = obj.pylayout.layer(string(number));
         end
         function add_to_layer(obj, layer, shape)
             obj.pycell.shapes(layer).insert(shape.pgon_py);
-            obj.shape_list{end+1} = shape;
+            obj.shapes{end+1} = shape.pgon;
         end
         function resulting_shape = subtract_other_from_first(obj, first_shape, other_shapes, layer)
             % first_shape : SHape object
@@ -44,9 +44,10 @@ classdef GDSModeler < Klayout
             obj.pylayout.write(filename);
         end
         function plot(obj)
-            for shape=obj.shape_list
-                obj.fig;
-                shape{1}.plot;
+            for shape=obj.shapes
+                shape = shape{1};
+                figure(obj.fig.Number);
+                shape.plot;
             end
         end
     end

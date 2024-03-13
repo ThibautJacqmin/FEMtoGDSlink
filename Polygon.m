@@ -1,16 +1,13 @@
-classdef Polygon < Klayout & matlab.mixin.Copyable
+classdef Polygon < Klayout
     % A polygon consists of an outer hull and holes. The Polygon class
     % from Klayout stores coordinates in integer. Note that we always
     % set the resolution to 1 nm.
     % https://www.klayout.de/doc/code/class_Polygon.html
     % This class maps a Klayout python polygon onto a Malab polyshape
-    % matlab.mixin.Copyable inheritance adds a copy function (shallow copy)
-    % It allows to copy handles objects with properties, without calling the
-    % constructor. Syntax: q = p.copy, where p is a Polygon object
     properties (Dependent)
         Vertices % Matlab vertices
     end
-    properties 
+    properties
         pgon % matlab polygon
         pgon_py  % python polygon
     end
@@ -105,7 +102,7 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
             % operations. obj2 can be a cell array of objects and operation
             % the operation handle (for Matlab polyshape)
             mat_pgon = obj.pgon;
-            region1 = obj.pya.Region(); 
+            region1 = obj.pya.Region();
             region1.insert(obj.pgon_py);
             region2 = obj.pya.Region();
             for o=obj2
@@ -130,6 +127,12 @@ classdef Polygon < Klayout & matlab.mixin.Copyable
             end
             figure(args.FigIndex)
             obj.pgon.plot(FaceColor=args.FaceColor, FaceAlpha=args.FaceAlpha);
+        end
+        % Copy function
+        function y = copy(obj)
+            y = Polygon();
+            y.pgon = obj.pgon;
+            y.pgon_py = obj.pgon_py;
         end
     end
 end

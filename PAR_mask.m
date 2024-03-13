@@ -49,7 +49,7 @@ modeler.add_to_layer(back_side_layer, bottom_box)
 modeler.add_to_layer(back_side_layer, top_box)
 
 % FRONT SIDE LAYER
-front_side_layer = modeler.create_layer(2);Polygon
+front_side_layer = modeler.create_layer(2);
 filleted_tether_list = {};
 previous_tether_width = 0;
 i = 1;

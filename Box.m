@@ -41,8 +41,10 @@ classdef Box < Polygon
                 obj.set_bottomleft_topright(args.bottom_left, args.top_right);
             elseif length(intersect(fields, ["bottom-right", "top_left"]))==2
                 obj.set_topleft_bottomright(args.bottom_right, args.top_left);
-            elseif length(intersect(fields, "vertices"))==1
+            elseif length(intersect(fields, "Vertices"))==1
                 obj.Vertices = args.Vertices;
+                obj.pgon_py = obj.pya.Polygon.from_s(...
+                    Utilities.vertices_to_string(args.Vertices));
             end
         end
         function c = get.center(obj)
@@ -98,7 +100,7 @@ classdef Box < Polygon
             fillet_points = Utilities.bezier_fillet(p0, p1, p2);
             fillet_polygon = Polygon(vertices=fillet_points);
             fillet_polygon.Vertices(end+1, :) = p0;
-            fillet_polygons{end+1} = fillet_polygon; 
+            fillet_polygons{end+1} = fillet_polygon;
 
             fillet_polygon_1 = copy(fillet_polygon);
             fillet_polygon_1.flip_horizontally((obj.left+obj.right)/2);
@@ -106,12 +108,16 @@ classdef Box < Polygon
 
             fillet_polygon_2 = copy(fillet_polygon);
             fillet_polygon_2.flip_vertically((obj.top+obj.bottom)/2);
-            fillet_polygons{end+1} = fillet_polygon_2;  
+            fillet_polygons{end+1} = fillet_polygon_2;
 
             fillet_polygon_3 = copy(fillet_polygon_2);
             fillet_polygon_3.flip_horizontally((obj.left+obj.right)/2);
-            fillet_polygons{end+1} = fillet_polygon_3;  
+            fillet_polygons{end+1} = fillet_polygon_3;
 
+        end
+        % Copy function
+        function y = copy(obj)
+            y = Box(vertices=obj.Vertices);
         end
     end
     methods (Access=private)
@@ -121,9 +127,13 @@ classdef Box < Polygon
             t = center(2)+height/2;
             b = center(2)-height/2;
             obj.Vertices = [l, b; l, t; r, t; r, b];
+            obj.pgon_py = obj.pya.Polygon.from_s(...
+                Utilities.vertices_to_string(obj.Vertices));
         end
         function set_left_right_bottom_top(obj, l, r, b, t)
             obj.Vertices = [l, b; l, t; r, t; r, b];
+            obj.pgon_py = obj.pya.Polygon.from_s(...
+                Utilities.vertices_to_string(obj.Vertices));
         end
         function set_bottomleft_topright(obj, bottom_left, top_right)
             l = bottom_left(1);
@@ -131,6 +141,8 @@ classdef Box < Polygon
             t = top_right(2);
             b = bottom_left(2);
             obj.Vertices = [l, b; l, t; r, t; r, b];
+            obj.pgon_py = obj.pya.Polygon.from_s(...
+                Utilities.vertices_to_string(obj.Vertices));
         end
         function set_topleft_bottomright(obj, bottom_right, top_left)
             l = top_left(1);
@@ -138,6 +150,9 @@ classdef Box < Polygon
             t = top_left(2);
             b = bottom_right(2);
             obj.Vertices = [l, b; l, t; r, t; r, b];
+            obj.pgon_py = obj.pya.Polygon.from_s(...
+                Utilities.vertices_to_string(obj.Vertices));
         end
+
     end
 end

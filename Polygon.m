@@ -125,7 +125,7 @@ classdef Polygon < Klayout
             region2 = obj.pya.Region();
             mat_pgon = operation(mat_pgon, obj2.pgon, ...
                     'KeepCollinearPoints', false);
-                region2.insert(obj2.pgon_py);
+            region2.insert(obj2.pgon_py);
             y = Polygon;
             y.pgon = mat_pgon;
             % Perform the Python operation on klayout polygon

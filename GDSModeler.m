@@ -7,7 +7,7 @@ classdef GDSModeler < Klayout
     end
     properties (Constant)
         % Set unit length (1 is 1 µm, and default is 1 nm)
-        pydbu = 0.001
+        pydbu = 0.001 % 1 nm
     end
     methods
         function obj = GDSModeler
@@ -55,16 +55,17 @@ classdef GDSModeler < Klayout
                 shape_to_plot.plot;
             end
         end
-    end
-    methods (Static)
-        function mark = add_alignment_mark(args)
+        function mark = add_alignment_mark(obj, args)
             arguments
+                obj
                 args.type = 1
             end
             data = load(fullfile("Library", "alignment_mark_type_" + num2str(args.type) +".mat"));
             mark = Polygon;
+            mark.pgon_py = obj.pya.Region();
             for fieldname=string(fieldnames(data))'
-                mark.pgon = mark.pgon.addboundary(data.(fieldname));
+                mark.pgon = mark.pgon.addboundary(data.(fieldname)*1e3);
+                mark.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_string(data.(fieldname)*1e3)));
             end
         end
     end

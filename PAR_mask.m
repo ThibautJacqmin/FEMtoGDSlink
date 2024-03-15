@@ -6,18 +6,18 @@ modeler = GDSModeler;
 wafer_thickness = 280e3; 
 etching_angle = 54.74;
 etching_distance = wafer_thickness/tan(etching_angle*pi/180);
-mesa_SIN_suspension_width = 10e3;
-mesa_SI_suspension_width = 10e3;
+mesa_SIN_suspension_width = 15e3;
+mesa_SI_suspension_width = 15e3;
 
 
 % "Structure" refers to front side SiN structures, not backside
-structure_width = 3000e3;
+structure_width = 4000e3;
 tether_length = 2000e3;
-mesa_rough_height = 3000e3;
-tether_widths = [repmat([150, 50, 25, 10]*1e3, 1, 3), 150];
-tether_spacing = (structure_width -2*etching_distance -...
-                  2*mesa_SIN_suspension_width - ...
-                  sum(tether_widths))/(length(tether_widths)-1);
+mesa_rough_height = 4000e3;
+tether_widths = [repmat([120, 80, 60, 40, 20], 1, 4), 120]*1e3;
+tether_spacing = (structure_width -2*etching_distance...
+                  - 2*mesa_SIN_suspension_width...
+                  - sum(tether_widths))/(length(tether_widths)-1);
 disp("tether_spacing " + num2str(tether_spacing))
 fillet_width = tether_spacing/2;
 fillet_height = 120e3;
@@ -81,9 +81,8 @@ end
 modeler.add_to_layer(front_side_layer, temp_box)
 
 mark = modeler.add_alignment_mark(type=1);
-mark.move([0, bottom_box.bottom-1000]);
+mark.move([0, bottom_box.bottom-1000e3]);
 modeler.add_to_layer(front_side_layer, mark);
-
 
 modeler.plot;
 modeler.write("Par_mask_matlab.gds")

@@ -81,7 +81,7 @@ end
 modeler.add_to_layer(front_side_layer, temp_box)
 
 mark = modeler.add_alignment_mark(type=1);
-mark.move([0, bottom_box.bottom-1000]);
+mark.move([0, bottom_box.bottom-1000e3]);
 modeler.add_to_layer(front_side_layer, mark);
 
 

@@ -157,7 +157,14 @@ classdef Polygon < Klayout
         function y = copy(obj)
             y = Polygon;
             y.pgon = obj.pgon; % polyshape is copyable
-            y.pgon_py = obj.pya.Polygon.from_s(obj.pgon_py.to_s);
+            if isa(obj.pgon_py, 'py.klayout.dbcore.Region')
+                % If klayout region
+                y.pgon_py = obj.pya.Region();
+                y.pgon_py.insert(obj.pgon_py);
+            else % if klayout polygon
+                y.pgon_py = obj.pya.Polygon.from_s(obj.pgon_py.to_s);
+            end
+            
         end
     end
 end

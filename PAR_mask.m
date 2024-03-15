@@ -6,8 +6,8 @@ modeler = GDSModeler;
 wafer_thickness = 280e3; 
 etching_angle = 54.74;
 etching_distance = wafer_thickness/tan(etching_angle*pi/180);
-mesa_SIN_suspension_width = 15e3;
-mesa_SI_suspension_width = 15e3;
+mesa_SIN_suspension_width = 20e3;
+mesa_SI_suspension_width = 5e3;
 
 
 % "Structure" refers to front side SiN structures, not backside
@@ -74,15 +74,19 @@ temp_box = Box(left=top_box.left,...
                right=top_box.right,...
                top=tether.top,...
                bottom=tether.bottom);
-
+% Subtract
 for i = 1:length(tethers)
      temp_box = temp_box-tethers{i};
 end
-modeler.add_to_layer(front_side_layer, temp_box)
+modeler.add_to_layer(front_side_layer, temp_box);
 
+% Add alignment mark
 mark = modeler.add_alignment_mark(type=1);
 mark.move([0, bottom_box.bottom-1000e3]);
 modeler.add_to_layer(front_side_layer, mark);
+
+% Make array
+modeler.make_array(10000*1e3, 0, 3, 1);
 
 modeler.plot;
 modeler.write("Par_mask_matlab.gds")

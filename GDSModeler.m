@@ -25,24 +25,39 @@ classdef GDSModeler < Klayout
         end
         function add_to_layer(obj, layer, shape)
             obj.pycell.shapes(layer).insert(shape.pgon_py);
-            obj.shapes{end+1} = shape.pgon;
-        end
-        function resulting_shape = subtract_other_from_first(obj, first_shape, other_shapes, layer)
-            % first_shape : SHape object
-            % other_shapes : cellarray of Shape objects
-            % layer : layer where to insert the result
-            region1 = obj.pya.Region();
-            region1.insert(first_shape.get_python_obj);
-            region2 = obj.pya.Region();
-            for shape=other_shapes
-                region2.insert(shape{1}.get_python_obj);
-            end
-            resulting_shape = region1+region2;
-            obj.pycell.shapes(layer).insert(resulting_shape);
+            obj.shapes{end+1}.layer = int8(layer);
+            obj.shapes{end}.shape = shape;
         end
         function write(obj, filename)
             obj.pylayout.write(filename);
         end
+        function make_array(obj, x, y, nx, ny, args)
+            % Make an array of size nx x ny
+            % with all shapes from a given layer 
+            % or with a given shape
+            % or without optional argument : the whole design 
+            % (only implementation now)
+            arguments
+                obj
+                x
+                y
+                nx
+                ny
+                args.layer
+            end
+            i = 0;
+            for shape=obj.shapes
+                i = i+1
+                for ix = 1:nx
+                    for iy = 1:ny
+                        shape_copy = shape{1}.shape.copy;                  
+                        shape_copy.move([ix*x, iy*y]);
+                        obj.add_to_layer(shape{1}.layer, shape_copy);  
+                    end
+                end
+            end
+        end
+
         function plot(obj)
             for shape=obj.shapes
                 shape_to_plot = shape{1};
@@ -52,7 +67,7 @@ classdef GDSModeler < Klayout
                     obj.fig = figure(1);
                     hold on
                 end
-                shape_to_plot.plot;
+                shape_to_plot.shape.plot;
             end
         end
         function mark = add_alignment_mark(obj, args)

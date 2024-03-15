@@ -31,6 +31,8 @@ classdef Box < Polygon
                 args.bottom_left (2, 1) double
                 args.bottom_right (2, 1) double
                 args.Vertices (4, 2) double
+                args.fillet_width double=1
+                args.fillet_height double=1
             end
             fields = string(fieldnames(args));
             if length(intersect(fields, ["center", "width", "height"]))==3
@@ -46,6 +48,8 @@ classdef Box < Polygon
                 obj.pgon_py = obj.pya.Polygon.from_s(...
                     Utilities.vertices_to_string(args.Vertices));
             end
+            obj.fillet_height = args.fillet_height;
+            obj.fillet_width = args.fillet_width;
         end
         function c = get.center(obj)
             x = obj.left + obj.width/2;
@@ -98,22 +102,23 @@ classdef Box < Polygon
             p1 = [obj.right + obj.fillet_width, obj.bottom];
             p2 = [obj.right, obj.bottom + obj.fillet_height];
             fillet_points = Utilities.bezier_fillet(p0, p1, p2);
+            fillet_points(end+1, :) = p2;
+            fillet_points(end+1, :) = p0;
+            fillet_points(end+1, :) = p1;
             fillet_polygon = Polygon(vertices=fillet_points);
-            fillet_polygon.Vertices(end+1, :) = p0;
             fillet_polygons{end+1} = fillet_polygon;
 
-            fillet_polygon_1 = copy(fillet_polygon);
+            fillet_polygon_1 = fillet_polygon.copy;
             fillet_polygon_1.flip_horizontally((obj.left+obj.right)/2);
             fillet_polygons{end+1} = fillet_polygon_1;
 
-            fillet_polygon_2 = copy(fillet_polygon);
+            fillet_polygon_2 = fillet_polygon.copy;
             fillet_polygon_2.flip_vertically((obj.top+obj.bottom)/2);
             fillet_polygons{end+1} = fillet_polygon_2;
 
-            fillet_polygon_3 = copy(fillet_polygon_2);
+            fillet_polygon_3 = fillet_polygon_2.copy;
             fillet_polygon_3.flip_horizontally((obj.left+obj.right)/2);
             fillet_polygons{end+1} = fillet_polygon_3;
-
         end
         % Copy function
         function y = copy(obj)

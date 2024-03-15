@@ -45,9 +45,14 @@ classdef GDSModeler < Klayout
         end
         function plot(obj)
             for shape=obj.shapes
-                shape = shape{1};
-                figure(obj.fig.Number);
-                shape.plot;
+                shape_to_plot = shape{1};
+                try
+                    figure(obj.fig.Number);
+                catch
+                    obj.fig = figure(1);
+                    hold on
+                end
+                shape_to_plot.plot;
             end
         end
     end
@@ -59,7 +64,7 @@ classdef GDSModeler < Klayout
             data = load(fullfile("Library", "alignment_mark_type_" + num2str(args.type) +".mat"));
             mark = Polygon;
             for fieldname=string(fieldnames(data))'
-                mark.p = mark.p.addboundary(data.(fieldname));
+                mark.pgon = mark.pgon.addboundary(data.(fieldname));
             end
         end
     end

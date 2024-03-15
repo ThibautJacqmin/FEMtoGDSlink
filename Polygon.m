@@ -71,8 +71,11 @@ classdef Polygon < Klayout
             end
             % Matlab
             obj.Vertices(:, 1) = 2*axis - obj.Vertices(:, 1);
-            % Python : Use Trans.M0, ... mirror and 90° rot implemented
-            % there
+            % Python
+            obj.pgon_py.move(-axis, 0);
+            mirrorX = obj.pya.Trans.M90;
+            obj.pgon_py.transform(mirrorX);
+            obj.pgon_py.move(axis, 0);
         end
         function flip_vertically(obj, axis)
             arguments
@@ -80,42 +83,64 @@ classdef Polygon < Klayout
                 axis double = 0
             end
             obj.Vertices(:, 2) = 2*axis - obj.Vertices(:, 2);
-            % Python : Use Trans.M0, ... mirror and 90° rot implemented
-            % there
+            % Python
+            obj.pgon_py.move(0, -axis);
+            mirrorY = obj.pya.Trans.M0;
+            obj.pgon_py.transform(mirrorY);
+            obj.pgon_py.move(0, axis);
         end
 
         % Boolean operations
-        function sub_obj = minus(obj, objects_to_subtract)
-            sub_obj = obj.apply_operation(objects_to_subtract, @subtract);
+        function sub_obj = minus(obj, object_to_subtract)
+            sub_obj = obj.apply_operation(object_to_subtract, "subtract");
         end
-        function add_obj = plus(obj, objects_to_add)
-            add_obj = obj.apply_operation(objects_to_add, @union);
+        function add_obj = plus(obj, object_to_add)
+            add_obj = obj.apply_operation(object_to_add, "union");
         end
-        function intersection_obj = intersect(obj, objects_to_intersect)
-            intersection_obj = obj.apply_operation(objects_to_intersect, @intersect);
+        function intersection_obj = intersect(obj, object_to_intersect)
+            intersection_obj = obj.apply_operation(object_to_intersect, "intersect");
         end
-        function xor_obj = xor(obj, objects_to_xor)
-            xor_obj = obj.apply_operation(objects_to_xor, @xor);
+        function xor_obj = xor(obj, object_to_xor)
+            xor_obj = obj.apply_operation(object_to_xor, "xor");
         end
-        function y = apply_operation(obj, obj2, operation)
+        function y = apply_operation(obj, obj2, operation_name)
             % This is a wrapper for minus, plus, intersect, and boolean
             % operations. obj2 can be a cell array of objects and operation
             % the operation handle (for Matlab polyshape)
+
+            % Define the matlab operation on polyshape
+            switch operation_name
+                case "subtract"
+                    operation = @subtract;
+                case "union"
+                    operation = @union;
+                case "intersect"
+                    operation = @intersect;
+                case "xor"
+                    operation = @xor;
+            end
             mat_pgon = obj.pgon;
             region1 = obj.pya.Region();
             region1.insert(obj.pgon_py);
             region2 = obj.pya.Region();
-            for o=obj2
-                if iscell(obj2)
-                    o = o{1};
-                end
-                mat_pgon = operation(mat_pgon, o.pgon, ...
+            mat_pgon = operation(mat_pgon, obj2.pgon, ...
                     'KeepCollinearPoints', false);
-                region2.insert(o.pgon_py);
-            end
-            y = Polygon();
+                region2.insert(obj2.pgon_py);
+            y = Polygon;
             y.pgon = mat_pgon;
-            y.pgon_py = region1+region2;
+            % Perform the Python operation on klayout polygon
+            switch operation_name
+                case "subtract"
+                    region = region1-region2;
+                case "union"
+                    region = region1+region2;
+                case "intersect"
+                    % Weird that and_ is implemented and not and...
+                    region = region1.and_(region2);
+                case "xor"
+                    region = region1.xor(region2);
+            end
+            y.pgon_py = region.merge;
         end
         % Plot functions
         function plot(obj, args)
@@ -130,9 +155,9 @@ classdef Polygon < Klayout
         end
         % Copy function
         function y = copy(obj)
-            y = Polygon();
-            y.pgon = obj.pgon;
-            y.pgon_py = obj.pgon_py;
+            y = Polygon;
+            y.pgon = obj.pgon; % polyshape is copyable
+            y.pgon_py = obj.pya.Polygon.from_s(obj.pgon_py.to_s);
         end
     end
 end

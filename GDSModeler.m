@@ -45,9 +45,7 @@ classdef GDSModeler < Klayout
                 ny
                 args.layer
             end
-            i = 0;
             for shape=obj.shapes
-                i = i+1
                 for ix = 1:nx
                     for iy = 1:ny
                         shape_copy = shape{1}.shape.copy;                  
@@ -67,7 +65,14 @@ classdef GDSModeler < Klayout
                     obj.fig = figure(1);
                     hold on
                 end
+                n = double(shape{1}.layer+int8(1));
+                subplot(2, 2, n)
+                hold on
                 shape_to_plot.shape.plot;
+                subplot(2, 2, 4)
+                hold on
+                shape_to_plot.shape.plot;
+                title('All layers')
             end
         end
         function mark = add_alignment_mark(obj, args)

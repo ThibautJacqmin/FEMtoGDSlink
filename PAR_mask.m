@@ -1,6 +1,6 @@
 % Transformer ce fichier en classe avec fonction pour ajouter les
 % propriétés automatiquement
-
+warning('off');
 modeler = GDSModeler;
 
 wafer_thickness = 280e3; 

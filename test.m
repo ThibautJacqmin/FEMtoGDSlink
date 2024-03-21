@@ -40,51 +40,48 @@ r.plot(FigIndex=2)
 p = Polygon(Vertices=[1, 10; 4, 1; 4, 5]);
 r = q-p;
 r.plot(FigIndex=3)
-r = m-[p, q];
+r = m-p-q;
 r.plot(FigIndex=3)
-
-r = m-{p, q};
-r.plot(FigIndex=4)
 
 % Move
 p = Polygon(Vertices=[1, 10; 4, 1; 4, 5]);
 q = p.copy;
 p.move([0, 2]);
 t = p.intersect(q);
-q.plot(FigIndex=5, FaceColor="red")
+q.plot(FigIndex=4, FaceColor="red")
+hold on
+p.plot(FigIndex=4, FaceColor="blue")
+t.plot(FigIndex=4, FaceColor="black", FaceAlpha = 1)
+
+% XOR
+t = m.xor(p);
+m.plot(FigIndex=5, FaceColor="red")
 hold on
 p.plot(FigIndex=5, FaceColor="blue")
 t.plot(FigIndex=5, FaceColor="black", FaceAlpha = 1)
 
-% XOR
-t = m.xor(p);
-m.plot(FigIndex=6, FaceColor="red")
-hold on
-p.plot(FigIndex=6, FaceColor="blue")
-t.plot(FigIndex=6, FaceColor="black", FaceAlpha = 1)
-
 % Rotate
 y = p.copy;
 p.rotate(25, [1, 2]);
+y.plot(FigIndex=6, FaceColor="blue")
+hold on
+p.plot(FigIndex=6, FaceColor="red")
+
+% Scale
+y = p.copy;
+p.scale(4);
 y.plot(FigIndex=7, FaceColor="blue")
 hold on
 p.plot(FigIndex=7, FaceColor="red")
 
-% Scale
-y = p.copy;
-p.scale(4, [1, 2]);
-y.plot(FigIndex=8, FaceColor="blue")
-hold on
-p.plot(FigIndex=8, FaceColor="red")
-
 % Flip horizontally
-p.plot(FigIndex=9)
+p.plot(FigIndex=8)
 hold on
 p.flip_horizontally;
-p.plot(FigIndex=9)
+p.plot(FigIndex=8)
 
 % Flip vertically
-p.plot(FigIndex=10)
+p.plot(FigIndex=9)
 hold on
 p.flip_vertically;
-p.plot(FigIndex=10)
+p.plot(FigIndex=9)

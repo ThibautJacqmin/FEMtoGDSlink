@@ -33,7 +33,17 @@ classdef Box < Polygon
                 args.Vertices (4, 2) double
                 args.fillet_width double=1
                 args.fillet_height double=1
+                args.comsol_modeler ComsolModeler=ComsolModeler.empty
             end
+            % Comsol
+            obj.comsol_modeler = args.comsol_modeler;
+            obj.comsol_flag = ~isempty(obj.comsol_modeler);
+            obj.comsol_name = 'rect';
+            if obj.comsol_flag
+                index = obj.comsol_modeler.get_next_index(obj.comsol_name);
+                obj.comsol_shape = obj.comsol_modeler.geometry.create(obj.comsol_name+string(index), 'Rectangle');
+            end
+
             fields = string(fieldnames(args));
             if length(intersect(fields, ["center", "width", "height"]))==3
                 obj.set_center_height_width(args.center, args.height, args.width);
@@ -47,6 +57,8 @@ classdef Box < Polygon
                 obj.Vertices = args.Vertices;
                 obj.pgon_py = obj.pya.Polygon.from_s(...
                     Utilities.vertices_to_string(args.Vertices));
+                obj.set_comsol_rectangle(args.Vertices(1, 1), args.Vertices(4, 1), ...
+                                         args.Vertices(3, 2), args.Vertices(1, 2));
             end
             obj.fillet_height = args.fillet_height;
             obj.fillet_width = args.fillet_width;
@@ -105,7 +117,11 @@ classdef Box < Polygon
             fillet_points(end+1, :) = p2;
             fillet_points(end+1, :) = p0;
             fillet_points(end+1, :) = p1;
-            fillet_polygon = Polygon(vertices=fillet_points);
+            if obj.comsol_flag
+                fillet_polygon = Polygon(vertices=fillet_points, comsol_modeler=obj.comsol_modeler);
+            else
+                fillet_polygon = Polygon(vertices=fillet_points);
+            end
             fillet_polygons{end+1} = fillet_polygon;
 
             fillet_polygon_1 = fillet_polygon.copy;
@@ -122,7 +138,7 @@ classdef Box < Polygon
         end
         % Copy function
         function y = copy(obj)
-            y = Box(vertices=obj.Vertices);
+            y = Box(vertices=obj.Vertices, comsol_modeler=obj.comsol_modeler);
         end
     end
     methods (Access=private)
@@ -134,11 +150,13 @@ classdef Box < Polygon
             obj.Vertices = [l, b; l, t; r, t; r, b];
             obj.pgon_py = obj.pya.Polygon.from_s(...
                 Utilities.vertices_to_string(obj.Vertices));
+            obj.set_comsol_rectangle(l, r, t, b);
         end
         function set_left_right_bottom_top(obj, l, r, b, t)
             obj.Vertices = [l, b; l, t; r, t; r, b];
             obj.pgon_py = obj.pya.Polygon.from_s(...
                 Utilities.vertices_to_string(obj.Vertices));
+            obj.set_comsol_rectangle(l, r, t, b);
         end
         function set_bottomleft_topright(obj, bottom_left, top_right)
             l = bottom_left(1);
@@ -148,6 +166,7 @@ classdef Box < Polygon
             obj.Vertices = [l, b; l, t; r, t; r, b];
             obj.pgon_py = obj.pya.Polygon.from_s(...
                 Utilities.vertices_to_string(obj.Vertices));
+            obj.set_comsol_rectangle(l, r, t, b);
         end
         function set_topleft_bottomright(obj, bottom_right, top_left)
             l = top_left(1);
@@ -157,7 +176,17 @@ classdef Box < Polygon
             obj.Vertices = [l, b; l, t; r, t; r, b];
             obj.pgon_py = obj.pya.Polygon.from_s(...
                 Utilities.vertices_to_string(obj.Vertices));
+            obj.set_comsol_rectangle(l, r, t, b);
         end
-
+    end
+    methods (Hidden)
+        function set_comsol_rectangle(obj, l, r, t, b)
+            if obj.comsol_flag
+                obj.comsol_shape.set('base', 'corner');
+                obj.comsol_shape.set('x', l);
+                obj.comsol_shape.set('y', b);
+                obj.comsol_shape.set('size', [abs(r-l), abs(t-b)]);
+            end
+        end
     end
 end

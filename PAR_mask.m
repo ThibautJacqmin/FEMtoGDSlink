@@ -1,7 +1,8 @@
 % Transformer ce fichier en classe avec fonction pour ajouter les
 % propriétés automatiquement
 warning('off');
-modeler = GDSModeler;
+gds_modeler = GDSModeler;
+%comsol_modeler = ComsolModeler;
 
 wafer_thickness = 280e3; 
 etching_angle = 54.74;
@@ -23,7 +24,7 @@ fillet_width = tether_spacing/2;
 fillet_height = 120e3;
 
 % BACK SIDE LAYER
-back_side_layer = modeler.create_layer(1);
+back_side_layer = gds_modeler.create_layer(1);
 
 % Back side rectangle opening for tethers defined with center, width and height
 top_box = Box(center=[0, 0], ...
@@ -44,25 +45,26 @@ bottom_box = Box(left=left_box.left, ...
                  bottom=left_box.bottom-mesa_SI_suspension_width, ...
                  top=left_box.bottom-mesa_SI_suspension_width-2*etching_distance);
 
-modeler.add_to_layer(back_side_layer, left_box)
-modeler.add_to_layer(back_side_layer, right_box)
-modeler.add_to_layer(back_side_layer, bottom_box)
-modeler.add_to_layer(back_side_layer, top_box)
+gds_modeler.add_to_layer(back_side_layer, left_box)
+gds_modeler.add_to_layer(back_side_layer, right_box)
+gds_modeler.add_to_layer(back_side_layer, bottom_box)
+gds_modeler.add_to_layer(back_side_layer, top_box)
 
 % FRONT SIDE LAYER
-front_side_layer = modeler.create_layer(2);
+front_side_layer = gds_modeler.create_layer(2);
 fillets = {};
 tethers = {};
 previous_tether_width = 0;
 i = 1;
-for tether_width=tether_widths
+for tether_width=tether_widths(1)
     accumulated_width = sum(previous_tether_width);
     tether = Box(left=left_box.right+(i-1)*tether_spacing + accumulated_width, ...
                  right=left_box.right + tether_width + (i-1)*tether_spacing + accumulated_width,...
                  bottom=top_box.bottom + etching_distance, ...
                  top=top_box.top - etching_distance,...
                  fillet_height=fillet_height,...
-                 fillet_width=fillet_width);
+                 fillet_width=fillet_width, ...
+                 comsol_modeler=comsol_modeler);
     fillets = tether.get_fillets;
     tethers{end+1} = tether+fillets{1}+fillets{2}+fillets{3}+fillets{4};
     previous_tether_width(end+1) = tether_width;
@@ -78,15 +80,15 @@ temp_box = Box(left=top_box.left,...
 for i = 1:length(tethers)
      temp_box = temp_box-tethers{i};
 end
-modeler.add_to_layer(front_side_layer, temp_box);
+gds_modeler.add_to_layer(front_side_layer, temp_box);
 
 % Add alignment mark
-mark = modeler.add_alignment_mark(type=1);
+mark = gds_modeler.add_alignment_mark(type=1);
 mark.move([0, bottom_box.bottom-1000e3]);
-modeler.add_to_layer(front_side_layer, mark);
+gds_modeler.add_to_layer(front_side_layer, mark);
 
 % Make array
-modeler.make_array(10000*1e3, 0, 3, 1);
+gds_modeler.make_array(10000*1e3, 0, 3, 1);
 
-modeler.plot;
-modeler.write("Par_mask_matlab.gds")
+gds_modeler.plot;
+gds_modeler.write("Par_mask_matlab.gds")

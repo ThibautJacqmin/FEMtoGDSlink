@@ -10,17 +10,34 @@ classdef Polygon < Klayout
     properties
         pgon % matlab polygon
         pgon_py  % python polygon
+        comsol_flag = false
+        comsol_modeler
+        comsol_shape
+        comsol_name
     end
     methods
         function obj = Polygon(args)
             arguments
                 args.Vertices (:, 2) double = [0, 0]
+                args.comsol_modeler ComsolModeler=ComsolModeler.empty
             end
             % Matlab polygon (polyshape)
             obj.pgon = polyshape(args.Vertices);
             % Klayout (Python) Polygon
             obj.pgon_py = obj.pya.Polygon.from_s(...
                 Utilities.vertices_to_string(args.Vertices));
+            % Comsol
+            obj.comsol_modeler = args.comsol_modeler;
+            obj.comsol_flag = ~isempty(obj.comsol_modeler);
+            obj.comsol_name = 'pol';
+            if obj.comsol_flag
+                index = obj.comsol_modeler.get_next_index(obj.comsol_name);
+                obj.comsol_shape = obj.comsol_modeler.geometry.create(obj.comsol_name+string(index), 'Polygon');
+                x_values = Utilities.vertices_to_string(obj.Vertices(:, 1), true);
+                y_values = Utilities.vertices_to_string(obj.Vertices(:, 2), true);
+                obj.comsol_shape.set('x', x_values);
+                obj.comsol_shape.set('y', y_values);
+            end
         end
         function y = get.Vertices(obj)
             y = obj.pgon.Vertices;
@@ -38,6 +55,16 @@ classdef Polygon < Klayout
             obj.Vertices = moved_mat_pgon.Vertices;
             % Python
             obj.pgon_py.move(vector(1), vector(2));
+            % Comsol
+            if obj.comsol_flag
+                ind = obj.comsol_modeler.get_next_index('mov');
+                move_object =obj.comsol_modeler.geometry.create("mov"+ind, "Move");           
+                move_object.set('displx', vector(1));
+                move_object.set('disply', vector(2));
+                move_object.selection('input').set(string(obj.comsol_shape.tag));
+                obj.comsol_shape = move_object;
+                obj.comsol_name = 'mmov';
+            end
         end
         function rotate(obj, angle, reference_point)
             arguments
@@ -55,6 +82,16 @@ classdef Polygon < Klayout
             rotation = obj.pya.CplxTrans(1, angle, py.bool(0), 0, 0);
             obj.pgon_py.transform(rotation);
             obj.pgon_py.move(reference_point(1), reference_point(2));
+            % Comsol
+            if obj.comsol_flag
+                ind = obj.comsol_modeler.get_next_index('rot');
+                rot_object = obj.comsol_modeler.geometry.create("rot"+ind, "Rotate");
+                rot_object.set('rot', angle);
+                rot_object.set('pos', reference_point);
+                rot_object.selection('input').set(string(obj.comsol_shape.tag));
+                obj.comsol_shape = sca_object;
+                obj.comsol_name = 'sca';
+            end
         end
         function scale(obj, scaling_factor)
             % Matlab
@@ -63,6 +100,15 @@ classdef Polygon < Klayout
             % Python
             scaling = obj.pya.CplxTrans(scaling_factor);
             obj.pgon_py.transform(scaling);
+            % Comsol
+            if obj.comsol_flag
+                ind = obj.comsol_modeler.get_next_index('sca');
+                sca_object = obj.comsol_modeler.geometry.create("sca"+ind, "Scale");
+                sca_object.set('factor', scaling_factor);
+                sca_object.selection('input').set(string(obj.comsol_shape.tag));
+                obj.comsol_shape = sca_object;
+                obj.comsol_name = 'sca';
+            end
         end
         function flip_horizontally(obj, axis)
             arguments
@@ -76,6 +122,16 @@ classdef Polygon < Klayout
             mirrorX = obj.pya.Trans.M90;
             obj.pgon_py.transform(mirrorX);
             obj.pgon_py.move(axis, 0);
+            % Comsol
+            if obj.comsol_flag
+                ind = obj.comsol_modeler.get_next_index('mir');
+                mir_object = obj.comsol_modeler.geometry.create("mir"+ind, "Mirror");
+                mir_object.set('pos', [axis, 0]); % point on reflexion axis
+                mir_object.set('axis', [1, 0]); % normal to reflexion axis
+                mir_object.selection('input').set(string(obj.comsol_shape.tag));
+                obj.comsol_shape = mir_object;
+                obj.comsol_name = 'mir';
+            end
         end
         function flip_vertically(obj, axis)
             arguments
@@ -88,6 +144,16 @@ classdef Polygon < Klayout
             mirrorY = obj.pya.Trans.M0;
             obj.pgon_py.transform(mirrorY);
             obj.pgon_py.move(0, axis);
+            % Comsol
+            if obj.comsol_flag
+                ind = obj.comsol_modeler.get_next_index('mir');
+                mir_object = obj.comsol_modeler.geometry.create("mir"+ind, "Mirror");
+                mir_object.set('pos', [0, axis]); % point on reflexion axis
+                mir_object.set('axis', [0, 1]); % normal to reflexion axis
+                mir_object.selection('input').set(string(obj.comsol_shape.tag));
+                obj.comsol_shape = mir_object;
+                obj.comsol_name = 'mir';
+            end
         end
 
         % Boolean operations
@@ -124,7 +190,7 @@ classdef Polygon < Klayout
             region1.insert(obj.pgon_py);
             region2 = obj.pya.Region();
             mat_pgon = operation(mat_pgon, obj2.pgon, ...
-                    'KeepCollinearPoints', false);
+                'KeepCollinearPoints', false);
             region2.insert(obj2.pgon_py);
             y = Polygon;
             y.pgon = mat_pgon;
@@ -156,7 +222,9 @@ classdef Polygon < Klayout
         % Copy function
         function y = copy(obj)
             y = Polygon;
+            % Matlab
             y.pgon = obj.pgon; % polyshape is copyable
+            % Klayout
             if isa(obj.pgon_py, 'py.klayout.dbcore.Region')
                 % If klayout region
                 y.pgon_py = obj.pya.Region();
@@ -164,7 +232,15 @@ classdef Polygon < Klayout
             else % if klayout polygon
                 y.pgon_py = obj.pya.Polygon.from_s(obj.pgon_py.to_s);
             end
-            
+            % Comsol
+            if obj.comsol_flag
+                y.comsol_modeler = obj.comsol_modeler;
+                y.comsol_flag = obj.comsol_flag;
+                ind = obj.comsol_modeler.get_next_index('copy');
+                y.comsol_name = "copy"+ind;
+                y.comsol_shape = obj.comsol_modeler.geometry.create(y.comsol_name, "Copy");
+                y.comsol_shape.selection('input').set(string(obj.comsol_shape.tag));
+            end
         end
     end
 end

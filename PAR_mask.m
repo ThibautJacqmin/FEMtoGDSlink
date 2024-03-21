@@ -92,3 +92,7 @@ gds_modeler.make_array(10000*1e3, 0, 3, 1);
 
 gds_modeler.plot;
 gds_modeler.write("Par_mask_matlab.gds")
+% Plot Comsol geometry in Matlab 
+comsol_modeler.plot;
+% Export model in .m file
+% comsol_modeler.save_to_m_file;

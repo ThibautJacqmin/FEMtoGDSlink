@@ -3,6 +3,7 @@ classdef ComsolModeler < handle
         model
         component
         geometry
+        mesh
     end
     methods
         function obj = ComsolModeler
@@ -50,9 +51,56 @@ classdef ComsolModeler < handle
             end
             obj.model.param.set(name, string(value)+"["+num2str(unit)+"]", description);
         end
+        function add_material(obj, prop)
+            arguments
+                obj ComsolModeler
+                prop.poisson_ratio double
+                prop.youngs_modulus double
+                prop.density double
+            end
+            for i = 1:10
+                try
+                    mat_object = obj.component.material().create("mat"+i, "Common");
+                    break
+                catch
+                    warning('Material already exists');
+                end
+            end
+            mat_object.label('Si3N4 - Silicon nitride');
+            basic = mat_object.propertyGroup().create("def", "Basic");
+            basic.set('density', prop.density);
+            Enu = mat_object.propertyGroup().create("Enu", "Young's modulus and Poisson's ratio");
+            Enu.set('nu', prop.poisson_ratio);
+            Enu.set('E', prop.youngs_modulus);
+            % All the geometry set to the material, to be improved later
+            % Geometry elementas are assigned an index when created. It is
+            % incremented by 1 at each creation
+            mat_object.selection.set(1:obj.geometry.getNDomains);
+        end
+        function add_mesh(obj, meshsize)
+            arguments
+                obj ComsolModeler
+                meshsize double=4
+            end
+            % meshsize normal = 5, extremely fine = 1, extremely coarse = 9
+            obj.mesh = obj.component.mesh.create('mesh1');
+            obj.mesh.feature('size').set('hauto', meshsize);
+            obj.mesh.create("ftri"+1, "FreeTri");
+            obj.mesh.run;
+        end
         function start_gui(obj)
             mphlaunch(obj.model)
         end
-
+        function plot(obj)
+            obj.geometry.run;
+            mphgeom(obj.model);
+        end
+        function save_to_m_file(obj, filename)
+            arguments
+                obj ComsolModeler
+                filename {mustBeTextScalar}='untitled.m'
+            end
+            obj.model.save(filename, 'm');
+        end
     end
 end

@@ -3,6 +3,7 @@ classdef ComsolModeler < handle
         model
         component
         geometry
+        workplane
         mesh
     end
     methods
@@ -19,14 +20,17 @@ classdef ComsolModeler < handle
             obj.model.modelPath(pwd);
             % Create component
             obj.component = obj.model.component.create('Component', true);
-            % Creat 2D geometry
-            obj.geometry = obj.component.geom.create('Geometry', 2);
+            % Create 3D geometry
+            obj.geometry = obj.component.geom.create('Geometry', 3);
+            % Create workplane
+            obj.workplane = obj.geometry.create('wp1', 'WorkPlane');
+            obj.geometry.feature('wp1').set('unite', true);
         end
         function names = get_names(obj)
             % Get an string array containin all Comsol names of graphical
             % objects and operation (corresponding to tree nodes in Comsol
             % geometry)
-            names = string(obj.geometry.toString);
+            names = string(obj.workplane.geom);
             names = names.extractAfter("Child nodes: ");
             names = names.split(", ");
         end

@@ -41,7 +41,7 @@ classdef Box < Polygon
             obj.comsol_name = 'rect';
             if obj.comsol_flag
                 index = obj.comsol_modeler.get_next_index(obj.comsol_name);
-                obj.comsol_shape = obj.comsol_modeler.geometry.create(obj.comsol_name+string(index), 'Rectangle');
+                obj.comsol_shape = obj.comsol_modeler.workplane.geom.create(obj.comsol_name+string(index), 'Rectangle');
             end
 
             fields = string(fieldnames(args));

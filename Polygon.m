@@ -32,7 +32,7 @@ classdef Polygon < Klayout
             obj.comsol_name = 'pol';
             if obj.comsol_flag
                 index = obj.comsol_modeler.get_next_index(obj.comsol_name);
-                obj.comsol_shape = obj.comsol_modeler.geometry.create(obj.comsol_name+string(index), 'Polygon');
+                obj.comsol_shape = obj.comsol_modeler.workplane.geom.create(obj.comsol_name+string(index), 'Polygon');
                 x_values = Utilities.vertices_to_string(obj.Vertices(:, 1), true);
                 y_values = Utilities.vertices_to_string(obj.Vertices(:, 2), true);
                 obj.comsol_shape.set('x', x_values);
@@ -58,12 +58,12 @@ classdef Polygon < Klayout
             % Comsol
             if obj.comsol_flag
                 ind = obj.comsol_modeler.get_next_index('mov');
-                move_object =obj.comsol_modeler.geometry.create("mov"+ind, "Move");           
+                move_object =obj.comsol_modeler.workplane.geom.create("mov"+ind, "Move");           
                 move_object.set('displx', vector(1));
                 move_object.set('disply', vector(2));
                 move_object.selection('input').set(string(obj.comsol_shape.tag));
                 obj.comsol_shape = move_object;
-                obj.comsol_name = 'mmov';
+                obj.comsol_name = 'mov';
             end
         end
         function rotate(obj, angle, reference_point)
@@ -85,7 +85,7 @@ classdef Polygon < Klayout
             % Comsol
             if obj.comsol_flag
                 ind = obj.comsol_modeler.get_next_index('rot');
-                rot_object = obj.comsol_modeler.geometry.create("rot"+ind, "Rotate");
+                rot_object = obj.comsol_modeler.workplane.geom.create("rot"+ind, "Rotate");
                 rot_object.set('rot', angle);
                 rot_object.set('pos', reference_point);
                 rot_object.selection('input').set(string(obj.comsol_shape.tag));
@@ -103,7 +103,7 @@ classdef Polygon < Klayout
             % Comsol
             if obj.comsol_flag
                 ind = obj.comsol_modeler.get_next_index('sca');
-                sca_object = obj.comsol_modeler.geometry.create("sca"+ind, "Scale");
+                sca_object = obj.comsol_modeler.workplane.geom.create("sca"+ind, "Scale");
                 sca_object.set('factor', scaling_factor);
                 sca_object.selection('input').set(string(obj.comsol_shape.tag));
                 obj.comsol_shape = sca_object;
@@ -125,7 +125,7 @@ classdef Polygon < Klayout
             % Comsol
             if obj.comsol_flag
                 ind = obj.comsol_modeler.get_next_index('mir');
-                mir_object = obj.comsol_modeler.geometry.create("mir"+ind, "Mirror");
+                mir_object = obj.comsol_modeler.workplane.geom.create("mir"+ind, "Mirror");
                 mir_object.set('pos', [axis, 0]); % point on reflexion axis
                 mir_object.set('axis', [1, 0]); % normal to reflexion axis
                 mir_object.selection('input').set(string(obj.comsol_shape.tag));
@@ -147,7 +147,7 @@ classdef Polygon < Klayout
             % Comsol
             if obj.comsol_flag
                 ind = obj.comsol_modeler.get_next_index('mir');
-                mir_object = obj.comsol_modeler.geometry.create("mir"+ind, "Mirror");
+                mir_object = obj.comsol_modeler.workplane.geom.create("mir"+ind, "Mirror");
                 mir_object.set('pos', [0, axis]); % point on reflexion axis
                 mir_object.set('axis', [0, 1]); % normal to reflexion axis
                 mir_object.selection('input').set(string(obj.comsol_shape.tag));
@@ -238,7 +238,7 @@ classdef Polygon < Klayout
                 y.comsol_flag = obj.comsol_flag;
                 ind = obj.comsol_modeler.get_next_index('copy');
                 y.comsol_name = "copy"+ind;
-                y.comsol_shape = obj.comsol_modeler.geometry.create(y.comsol_name, "Copy");
+                y.comsol_shape = obj.comsol_modeler.workplane.geom.create(y.comsol_name, "Copy");
                 y.comsol_shape.selection('input').set(string(obj.comsol_shape.tag));
             end
         end

@@ -2,7 +2,9 @@
 % propriétés automatiquement
 warning('off');
 gds_modeler = GDSModeler;
-%comsol_modeler = ComsolModeler;
+if ~exist('comsol_modeler', 'var')
+    comsol_modeler = ComsolModeler;
+end
 
 wafer_thickness = 280e3; 
 etching_angle = 54.74;

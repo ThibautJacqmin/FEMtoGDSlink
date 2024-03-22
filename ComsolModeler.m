@@ -5,6 +5,8 @@ classdef ComsolModeler < handle
         geometry
         workplane
         mesh
+        shell
+        study
     end
     methods
         function obj = ComsolModeler
@@ -79,7 +81,7 @@ classdef ComsolModeler < handle
             % All the geometry set to the material, to be improved later
             % Geometry elementas are assigned an index when created. It is
             % incremented by 1 at each creation
-            mat_object.selection.set(1:obj.geometry.getNDomains);
+            mat_object.selection.set(1:obj.geometry.getNBoundaries);
         end
         function add_mesh(obj, meshsize)
             arguments
@@ -89,8 +91,39 @@ classdef ComsolModeler < handle
             % meshsize normal = 5, extremely fine = 1, extremely coarse = 9
             obj.mesh = obj.component.mesh.create('mesh1');
             obj.mesh.feature('size').set('hauto', meshsize);
-            obj.mesh.create("ftri"+1, "FreeTri");
-            obj.mesh.run;
+            ftr = obj.mesh.create("ftri"+1, "FreeTri");
+            ftr.selection.set(1:obj.geometry.getNBoundaries);
+        end
+        function add_physics(obj, args)
+            arguments
+                obj ComsolModeler
+                args.thickness double
+                args.stress double
+                args.fixed_boundaries double=[]
+            end
+            obj.add_parameter('thickness', args.thickness, 'm', 'membrane thickness')
+            obj.add_parameter('stress', args.stress, 'Pa', 'in-plane initial stress')
+            obj.shell = obj.model.physics.create('shell', 'Shell', obj.geometry.tag);
+            if ~isempty(args.fixed_boundaries)
+                fix = obj.shell.create('fix1', 'Fixed', 1);
+                fix.selection.set(args.fixed_boundaries);
+            end
+            obj.shell.feature('to1').set('d', 'thickness');
+            iss = obj.shell.feature("emm1").create("iss1", "InitialStressandStrain", 2);
+            iss.set('Ni', {'stress*thickness' '0' '0' 'stress*thickness'});
+        end
+        function add_study(obj)
+            obj.study = obj.model.study.create('std1');
+            stat = obj.study.create('stat', 'Stationary');
+            stat.setSolveFor('/physics/shell', true);
+            stat.set('geometricNonlinearity', true);
+            eig = obj.study.create('eig', 'Eigenfrequency');
+            eig.setSolveFor('/physics/shell', true);
+            eig.set('geometricNonlinearity', true);            
+            eig.set('eigmethod', 'region');
+            eig.set('eigunit', 'kHz');
+            eig.set('eigsr', 1); % smallest real part
+            eig.set('eiglr', 100); % largest real part
         end
         function start_gui(obj)
             mphlaunch(obj.model)

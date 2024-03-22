@@ -83,6 +83,7 @@ model.component('comp1').physics('shell').feature('emm1').set('rho_mat', 'userde
 model.component('comp1').physics('shell').feature('emm1').set('rho', 3200);
 model.component('comp1').physics('shell').feature('to1').set('d', 'thickness');
 model.component('comp1').physics('shell').feature('emm1').create('iss1', 'InitialStressandStrain', 2);
+model.component("Component").physics("shell").feature("emm1").create("iss1", "InitialStressandStrain", 2);
 model.component('comp1').physics('shell').feature('emm1').feature('iss1').set('Ni', {'sigma*thickness' '0' '0' 'sigma*thickness'});
 model.component('comp1').physics('shell').create('fix1', 'Fixed', 1);
 model.component('comp1').physics('shell').feature('fix1').selection.set([1 2 3 16]);

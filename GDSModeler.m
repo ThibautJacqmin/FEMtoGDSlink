@@ -33,9 +33,9 @@ classdef GDSModeler < Klayout
         end
         function make_array(obj, x, y, nx, ny, args)
             % Make an array of size nx x ny
-            % with all shapes from a given layer 
+            % with all shapes from a given layer
             % or with a given shape
-            % or without optional argument : the whole design 
+            % or without optional argument : the whole design
             % (only implementation now)
             arguments
                 obj
@@ -46,11 +46,13 @@ classdef GDSModeler < Klayout
                 args.layer
             end
             for shape=obj.shapes
-                for ix = 1:nx
-                    for iy = 1:ny
-                        shape_copy = shape{1}.shape.copy;                  
-                        shape_copy.move([ix*x, iy*y]);
-                        obj.add_to_layer(shape{1}.layer, shape_copy);  
+                if shape{1}.layer==args.layer
+                    for ix = 1:nx
+                        for iy = 1:ny
+                            shape_copy = shape{1}.shape.copy;
+                            shape_copy.move([ix*x, iy*y]);
+                            obj.add_to_layer(shape{1}.layer, shape_copy);
+                        end
                     end
                 end
             end
@@ -90,5 +92,16 @@ classdef GDSModeler < Klayout
                 mark.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_string(data.(fieldname)*1e3)));
             end
         end
+        function two_inch_wafer = add_two_inch_wafer(obj)
+            arguments
+                obj
+            end
+            data = load(fullfile("Library", "two_inch_wafer.mat"));
+            two_inch_wafer = Polygon;
+            two_inch_wafer.pgon_py = obj.pya.Region();
+            two_inch_wafer.pgon = two_inch_wafer.pgon.addboundary(data.wafer_edge*1e3);
+            two_inch_wafer.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_string(data.wafer_edge*1e3)));
+        end
+
     end
 end

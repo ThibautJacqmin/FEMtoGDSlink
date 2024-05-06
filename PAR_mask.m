@@ -2,16 +2,16 @@
 % propriétés automatiquement
 warning('off');
 gds_modeler = GDSModeler;
-if ~exist('comsol_modeler', 'var')
-    comsol_modeler = ComsolModeler;
-end
+% if ~exist('comsol_modeler', 'var')
+%     comsol_modeler = ComsolModeler;
+% end
 
 wafer_thickness = 280e3; 
 etching_angle = 54.74;
 etching_distance = wafer_thickness/tan(etching_angle*pi/180);
-mesa_SIN_suspension_width = 20e3;
+mesa_SIN_suspension_width = 40e3;
 mesa_SI_suspension_width = 5e3;
-mesa_hole_width = 1200e3;
+mesa_hole_width = 1600e3;
 number_of_structures = 4;
 distance_between_structures = 10000e3;
 centering = -15000e3;
@@ -76,8 +76,7 @@ for tether_width=tether_widths
                  bottom=top_box.bottom + etching_distance, ...
                  top=top_box.top - etching_distance,...
                  fillet_height=fillet_height,...
-                 fillet_width=fillet_width, ...
-                 comsol_modeler=comsol_modeler);
+                 fillet_width=fillet_width);
     fillets = tether.get_fillets;
     tethers{end+1} = tether+fillets{1}+fillets{2}+fillets{3}+fillets{4};
     previous_tether_width(end+1) = tether_width;
@@ -98,7 +97,7 @@ gds_modeler.add_to_layer(front_side_layer, temp_box);
 % Add alignment mark
 mark = gds_modeler.add_alignment_mark(type=1);
 mark.move([top_box.center(1), bottom_box.bottom-1000e3]);
-gds_modeler.add_to_layer(front_side_layer, mark);
+gds_modeler.add_to_layer(back_side_layer, mark);
 
 % Add 2 inch wafer
 wafer_layer = gds_modeler.create_layer(2);

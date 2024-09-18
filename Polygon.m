@@ -8,7 +8,6 @@ classdef Polygon < Klayout
         Vertices % Matlab vertices
     end
     properties
-        pgon % matlab polygon
         pgon_py  % python polygon
         comsol_modeler
         comsol_shape
@@ -21,8 +20,6 @@ classdef Polygon < Klayout
                 args.Vertices (:, 2) double = [0, 0]
                 args.comsol_modeler ComsolModeler=ComsolModeler.empty
             end
-            % Matlab polygon (polyshape)
-            obj.pgon = polyshape(args.Vertices);
             % Klayout (Python) Polygon
             obj.pgon_py = obj.pya.Polygon.from_s(...
                 Utilities.vertices_to_string(args.Vertices));
@@ -41,14 +38,11 @@ classdef Polygon < Klayout
         function y = comsol_flag(obj)
             y = ~isempty(obj.comsol_modeler);
         end
-        function y = get.Vertices(obj)
-            y = obj.pgon.Vertices;
-        end
-        function set.Vertices(obj, vertices)
-            obj.pgon.Vertices = vertices;
-        end
         function y = npoints(obj)
             y = size(obj.Vertices, 1);
+        end
+        function y = get.Vertices(obj)
+            y = Utilities.get_vertices_from_klayout(obj.pgon_py);
         end
         function [comsol_object, previous_object_name] = create_comsol_object(obj, comsol_object_name)
             % This function creates a new comsol object in the plane
@@ -65,9 +59,6 @@ classdef Polygon < Klayout
         end
         % Transformations
         function move(obj, vector)
-            % Matlab
-            moved_mat_pgon = obj.pgon.translate(vector);
-            obj.Vertices = moved_mat_pgon.Vertices;
             % Python
             obj.pgon_py.move(vector(1), vector(2));
             % Comsol
@@ -84,9 +75,6 @@ classdef Polygon < Klayout
                 angle % in degrees
                 reference_point = [0, 0]
             end
-            % Matlab
-            rotated_mat_pgon = obj.pgon.rotate(angle, reference_point);
-            obj.Vertices = rotated_mat_pgon.Vertices;
             % Python
             % Translate by [-xref, -yref], then rotate the translate by [xref, yref]
             obj.pgon_py.move(-reference_point(1), -reference_point(2));
@@ -103,9 +91,6 @@ classdef Polygon < Klayout
             end
         end
         function scale(obj, scaling_factor)
-            % Matlab
-            scaled_mat_pgon = obj.pgon.scale(scaling_factor);
-            obj.Vertices = scaled_mat_pgon.Vertices;
             % Python
             scaling = obj.pya.CplxTrans(scaling_factor);
             obj.pgon_py.transform(scaling);
@@ -121,8 +106,6 @@ classdef Polygon < Klayout
                 obj
                 axis double = 0
             end
-            % Matlab
-            obj.Vertices(:, 1) = 2*axis - obj.Vertices(:, 1);
             % Python
             obj.pgon_py.move(-axis, 0);
             mirrorX = obj.pya.Trans.M90;
@@ -141,7 +124,6 @@ classdef Polygon < Klayout
                 obj
                 axis double = 0
             end
-            obj.Vertices(:, 2) = 2*axis - obj.Vertices(:, 2);
             % Python
             obj.pgon_py.move(0, -axis);
             mirrorY = obj.pya.Trans.M0;
@@ -168,9 +150,6 @@ classdef Polygon < Klayout
                 vertices_indices double = []
             end
             obj.pgon_py = obj.pgon_py.round_corners(radius, radius, npoints);  
-            python_vertices = obj.pgon_py.to_s;
-            matlab_vertices = Utilities.string_to_vertices(python_vertices);
-            obj.Vertices = matlab_vertices;
             if obj.comsol_flag
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Fillet");
                 obj.comsol_shape.set('radius', radius); 
@@ -184,77 +163,51 @@ classdef Polygon < Klayout
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Difference");
                 obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_subtract.comsol_shape.tag)]);
             end
-            sub_obj = obj.apply_operation(object_to_subtract, "subtract");
+            sub_obj = obj.apply_operation(object_to_subtract, "Difference");
         end
         function add_obj = plus(obj, object_to_add)
             if obj.comsol_flag
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Union");
                 obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_add.comsol_shape.tag)]);
             end
-            add_obj = obj.apply_operation(object_to_add, "union");
+            add_obj = obj.apply_operation(object_to_add, "Union");
         end
         function intersection_obj = intersect(obj, object_to_intersect)
             if obj.comsol_flag
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Intersection");
                 obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_intersect.comsol_shape.tag)]);
             end
-            intersection_obj = obj.apply_operation(object_to_intersect, "intersect");
+            intersection_obj = obj.apply_operation(object_to_intersect, "Intersection");
         end
         function y = apply_operation(obj, obj2, operation_name)
             % This is a wrapper for minus, plus, intersect, and boolean
             % operations. obj2 can be a cell array of objects and operation
-            % the operation handle (for Matlab polyshape)
 
-            % Define the matlab operation on polyshape
-            switch operation_name
-                case "subtract"
-                    operation = @subtract;
-                case "union"
-                    operation = @union;
-                case "intersect"
-                    operation = @intersect;
-            end
-            mat_pgon = obj.pgon;
             region1 = obj.pya.Region();
             region1.insert(obj.pgon_py);
             region2 = obj.pya.Region();
-            mat_pgon = operation(mat_pgon, obj2.pgon, ...
-                'KeepCollinearPoints', false);
             region2.insert(obj2.pgon_py);
             y = Polygon;
             if obj.comsol_flag
                 y.comsol_modeler = obj.comsol_modeler;
                 y.comsol_shape = obj.comsol_shape;
             end
-            y.pgon = mat_pgon;
             % Perform the Python operation on klayout polygon
             switch operation_name
-                case "subtract"
+                case "Difference"
                     region = region1-region2;
-                case "union"
+                case "Union"
                     region = region1+region2;
-                case "intersect"
+                case "Intersection"
                     % Weird that and_ is implemented and not and...
                     region = region1.and_(region2);
             end
             y.pgon_py = region.merge;
         end
-        % Plot functions
-        function plot(obj, args)
-            arguments
-                obj
-                args.FigIndex = 1
-                args.FaceColor = "blue"
-                args.FaceAlpha = 0.4
-            end
-            figure(args.FigIndex)
-            obj.pgon.plot(FaceColor=args.FaceColor, FaceAlpha=args.FaceAlpha);
-        end
+
         % Copy function
         function y = copy(obj)
             y = Polygon;
-            % Matlab
-            y.pgon = obj.pgon; % polyshape is copyable
             % Klayout
             if isa(obj.pgon_py, 'py.klayout.dbcore.Region')
                 % If klayout region

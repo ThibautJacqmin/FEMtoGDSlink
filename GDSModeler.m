@@ -2,8 +2,7 @@ classdef GDSModeler < Klayout
     properties
         pylayout
         pycell
-        shapes = {}
-        fig
+        shapes
     end
     properties (Constant)
         % Set unit length (1 is 1 µm, and default is 1 nm)
@@ -16,9 +15,6 @@ classdef GDSModeler < Klayout
             obj.pylayout.dbu = obj.pydbu;
             % Create cell
             obj.pycell = obj.pylayout.create_cell("Main");
-            % Figure
-            obj.fig = figure(1);
-            hold on
         end
         function py_layer = create_layer(obj, number)
             py_layer = obj.pylayout.layer(string(number));
@@ -57,28 +53,6 @@ classdef GDSModeler < Klayout
                 end
             end
         end
-
-        function plot(obj)
-            for shape=obj.shapes
-                shape_to_plot = shape{1};
-                try
-                    figure(obj.fig.Number);
-                catch
-                    obj.fig = figure(1);
-                    hold on
-                end
-                n = double(shape{1}.layer+int8(1));
-                subplot(2, 2, n)
-                hold on
-                shape_to_plot.shape.plot;
-                subplot(2, 2, 4)
-                hold on
-                shape_to_plot.shape.plot;
-                title('All layers')
-            end
-
-
-        end
         function mark = add_alignment_mark(obj, args)
             arguments
                 obj
@@ -88,7 +62,6 @@ classdef GDSModeler < Klayout
             mark = Polygon;
             mark.pgon_py = obj.pya.Region();
             for fieldname=string(fieldnames(data))'
-                mark.pgon = mark.pgon.addboundary(data.(fieldname)*1e3);
                 mark.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_string(data.(fieldname)*1e3)));
             end
         end
@@ -99,7 +72,6 @@ classdef GDSModeler < Klayout
             data = load(fullfile("Library", "two_inch_wafer.mat"));
             two_inch_wafer = Polygon;
             two_inch_wafer.pgon_py = obj.pya.Region();
-            two_inch_wafer.pgon = two_inch_wafer.pgon.addboundary(data.wafer_edge*1e3);
             two_inch_wafer.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_string(data.wafer_edge*1e3)));
         end
 

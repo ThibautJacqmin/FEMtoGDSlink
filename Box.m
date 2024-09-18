@@ -16,6 +16,9 @@ classdef Box < Polygon
         fillet_width
         fillet_height
     end
+    properties (SetAccess=private)
+        PrivateVertices
+    end
     methods
         function obj = Box(args)
             arguments
@@ -30,14 +33,13 @@ classdef Box < Polygon
                 args.top_right (2, 1) double
                 args.bottom_left (2, 1) double
                 args.bottom_right (2, 1) double
-                args.Vertices (4, 2) double
+                args.Vertices (:, 2) double
                 args.fillet_width double=1
                 args.fillet_height double=1
                 args.comsol_modeler ComsolModeler=ComsolModeler.empty
             end
             % Comsol
             obj.comsol_modeler = args.comsol_modeler;
-            obj.comsol_flag = ~isempty(obj.comsol_modeler);
             obj.comsol_name = 'rect';
             if obj.comsol_flag
                 index = obj.comsol_modeler.get_next_index(obj.comsol_name);
@@ -54,7 +56,6 @@ classdef Box < Polygon
             elseif length(intersect(fields, ["bottom-right", "top_left"]))==2
                 obj.set_topleft_bottomright(args.bottom_right, args.top_left);
             elseif length(intersect(fields, "Vertices"))==1
-                obj.Vertices = args.Vertices;
                 obj.pgon_py = obj.pya.Polygon.from_s(...
                     Utilities.vertices_to_string(args.Vertices));
                 obj.set_comsol_rectangle(args.Vertices(1, 1), args.Vertices(4, 1), ...
@@ -107,6 +108,9 @@ classdef Box < Polygon
         function br = get.bottom_right(obj)
             br = [obj.right, obj.bottom];
         end
+        function set_private_vertices(obj, l, r, t, b)
+            obj.PrivateVertices = [l, b; l, t; r, t; r, b];
+        end
         function fillet_polygons = get_fillets(obj)
             fillet_polygons = {};
 
@@ -147,15 +151,15 @@ classdef Box < Polygon
             r = center(1)+width/2;
             t = center(2)+height/2;
             b = center(2)-height/2;
-            obj.Vertices = [l, b; l, t; r, t; r, b];
+            obj.set_private_vertices(l, r, t, b);
             obj.pgon_py = obj.pya.Polygon.from_s(...
-                Utilities.vertices_to_string(obj.Vertices));
+                Utilities.vertices_to_string(obj.PrivateVertices));
             obj.set_comsol_rectangle(l, r, t, b);
         end
         function set_left_right_bottom_top(obj, l, r, b, t)
-            obj.Vertices = [l, b; l, t; r, t; r, b];
+            obj.set_private_vertices(l, r, t, b);
             obj.pgon_py = obj.pya.Polygon.from_s(...
-                Utilities.vertices_to_string(obj.Vertices));
+                Utilities.vertices_to_string(obj.PrivateVertices));
             obj.set_comsol_rectangle(l, r, t, b);
         end
         function set_bottomleft_topright(obj, bottom_left, top_right)
@@ -163,9 +167,9 @@ classdef Box < Polygon
             r = top_right(1);
             t = top_right(2);
             b = bottom_left(2);
-            obj.Vertices = [l, b; l, t; r, t; r, b];
+            obj.set_private_vertices(l, r, t, b);
             obj.pgon_py = obj.pya.Polygon.from_s(...
-                Utilities.vertices_to_string(obj.Vertices));
+                Utilities.vertices_to_string(obj.PrivateVertices));
             obj.set_comsol_rectangle(l, r, t, b);
         end
         function set_topleft_bottomright(obj, bottom_right, top_left)
@@ -173,9 +177,9 @@ classdef Box < Polygon
             r = bottom_right(1);
             t = top_left(2);
             b = bottom_right(2);
-            obj.Vertices = [l, b; l, t; r, t; r, b];
+            obj.set_private_vertices(l, r, t, b);
             obj.pgon_py = obj.pya.Polygon.from_s(...
-                Utilities.vertices_to_string(obj.Vertices));
+                Utilities.vertices_to_string(obj.PrivateVertices));
             obj.set_comsol_rectangle(l, r, t, b);
         end
     end

@@ -124,8 +124,7 @@ gds_modeler.add_to_layer(back_side_layer, hole_box_bottom_right)
 gds_modeler.add_to_layer(back_side_layer, hole_box_top_right)
 
 
-gds_modeler.plot;
-gds_modeler.write("Par_mask_matlab.gds")
+gds_modeler.write("Par_mask_matlab_test.gds")
 % Plot Comsol geometry in Matlab 
 %comsol_modeler.plot;
 % Export model in .m file

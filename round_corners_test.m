@@ -32,10 +32,12 @@ triangle_2.flip_horizontally(-tether_width);
 unit_cell = triangle_1+triangle_2;
 unit_cell.rotate(30);
 
+
+
 gds_modeler.add_to_layer(layer, unit_cell)
 
 
-gds_modeler.plot;
+
 gds_modeler.write("round_corner_test.gds")
 % Plot Comsol geometry in Matlab 
 comsol_modeler.plot;

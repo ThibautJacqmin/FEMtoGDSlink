@@ -1,3 +1,0 @@
-classdef RoundPolygon < Klayout
-
-end

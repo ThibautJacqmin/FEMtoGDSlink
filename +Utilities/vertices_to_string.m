@@ -1,4 +1,4 @@
-function s = vertices_to_string(matlab_vertices, comsol_flag)
+function s = vertices_to_string(matlab_vertices, args)
 %  Get formated string for Klayout .from_s method used to
 %  initialize shapes (polygons, etc), or for Comsol Polygons
 %  vertices is a matlab nx2 array containing polygon vertices
@@ -6,12 +6,19 @@ function s = vertices_to_string(matlab_vertices, comsol_flag)
 % and 
 arguments
     matlab_vertices
-    comsol_flag=false
+    args.comsol_flag=false
+    args.comsol_parameter_name=""
 end
-s = string(round(matlab_vertices));
-s = s.join(',');
+comsol_name = "*" + args.comsol_parameter_name;
+
+s = string(matlab_vertices);
+s = s.join(",");
 s = s.join(';');
-if comsol_flag
+
+if args.comsol_flag
+    s = s.insertBefore(",", comsol_name);
+    s = s.insertBefore(";", comsol_name);
+    s = s+comsol_name;
     s = '{' + s + '}';
 else
     s = '(' + s + ')';

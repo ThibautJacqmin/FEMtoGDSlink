@@ -20,10 +20,14 @@ classdef ComsolModeler < handle
             obj.model.hist.disable;
             % Set working path
             obj.model.modelPath(pwd);
+            % Create variable
+            obj.model.variable.create('var1');
             % Create component
             obj.component = obj.model.component.create('Component', true);
             % Create 3D geometry
             obj.geometry = obj.component.geom.create('Geometry', 3);
+            % Set length unit to nanometer like in KLayout
+            obj.geometry.lengthUnit("nm");
             % Create workplane
             obj.workplane = obj.geometry.create('wp1', 'WorkPlane');
             obj.geometry.feature('wp1').set('unite', true);
@@ -47,15 +51,27 @@ classdef ComsolModeler < handle
                 y=1;
             end
         end
-        function add_parameter(obj, name, value, unit, description)
+        function add_parameter(obj, name, value, unit)
             arguments
                 obj
                 name {mustBeTextScalar}
                 value {double}
                 unit {mustBeTextScalar} = ""
-                description {mustBeTextScalar} = ""
             end
-            obj.model.param.set(name, string(value)+"["+num2str(unit)+"]", description);
+            unit_str = "";
+            if unit.strlength~=0
+               unit_str =  "["+num2str(unit)+"]";
+            end
+            
+            obj.model.param.set(name, string(value)+unit_str, "");
+        end
+        function add_variable(obj, name, expression)
+           arguments
+                obj
+                name {mustBeTextScalar}
+                expression 
+            end
+           obj.model.variable('var1').set(name, expression, "");
         end
         function add_material(obj, prop)
             arguments

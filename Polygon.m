@@ -4,10 +4,8 @@ classdef Polygon < Klayout
     % set the resolution to 1 nm.
     % https://www.klayout.de/doc/code/class_Polygon.html
     % This class maps a Klayout python polygon onto a Malab polyshape
-    properties (Dependent)
-        Vertices % Matlab vertices
-    end
-    properties
+    properties 
+        vertices % Vertices object
         pgon_py  % python polygon
         comsol_modeler
         comsol_shape
@@ -17,32 +15,30 @@ classdef Polygon < Klayout
     methods
         function obj = Polygon(args)
             arguments
-                args.Vertices (:, 2) double = [0, 0]
+                args.vertices Vertices=Vertices.empty
                 args.comsol_modeler ComsolModeler=ComsolModeler.empty
             end
+            % Vertices object
+            obj.vertices = args.vertices;
             % Klayout (Python) Polygon
-            obj.pgon_py = obj.pya.Polygon.from_s(...
-                Utilities.vertices_to_string(args.Vertices));
-            % Comsol
-            obj.comsol_modeler = args.comsol_modeler;
-            obj.comsol_prefix = "pol";
-            if obj.comsol_flag
-                index = obj.comsol_modeler.get_next_index(obj.comsol_prefix);
-                obj.comsol_shape = obj.comsol_modeler.workplane.geom.create(obj.comsol_prefix+string(index), 'Polygon');
-                x_values = Utilities.vertices_to_string(obj.Vertices(:, 1), true);
-                y_values = Utilities.vertices_to_string(obj.Vertices(:, 2), true);
-                obj.comsol_shape.set('x', x_values);
-                obj.comsol_shape.set('y', y_values);
+            if ~isempty(obj.vertices)
+                obj.pgon_py = obj.pya.Polygon.from_s(obj.vertices.klayout_string);
+                % Comsol
+                obj.comsol_modeler = args.comsol_modeler;
+                obj.comsol_prefix = "pol";
+                if obj.comsol_flag
+                    index = obj.comsol_modeler.get_next_index(obj.comsol_prefix);
+                    obj.comsol_shape = obj.comsol_modeler.workplane.geom.create(obj.comsol_prefix+string(index), 'Polygon');
+                    obj.comsol_shape.set('x', obj.vertices.comsol_string_x);
+                    obj.comsol_shape.set('y', obj.vertices.comsol_string_y);
+                end
             end
         end
         function y = comsol_flag(obj)
             y = ~isempty(obj.comsol_modeler);
         end
         function y = npoints(obj)
-            y = size(obj.Vertices, 1);
-        end
-        function y = get.Vertices(obj)
-            y = Utilities.get_vertices_from_klayout(obj.pgon_py);
+            y = size(obj.vertices.array, 1);
         end
         function [comsol_object, previous_object_name] = create_comsol_object(obj, comsol_object_name)
             % This function creates a new comsol object in the plane
@@ -72,49 +68,53 @@ classdef Polygon < Klayout
         function rotate(obj, angle, reference_point)
             arguments
                 obj
-                angle % in degrees
+                angle {mustBeA(angle, {'Variable', 'Parameter', 'DependentParameter'})} % in degree
                 reference_point = [0, 0]
             end
             % Python
             % Translate by [-xref, -yref], then rotate the translate by [xref, yref]
             obj.pgon_py.move(-reference_point(1), -reference_point(2));
             % CplxTrans (magnification, rotation angle, mirror_x, x_translation, y_translation)
-            rotation = obj.pya.CplxTrans(1, angle, py.bool(0), 0, 0);
+            rotation = obj.pya.CplxTrans(1, angle.value, py.bool(0), 0, 0);
             obj.pgon_py.transform(rotation);
             obj.pgon_py.move(reference_point(1), reference_point(2));
             % Comsol
             if obj.comsol_flag
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Rotate");       
-                obj.comsol_shape.set('rot', angle);
+                obj.comsol_shape.set('rot', angle.name);
                 obj.comsol_shape.set('pos', reference_point);
                 obj.comsol_shape.selection('input').set(previous_object_name);
             end
         end
         function scale(obj, scaling_factor)
+            arguments
+                obj
+                scaling_factor {mustBeA(scaling_factor, {'Variable', 'Parameter', 'DependentParameter'})}
+            end
             % Python
-            scaling = obj.pya.CplxTrans(scaling_factor);
+            scaling = obj.pya.CplxTrans(scaling_factor.value);
             obj.pgon_py.transform(scaling);
             % Comsol
             if obj.comsol_flag
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Scale");  
-                obj.comsol_shape.set('factor', scaling_factor);
+                obj.comsol_shape.set('factor', scaling_factor.name);
                 obj.comsol_shape.selection('input').set(previous_object_name);
             end
         end
         function flip_horizontally(obj, axis)
             arguments
                 obj
-                axis double = 0
+                axis {mustBeA(axis, {'Variable', 'Parameter', 'DependentParameter'})}
             end
             % Python
-            obj.pgon_py.move(-axis, 0);
+            obj.pgon_py.move(-axis.value, 0);
             mirrorX = obj.pya.Trans.M90;
             obj.pgon_py.transform(mirrorX);
-            obj.pgon_py.move(axis, 0);
+            obj.pgon_py.move(axis.value, 0);
             % Comsol
             if obj.comsol_flag
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Mirror");
-                obj.comsol_shape.set('pos', [axis, 0]); % point on reflexion axis
+                obj.comsol_shape.set('pos', [axis.name, 0]); % point on reflexion axis
                 obj.comsol_shape.set('axis', [1, 0]); % normal to reflexion axis
                 obj.comsol_shape.selection('input').set(previous_object_name);
             end
@@ -122,22 +122,22 @@ classdef Polygon < Klayout
         function flip_vertically(obj, axis)
             arguments
                 obj
-                axis double = 0
+                axis {mustBeA(axis, {'Variable', 'Parameter', 'DependentParameter'})}
             end
             % Python
-            obj.pgon_py.move(0, -axis);
+            obj.pgon_py.move(0, -axis.value);
             mirrorY = obj.pya.Trans.M0;
             obj.pgon_py.transform(mirrorY);
-            obj.pgon_py.move(0, axis);
+            obj.pgon_py.move(0, axis.value);
             % Comsol
             if obj.comsol_flag
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Mirror");
-                obj.comsol_shape.set('pos', [0, axis]); % point on reflexion axis
+                obj.comsol_shape.set('pos', [0, axis.name]); % point on reflexion axis
                 obj.comsol_shape.set('axis', [0, 1]); % normal to reflexion axis
                 obj.comsol_shape.selection('input').set(previous_object_name);
             end
         end
-        function round_corners(obj, radius, npoints, vertices_indices)
+        function round_corners(obj, fillet_radius, fillet_npoints)
             % Returns a polygon with fillets in klayout, fillets added as a
             % separate object in klayout
             % vertices indices are the indices of vertices in Comsol (like  [1, 2, 3, 4]) when
@@ -145,14 +145,16 @@ classdef Polygon < Klayout
             % automatically for a given shape...
             arguments
                 obj
-                radius double = 1
-                npoints double = 10
-                vertices_indices double = []
+                fillet_radius Parameter
+                fillet_npoints Parameter
             end
-            obj.pgon_py = obj.pgon_py.round_corners(radius, radius, npoints);  
+            obj.pgon_py = obj.pgon_py.round_corners(fillet_radius.value,...
+                fillet_radius.value, fillet_npoints.value); 
+            disp("Number of points in fillets cannot be set in Comsol")
             if obj.comsol_flag
+                vertices_indices = linspace(1, obj.npoints);
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Fillet");
-                obj.comsol_shape.set('radius', radius); 
+                obj.comsol_shape.set('radius', fillet_radius.name); 
                 obj.comsol_shape.selection('point').set(previous_object_name, vertices_indices);
             end
         end
@@ -216,6 +218,8 @@ classdef Polygon < Klayout
             else % if klayout polygon
                 y.pgon_py = obj.pya.Polygon.from_s(obj.pgon_py.to_s);
             end
+            % Retrieve vertices
+            y.vertices = Vertices(Utilities.get_vertices_from_klayout(y.pgon_py));
             % Comsol
             if obj.comsol_flag
                 y.comsol_modeler = obj.comsol_modeler;

@@ -1,45 +1,44 @@
 % Transformer ce fichier en classe avec fonction pour ajouter les
 % propriétés automatiquement
 warning('off');
-gds_modeler = GDSModeler;
+gm = GDSModeler;
 
 
 if ~exist('comsol_modeler', 'var')
-    comsol_modeler = ComsolModeler;
-    comsol_modeler.start_gui;
+    cm = ComsolModeler;
+    cm.start_gui;
 end
 
 % BACK SIDE LAYER
-layer = gds_modeler.create_layer(0);
+layer = gm.create_layer(0);
 
-lattice_parameter = 77.94e3;
-comsol_modeler.add_parameter("lattice_parameter", lattice_parameter, "nm");
-fillet_radius = 5.62e3;
-comsol_modeler.add_parameter("fillet_radius", fillet_radius, "nm");
-triangle_edge_length = 35e3;
-comsol_modeler.add_parameter("triangle_edge_length", triangle_edge_length, "nm");
-tether_width = 5e3;
+lattice_parameter = Parameter("lattice_parameter", 77.94e3, comsol_modeler=cm);
+fillet_radius = Parameter("fillet_radius", 5.62e3, comsol_modeler=cm);
+fillet_npoints = Parameter("fillet_npoints", 64, comsol_modeler=cm);
+triangle_edge_length = Parameter("triangle_edge_length", 35e3, comsol_modeler=cm);
+tether_width = Parameter("tether_width", 5e3, comsol_modeler=cm);
 
 % First triangle of the unit cell (with left vertical edge)
-triangle_vertices = [0, 0; 0, 1; sqrt(3)/2, 1/2]*triangle_edge_length;
-triangle_1 = Polygon(Vertices=triangle_vertices, comsol_modeler=comsol_modeler);
-triangle_1.round_corners(fillet_radius, 64, [1, 2, 3] );
+triangle_vertices = Vertices([0, 0; 0, 1; sqrt(3)/2, 1/2], triangle_edge_length);
+triangle_1 = Polygon(Vertices=triangle_vertices, comsol_modeler=cm);
+triangle_1.round_corners(fillet_radius, fillet_npoints);
 
 % Define symmetry axis to get the other triangle of the unit cell. It is
 % the axis rotated by pi/6 with respect to the vertical axis
 triangle_2 = triangle_1.copy;
-triangle_2.flip_horizontally(-tether_width);
+flip_axis = DependentParameter("flip_axis", @(x)(-x/2), tether_width, comsol_modeler=cm);
+triangle_2.flip_horizontally(flip_axis);
 unit_cell = triangle_1+triangle_2;
-unit_cell.rotate(30);
 
 
 
-gds_modeler.add_to_layer(layer, unit_cell)
+
+gm.add_to_layer(layer, unit_cell)
 
 
 
-gds_modeler.write("round_corner_test.gds")
+gm.write("round_corner_test.gds")
 % Plot Comsol geometry in Matlab 
-comsol_modeler.plot;
+cm.plot;
 % Export model in .m file
 % comsol_modeler.save_to_m_file;

@@ -42,7 +42,7 @@ classdef Polygon < Klayout
         end
         function [comsol_object, previous_object_name] = create_comsol_object(obj, comsol_object_name)
             % This function creates a new comsol object in the plane
-            % geometry. Tha comsol name can be "Rotate", "Difference",
+            % geometry. The comsol name can be "Rotate", "Difference",
             % "Move", "Copy"....
             % It returns the comsol object to be stored in
             % obj.comsol_shape; and the comsol object name of the initial
@@ -156,6 +156,20 @@ classdef Polygon < Klayout
                 [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Fillet");
                 obj.comsol_shape.set('radius', fillet_radius.name); 
                 obj.comsol_shape.selection('point').set(previous_object_name, vertices_indices);
+            end
+        end
+        function make_linear_array(obj, ncopies, axis)
+            arguments
+                obj
+                ncopies {mustBeA(ncopies, {'Variable', 'Parameter', 'DependentParameter'})}
+                axis {mustBeA(axis, {'Vertices'})}
+            end
+            if obj.comsol_flag
+                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Array");
+                 obj.comsol_shape.set('type', 'linear')
+                 obj.comsol_shape.set('linearsize', ncopies.value)
+                 obj.comsol_shape.set('displ', axis.comsol_string);
+                 obj.comsol_shape.selection('input').set(previous_object_name);   
             end
         end
 

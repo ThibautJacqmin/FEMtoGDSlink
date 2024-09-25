@@ -15,19 +15,19 @@ classdef Vertices<handle
             obj.prefactor = prefactor;
         end
         function s = comsol_string(obj)
-            s = Utilities.vertices_to_string(obj.array, ...
-                comsol_parameter_name=obj.prefactor.name,comsol_flag=true);
+            s = Utilities.vertices_to_comsol_string(obj.array, ...
+                comsol_parameter_name=obj.prefactor.name);
         end
         function s = comsol_string_x(obj)
-            s =  Utilities.vertices_to_string(obj.array(:, 1), ...
-                comsol_parameter_name=obj.prefactor.name,comsol_flag=true);
+            s =  Utilities.vertices_to_comsol_string(obj.array(:, 1), ...
+                comsol_parameter_name=obj.prefactor.name);
         end
         function s = comsol_string_y(obj)
-            s = Utilities.vertices_to_string(obj.array(:, 2), ...
-                comsol_parameter_name=obj.prefactor.name,comsol_flag=true);
+            s = Utilities.vertices_to_comsol_string(obj.array(:, 2), ...
+                comsol_parameter_name=obj.prefactor.name);
         end
         function s = klayout_string(obj)
-            s = Utilities.vertices_to_string(obj.value);
+            s = Utilities.vertices_to_klayout_string(obj.value);
         end
                 
     end

@@ -29,6 +29,14 @@ classdef Vertices<handle
         function s = klayout_string(obj)
             s = Utilities.vertices_to_klayout_string(obj.value);
         end
+        function y = get_sub_vertex(obj, vertex_index)
+            y = Vertices(obj.array(vertex_index, :), obj.prefactor);
+        end
+        function y = plus(obj, vertices_object)
+            assert(obj.prefactor.value==vertices_object.prefactor.value, ...
+                            "Error: Vertices prefactors must be the same");
+            y = Vertices([obj.array; vertices_object.array], obj.prefactor);
+        end
                 
     end
 end

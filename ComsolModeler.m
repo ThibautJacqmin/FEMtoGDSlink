@@ -60,18 +60,18 @@ classdef ComsolModeler < handle
             end
             unit_str = "";
             if unit.strlength~=0
-               unit_str =  "["+num2str(unit)+"]";
+                unit_str =  "["+num2str(unit)+"]";
             end
-            
+
             obj.model.param.set(name, string(value)+unit_str, "");
         end
         function add_variable(obj, name, expression)
-           arguments
+            arguments
                 obj
                 name {mustBeTextScalar}
-                expression 
+                expression
             end
-           obj.model.variable('var1').set(name, expression, "");
+            obj.model.variable('var1').set(name, expression, "");
         end
         function add_material(obj, prop)
             arguments
@@ -135,7 +135,7 @@ classdef ComsolModeler < handle
             stat.set('geometricNonlinearity', true);
             eig = obj.study.create('eig', 'Eigenfrequency');
             eig.setSolveFor('/physics/shell', true);
-            eig.set('geometricNonlinearity', true);            
+            eig.set('geometricNonlinearity', true);
             eig.set('eigmethod', 'region');
             eig.set('eigunit', 'kHz');
             eig.set('eigsr', 1); % smallest real part
@@ -154,6 +154,38 @@ classdef ComsolModeler < handle
                 filename {mustBeTextScalar}='untitled.m'
             end
             obj.model.save(filename, 'm');
+        end
+        function comsol_object = create_comsol_object(obj, comsol_object_name)
+            % This function creates a new comsol object in the plane
+            % geometry. The comsol name can be "Rotate", "Difference",
+            % "Move", "Copy"....
+            % It returns the comsol object to be stored in
+            % obj.comsol_shape; and the comsol object name of the initial
+            % object that can be used for selection.
+            prefix = obj.comsol_prefix(comsol_object_name);
+            ind = obj.get_next_index(prefix);
+            comsol_name = prefix+ind;
+            comsol_object = obj.workplane.geom.create(comsol_name, comsol_object_name);
+        end
+        function comsol_shape = make_1D_array(obj, ncopies, vertex, initial_comsol_shape)
+            arguments
+                obj
+                ncopies {mustBeA(ncopies, {'Variable', 'Parameter', 'DependentParameter'})}
+                vertex {mustBeA(vertex, {'Vertices'})}
+                initial_comsol_shape
+            end
+            previous_object_name = string(initial_comsol_shape.tag); % save name of initial comsol object to be selected
+            comsol_shape = obj.create_comsol_object("Array");
+            comsol_shape.set('type', 'linear')
+            comsol_shape.set('linearsize', ncopies.value)
+            comsol_shape.set('displ', vertex.comsol_string);
+            comsol_shape.selection('input').set(previous_object_name);
+        end
+    end
+    methods (Static)
+        function y = comsol_prefix(comsol_object_name)
+            % Comsol element prefix (pol, mir, fil, sca, ...)
+            y = lower(comsol_object_name.extractBetween(1, 3));
         end
     end
 end

@@ -10,7 +10,6 @@ classdef Polygon < Klayout
         comsol_modeler
         comsol_shape
         comsol_name     % Full comsol name of element (pol1, fil12,sca23,...)
-        comsol_prefix   % Comsol element prefix (pol, mir, fil, sca, ...)
     end
     methods
         function obj = Polygon(args)
@@ -25,10 +24,8 @@ classdef Polygon < Klayout
                 obj.pgon_py = obj.pya.Polygon.from_s(obj.vertices.klayout_string);
                 % Comsol
                 obj.comsol_modeler = args.comsol_modeler;
-                obj.comsol_prefix = "pol";
                 if obj.comsol_flag
-                    index = obj.comsol_modeler.get_next_index(obj.comsol_prefix);
-                    obj.comsol_shape = obj.comsol_modeler.workplane.geom.create(obj.comsol_prefix+string(index), 'Polygon');
+                    obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Polygon");
                     obj.comsol_shape.set('x', obj.vertices.comsol_string_x);
                     obj.comsol_shape.set('y', obj.vertices.comsol_string_y);
                 end
@@ -40,26 +37,14 @@ classdef Polygon < Klayout
         function y = npoints(obj)
             y = size(obj.vertices.array, 1);
         end
-        function [comsol_object, previous_object_name] = create_comsol_object(obj, comsol_object_name)
-            % This function creates a new comsol object in the plane
-            % geometry. The comsol name can be "Rotate", "Difference",
-            % "Move", "Copy"....
-            % It returns the comsol object to be stored in
-            % obj.comsol_shape; and the comsol object name of the initial
-            % object that can be used for selection.
-            obj.comsol_prefix = lower(comsol_object_name.extractBetween(1, 3));
-            ind = obj.comsol_modeler.get_next_index(obj.comsol_prefix);
-            obj.comsol_name = obj.comsol_prefix+ind;
-            comsol_object = obj.comsol_modeler.workplane.geom.create(obj.comsol_name, comsol_object_name);
-            previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-        end
         % Transformations
         function move(obj, vector)
             % Python
             obj.pgon_py.move(vector(1), vector(2));
             % Comsol
             if obj.comsol_flag
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Move");           
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Move");           
                 obj.comsol_shape.set('displx', vector(1));
                 obj.comsol_shape.set('disply', vector(2));
                 obj.comsol_shape.selection('input').set(previous_object_name);             
@@ -80,7 +65,8 @@ classdef Polygon < Klayout
             obj.pgon_py.move(reference_point(1), reference_point(2));
             % Comsol
             if obj.comsol_flag
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Rotate");       
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Rotate");       
                 obj.comsol_shape.set('rot', angle.name);
                 obj.comsol_shape.set('pos', reference_point);
                 obj.comsol_shape.selection('input').set(previous_object_name);
@@ -96,7 +82,8 @@ classdef Polygon < Klayout
             obj.pgon_py.transform(scaling);
             % Comsol
             if obj.comsol_flag
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Scale");  
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Scale");  
                 obj.comsol_shape.set('factor', scaling_factor.name);
                 obj.comsol_shape.selection('input').set(previous_object_name);
             end
@@ -113,7 +100,8 @@ classdef Polygon < Klayout
             obj.pgon_py.move(axis.value, 0);
             % Comsol
             if obj.comsol_flag
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Mirror");
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Mirror");
                 obj.comsol_shape.set('pos', [axis.name, 0]); % point on reflexion axis
                 obj.comsol_shape.set('axis', [1, 0]); % normal to reflexion axis
                 obj.comsol_shape.selection('input').set(previous_object_name);
@@ -131,7 +119,8 @@ classdef Polygon < Klayout
             obj.pgon_py.move(0, axis.value);
             % Comsol
             if obj.comsol_flag
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Mirror");
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Mirror");
                 obj.comsol_shape.set('pos', [0, axis.name]); % point on reflexion axis
                 obj.comsol_shape.set('axis', [0, 1]); % normal to reflexion axis
                 obj.comsol_shape.selection('input').set(previous_object_name);
@@ -152,45 +141,82 @@ classdef Polygon < Klayout
                 fillet_radius.value, fillet_npoints.value); 
             disp("Number of points in fillets cannot be set in Comsol")
             if obj.comsol_flag
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
                 vertices_indices = linspace(1, obj.npoints);
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Fillet");
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Fillet");
                 obj.comsol_shape.set('radius', fillet_radius.name); 
                 obj.comsol_shape.selection('point').set(previous_object_name, vertices_indices);
             end
         end
-        function make_linear_array(obj, ncopies, axis)
+        function make_2D_array(obj, ncopies_x, ncopies_y, vertices, gds_modeler, layer)
+            arguments
+                obj
+                ncopies_x {mustBeA(ncopies_x, {'Variable', 'Parameter', 'DependentParameter'})}
+                ncopies_y {mustBeA(ncopies_y, {'Variable', 'Parameter', 'DependentParameter'})}
+                vertices {mustBeA(vertices, {'Vertices'})}
+                gds_modeler
+                layer
+            end
+            cell_name_1 = 'intermediate_cell_1';
+            intermediate_cell_1 = gds_modeler.pylayout.create_cell(cell_name_1);
+            gds_modeler.add_to_layer(layer, obj, intermediate_cell_1);         
+            transformation = obj.pya.Trans(obj.pya.Point(0,0));
+            array_1_cell_instance = obj.pya.CellInstArray(intermediate_cell_1.cell_index(), transformation, ...
+                obj.pya.Vector(vertices.value(1, 1), vertices.value(1, 2)), obj.pya.Vector(0, 1), ncopies_x.value, 1);
+            gds_modeler.pycell.insert(array_1_cell_instance);
+            cell_name_2 = 'intermediate_cell_2';
+            intermediate_cell_2 = gds_modeler.pylayout.create_cell(cell_name_2);
+            intermediate_cell_2.insert(array_1_cell_instance);
+            array_2_cell_instance = obj.pya.CellInstArray(intermediate_cell_2.cell_index(), transformation, ...
+                obj.pya.Vector(vertices.value(2, 1), vertices.value(2, 2)), obj.pya.Vector(1, 0), ncopies_y.value, 1);
+            gds_modeler.pycell.insert(array_2_cell_instance);
+
+            if obj.comsol_flag
+                obj.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies_x, vertices.get_sub_vertex(1), obj.comsol_shape);
+                obj.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies_y, vertices.get_sub_vertex(2), obj.comsol_shape);
+            end
+        end
+        function make_1D_array(obj, ncopies, vertex, gds_modeler, layer)
             arguments
                 obj
                 ncopies {mustBeA(ncopies, {'Variable', 'Parameter', 'DependentParameter'})}
-                axis {mustBeA(axis, {'Vertices'})}
+                vertex {mustBeA(vertex, {'Vertices'})}
+                gds_modeler
+                layer
             end
+            cell_name = 'intermediate_cell';
+            new_cell = gds_modeler.pylayout.create_cell(cell_name);
+            gds_modeler.add_to_layer(layer, obj, new_cell);         
+            transformation = obj.pya.Trans(obj.pya.Point(0,0));
+            cell_instance = obj.pya.CellInstArray(new_cell.cell_index(), transformation, ...
+                obj.pya.Vector(vertex.value(1), vertex.value(2)), obj.pya.Vector(0, 1), ncopies.value, 1);
+            gds_modeler.pycell.insert(cell_instance);
             if obj.comsol_flag
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Array");
-                 obj.comsol_shape.set('type', 'linear')
-                 obj.comsol_shape.set('linearsize', ncopies.value)
-                 obj.comsol_shape.set('displ', axis.comsol_string);
-                 obj.comsol_shape.selection('input').set(previous_object_name);   
+                obj.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies, vertex, obj.comsol_shape);
             end
         end
 
         % Boolean operations
         function sub_obj = minus(obj, object_to_subtract)
             if obj.comsol_flag
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Difference");
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Difference");
                 obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_subtract.comsol_shape.tag)]);
             end
             sub_obj = obj.apply_operation(object_to_subtract, "Difference");
         end
         function add_obj = plus(obj, object_to_add)
             if obj.comsol_flag
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Union");
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Union");
                 obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_add.comsol_shape.tag)]);
             end
             add_obj = obj.apply_operation(object_to_add, "Union");
         end
         function intersection_obj = intersect(obj, object_to_intersect)
             if obj.comsol_flag
-                [obj.comsol_shape, previous_object_name] = obj.create_comsol_object("Intersection");
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Intersection");
                 obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_intersect.comsol_shape.tag)]);
             end
             intersection_obj = obj.apply_operation(object_to_intersect, "Intersection");
@@ -237,10 +263,7 @@ classdef Polygon < Klayout
             % Comsol
             if obj.comsol_flag
                 y.comsol_modeler = obj.comsol_modeler;
-                ind = obj.comsol_modeler.get_next_index('copy');
-                y.comsol_prefix = "copy";
-                y.comsol_name = y.comsol_prefix+ind;
-                y.comsol_shape = obj.comsol_modeler.workplane.geom.create(y.comsol_name, "Copy");
+                y.comsol_shape = obj.comsol_modeler.create_comsol_object("Copy");
                 y.comsol_shape.selection('input').set(string(obj.comsol_shape.tag));
             end
         end

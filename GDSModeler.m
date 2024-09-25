@@ -19,8 +19,17 @@ classdef GDSModeler < Klayout
         function py_layer = create_layer(obj, number)
             py_layer = obj.pylayout.layer(string(number));
         end
-        function add_to_layer(obj, layer, shape)
-            obj.pycell.shapes(layer).insert(shape.pgon_py);
+        function add_to_layer(obj, layer, shape, klayout_cell)
+            % Last argument allows to add to a different cell than the main
+            % one. Useful for arrays, for which an intermediate cell
+            % is needed.
+            arguments
+                obj
+                layer
+                shape
+                klayout_cell = obj.pycell
+            end
+            klayout_cell.shapes(layer).insert(shape.pgon_py);
             obj.shapes{end+1}.layer = int8(layer);
             obj.shapes{end}.shape = shape;
         end

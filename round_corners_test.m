@@ -31,17 +31,18 @@ triangle_2.flip_horizontally(flip_axis);
 unit_cell = triangle_1+triangle_2;
 
 array_size = Parameter("array_size", 10, comsol_modeler=cm);
-vector_1 = Vertices([1/4, 1/(2*sqrt(3))], lattice_parameter);
-vector_2 = Vertices([1/4, -1/(2*sqrt(3))], lattice_parameter);
-unit_cell.make_linear_array(array_size, vector_1);
+vector_1 = Vertices([1/2, 1/(2*sqrt(3))], lattice_parameter);
+vector_2 = Vertices([1/2, -1/(2*sqrt(3))], lattice_parameter);
+
+%unit_cell.make_1D_array(array_size, vector_1, gm, layer);
+unit_cell.make_2D_array(array_size, array_size, vector_1+vector_2, gm, layer);
 
 
-gm.add_to_layer(layer, unit_cell)
 
 
 
 gm.write("round_corner_test.gds")
 % Plot Comsol geometry in Matlab 
-cm.plot;
+%cm.plot;
 % Export model in .m file
 % comsol_modeler.save_to_m_file;

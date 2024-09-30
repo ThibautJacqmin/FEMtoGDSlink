@@ -14,7 +14,5 @@ classdef DependentParameter<DependentParametersAndVariables
         function add_object(obj, name, expression)
             obj.comsol_modeler.add_parameter(name, expression);
         end
-      
-
     end
 end

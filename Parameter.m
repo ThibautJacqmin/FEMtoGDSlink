@@ -21,7 +21,24 @@ classdef Parameter<handle
                 obj.comsol_modeler.add_parameter(name, value, obj.unit)
             end
         end
-
+        function y = plus(obj, parameter_object)
+            assert(obj.unit==parameter_object.unit);
+            y = Parameter(obj.name + "_" + parameter_object.name, ...
+                obj.value+parameter_object.value, unit= obj.unit);
+        end
+        function y = minus(obj, parameter_object)
+            assert(obj.unit==parameter_object.unit);
+            y = Parameter(obj.name + "_" + parameter_object.name, ...
+                obj.value-parameter_object.value, unit= obj.unit);
+        end
+        function y = times(obj, coef)
+            y = Parameter(obj.name + "times" + ...
+                string(coef), obj.value*coef, unit=obj.unit);
+        end
+        function y = rdivide(obj, coef)
+            y = Parameter(obj.name + "divided_by" + ...
+                string(coef), obj.value/coef, unit=obj.unit);
+        end
         function y = comsol_flag(obj)
             y = ~isempty(obj.comsol_modeler);
         end

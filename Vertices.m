@@ -1,8 +1,10 @@
 classdef Vertices<handle
     properties
         array
-        value
         prefactor
+    end
+    properties (Dependent)
+        value
     end
     methods
         function obj = Vertices(array, prefactor)
@@ -10,9 +12,11 @@ classdef Vertices<handle
                 array (:, 2) double = [0, 0]
                 prefactor Parameter = Parameter("", 1)
             end
-            obj.value = round(array.*prefactor.value);
             obj.array = array;
             obj.prefactor = prefactor;
+        end
+        function y = get.value(obj)
+           y = round(obj.array.*obj.prefactor.value);
         end
         function s = comsol_string(obj)
             s = Utilities.vertices_to_comsol_string(obj.array, ...
@@ -33,6 +37,8 @@ classdef Vertices<handle
             y = Vertices(obj.array(vertex_index, :), obj.prefactor);
         end
         function y = plus(obj, vertices_object)
+            % Concatenation de Vertices
+            % Pas top comme nom, il faut aussi une fonction pour ajouter des vecteurs.  
             assert(obj.prefactor.value==vertices_object.prefactor.value, ...
                             "Error: Vertices prefactors must be the same");
             y = Vertices([obj.array; vertices_object.array], obj.prefactor);

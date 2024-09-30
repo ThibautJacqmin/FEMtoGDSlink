@@ -55,7 +55,7 @@ classdef GDSModeler < Klayout
                     for ix = 1:nx
                         for iy = 1:ny
                             shape_copy = shape{1}.shape.copy;
-                            shape_copy.move([ix*x, iy*y]);
+                            shape_copy.move(Vertices([ix*x.value, iy*y.value]));
                             obj.add_to_layer(shape{1}.layer, shape_copy);
                         end
                     end
@@ -71,8 +71,9 @@ classdef GDSModeler < Klayout
             mark = Polygon;
             mark.pgon_py = obj.pya.Region();
             for fieldname=string(fieldnames(data))'
-                mark.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_string(data.(fieldname)*1e3)));
+                mark.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_klayout_string(data.(fieldname)*1e3)));
             end
+            mark.vertices = Vertices(Utilities.get_vertices_from_klayout(mark.pgon_py));
         end
         function two_inch_wafer = add_two_inch_wafer(obj)
             arguments
@@ -81,7 +82,8 @@ classdef GDSModeler < Klayout
             data = load(fullfile("Library", "two_inch_wafer.mat"));
             two_inch_wafer = Polygon;
             two_inch_wafer.pgon_py = obj.pya.Region();
-            two_inch_wafer.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_string(data.wafer_edge*1e3)));
+            two_inch_wafer.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_klayout_string(data.wafer_edge*1e3)));
+            two_inch_wafer.vertices = Vertices(Utilities.get_vertices_from_klayout(two_inch_wafer.pgon_py));
         end
 
     end

@@ -4,7 +4,7 @@ function s = vertices_to_klayout_string(matlab_vertices)
 arguments
     matlab_vertices
 end
-s = string(matlab_vertices);
+s = string(round(matlab_vertices));
 s = s.join(",");
 s = s.join(';');
 s = '(' + s + ')';

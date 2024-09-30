@@ -39,14 +39,20 @@ classdef Polygon < Klayout
         end
         % Transformations
         function move(obj, vector)
+            arguments
+                obj
+                vector Vertices
+            end
+            % Absolument ajouter une fonction d'addition de Vertices
+            obj.vertices.array = obj.vertices.array + [vector.value(1), vector.value(2)]./obj.vertices.prefactor.value;
             % Python
-            obj.pgon_py.move(vector(1), vector(2));
+            obj.pgon_py.move(vector.value(1), vector.value(2));
             % Comsol
             if obj.comsol_flag
                 previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
                 obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Move");           
-                obj.comsol_shape.set('displx', vector(1));
-                obj.comsol_shape.set('disply', vector(2));
+                obj.comsol_shape.set('displx', vector.value(1));
+                obj.comsol_shape.set('disply', vector.value(2));
                 obj.comsol_shape.selection('input').set(previous_object_name);             
             end
         end

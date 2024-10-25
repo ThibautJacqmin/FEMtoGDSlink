@@ -55,7 +55,7 @@ etching_angle = 54.74;
 % scalar multipication for dependent parameters
 etching_distance = Parameter("etching_distance", wafer_thickness.value/tan(etching_angle*pi/180));
 mesa_SIN_suspension_width = Parameter("mesa_SIN_suspension_width", 500e3);
-mesa_SI_suspension_width = Parameter("mesa_SI_suspension_width", 10e3);
+mesa_SI_suspension_width = Parameter("mesa_SI_suspension_width", 15e3);
 mesa_hole_width = Parameter("mesa_hole_width", 1600e3);
 
 

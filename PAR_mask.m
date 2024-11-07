@@ -8,21 +8,23 @@ gds_modeler = GDSModeler;
 
 
 % BACK SIDE LAYER
-back_side_layer = gds_modeler.create_layer(0);
+back_side_layer_bottom = gds_modeler.create_layer(0);
+back_side_layer_top = gds_modeler.create_layer(1);
+
 % FRONT SIDE LAYER
-front_side_layer = gds_modeler.create_layer(1);
+front_side_layer = gds_modeler.create_layer(2);
 
 structure_position_1 = Vertices([-15000e3, -12250e3]);
 structure_position_2 = Vertices([-5000e3, -18250e3]);
 structure_position_3 = Vertices([5000e3, -18250e3]);
 structure_position_4 = Vertices([15000e3, -12250e3]);
-generate_structure(structure_position_1, front_side_layer, back_side_layer, gds_modeler);
-generate_structure(structure_position_2, front_side_layer, back_side_layer, gds_modeler);
-generate_structure(structure_position_3, front_side_layer, back_side_layer, gds_modeler);
-generate_structure(structure_position_4, front_side_layer, back_side_layer, gds_modeler);
+generate_structure(structure_position_1, front_side_layer, back_side_layer_bottom, gds_modeler);
+generate_structure(structure_position_2, front_side_layer, back_side_layer_bottom, gds_modeler);
+generate_structure(structure_position_3, front_side_layer, back_side_layer_bottom, gds_modeler);
+generate_structure(structure_position_4, front_side_layer, back_side_layer_bottom, gds_modeler);
 
 % Add 2 inch wafer
-wafer_layer = gds_modeler.create_layer(2);
+wafer_layer = gds_modeler.create_layer(3);
 wafer = gds_modeler.add_two_inch_wafer;
 gds_modeler.add_to_layer(wafer_layer, wafer);
 
@@ -30,7 +32,7 @@ gds_modeler.add_to_layer(wafer_layer, wafer);
 square_size = Parameter("square_size", 3000e3);
 etching_flag_window = Box(center=Vertices([0, 16350e3]), width=square_size, ...
     height=square_size);
-gds_modeler.add_to_layer(back_side_layer, etching_flag_window);
+gds_modeler.add_to_layer(back_side_layer_top, etching_flag_window);
 
 % Add glue grooves for gluing tight
 for i = 1:29
@@ -38,15 +40,15 @@ for i = 1:29
     groove_height = Parameter("square_size", 8000e3);
     groove_right = Box(center=Vertices([8500e3, 11000e3+300e3*i]), width=groove_height, ...
         height=groove_width);
-    gds_modeler.add_to_layer(back_side_layer, groove_right);
+    gds_modeler.add_to_layer(back_side_layer_top, groove_right);
     groove_left = Box(center=Vertices([-8500e3, 11000e3+300e3*i]), width=groove_height, ...
         height=groove_width);
-    gds_modeler.add_to_layer(back_side_layer, groove_left);
+    gds_modeler.add_to_layer(back_side_layer_top, groove_left);
 end
 
 gds_modeler.write("Par_mask_matlab_test.gds")
 
-function generate_structure(structure_position, front_side_layer, back_side_layer, gds_modeler)
+function generate_structure(structure_position, front_side_layer, back_side_layer_bottom, gds_modeler)
 
 wafer_thickness = Parameter("wafer_thickness", 280e3);
 etching_angle = 54.74;
@@ -102,11 +104,11 @@ mesa_hole = Box(center=Vertices([top_box.center.value(1), (bottom_box.top.value+
     height=mesa_hole_width+etching_distance.*2);
 
 
-gds_modeler.add_to_layer(back_side_layer, left_box)
-gds_modeler.add_to_layer(back_side_layer, right_box)
-gds_modeler.add_to_layer(back_side_layer, bottom_box)
-gds_modeler.add_to_layer(back_side_layer, top_box)
-gds_modeler.add_to_layer(back_side_layer, mesa_hole)
+gds_modeler.add_to_layer(back_side_layer_bottom, left_box)
+gds_modeler.add_to_layer(back_side_layer_bottom, right_box)
+gds_modeler.add_to_layer(back_side_layer_bottom, bottom_box)
+gds_modeler.add_to_layer(back_side_layer_bottom, top_box)
+gds_modeler.add_to_layer(back_side_layer_bottom, mesa_hole)
 
 fillets = {};
 tethers = {};
@@ -145,20 +147,13 @@ mesa_opening = Box(center=mesa_hole.center.value, ...
     height=mesa_hole.height-etching_distance.*2);
 gds_modeler.add_to_layer(front_side_layer, mesa_opening);
 
-% Remove SiN film holding the mesa on the sides
-right_opening = right_box.copy;
-gds_modeler.add_to_layer(front_side_layer, right_opening);
-left_opening = left_box.copy;
-gds_modeler.add_to_layer(front_side_layer, left_opening);
-bottom_opening = bottom_box.copy;
-gds_modeler.add_to_layer(front_side_layer, bottom_opening);
 
 % Add alignment mark
 mark_distance = 300e3;
 mark = gds_modeler.add_alignment_mark(type=1);
 mark.move(Vertices([right_box.center.value(1)+right_box.width.value+mark_distance, ...
     right_box.center.value(2)]));
-gds_modeler.add_to_layer(back_side_layer, mark);
+gds_modeler.add_to_layer(back_side_layer_bottom, mark);
 
 end
 

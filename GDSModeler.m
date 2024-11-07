@@ -67,7 +67,7 @@ classdef GDSModeler < Klayout
                 obj
                 args.type = 1
             end
-            data = load(fullfile("Library", "alignment_mark_type_" + num2str(args.type) +".mat"));
+            data = load(fullfile(obj.get_folder, "Library", "alignment_mark_type_" + num2str(args.type) +".mat"));
             mark = Polygon;
             mark.pgon_py = obj.pya.Region();
             for fieldname=string(fieldnames(data))'
@@ -79,12 +79,20 @@ classdef GDSModeler < Klayout
             arguments
                 obj
             end
-            data = load(fullfile("Library", "two_inch_wafer.mat"));
+            data = load(fullfile(obj.get_folder, "Library", "two_inch_wafer.mat"));
             two_inch_wafer = Polygon;
             two_inch_wafer.pgon_py = obj.pya.Region();
             two_inch_wafer.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_klayout_string(data.wafer_edge*1e3)));
             two_inch_wafer.vertices = Vertices(Utilities.get_vertices_from_klayout(two_inch_wafer.pgon_py));
         end
+        
 
+    end
+    methods (Static)
+        function y = get_folder
+            s = string(mfilename('fullpath'));
+            m = mfilename;
+            y = s.erase(m);
+        end
     end
 end

@@ -18,7 +18,10 @@ classdef Parameter<handle
             obj.unit = args.unit;
             obj.comsol_modeler = args.comsol_modeler;
             if obj.comsol_flag
-                obj.comsol_modeler.add_parameter(name, value, obj.unit)
+                try
+                    obj.comsol_modeler.add_parameter(name, value, obj.unit);
+                catch
+                end
             end
         end
         function y = plus(obj, parameter_object)

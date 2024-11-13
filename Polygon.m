@@ -204,28 +204,32 @@ classdef Polygon < Klayout
 
         % Boolean operations
         function sub_obj = minus(obj, object_to_subtract)
-            if obj.comsol_flag
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Difference");
-                obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_subtract.comsol_shape.tag)]);
-            end
             sub_obj = obj.apply_operation(object_to_subtract, "Difference");
+            if obj.comsol_flag
+                sub_obj.comsol_modeler = obj.comsol_modeler;
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                sub_obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Difference");
+                sub_obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_subtract.comsol_shape.tag)]);
+            end            
         end
         function add_obj = plus(obj, object_to_add)
-            if obj.comsol_flag
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Union");
-                obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_add.comsol_shape.tag)]);
-            end
             add_obj = obj.apply_operation(object_to_add, "Union");
+            if obj.comsol_flag
+                add_obj.comsol_modeler = obj.comsol_modeler;
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                add_obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Union");
+                add_obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_add.comsol_shape.tag)]);
+            end
         end
         function intersection_obj = intersect(obj, object_to_intersect)
-            if obj.comsol_flag
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Intersection");
-                obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_intersect.comsol_shape.tag)]);
-            end
             intersection_obj = obj.apply_operation(object_to_intersect, "Intersection");
+            if obj.comsol_flag
+                intersection_obj.comsol_modeler = obj.comsol_modeler;
+                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
+                intersection_obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Intersection");
+                intersection_obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_intersect.comsol_shape.tag)]);
+            end
+            
         end
         function y = apply_operation(obj, obj2, operation_name)
             % This is a wrapper for minus, plus, intersect, and boolean
@@ -236,10 +240,6 @@ classdef Polygon < Klayout
             region2 = obj.pya.Region();
             region2.insert(obj2.pgon_py);
             y = Polygon;
-            if obj.comsol_flag
-                y.comsol_modeler = obj.comsol_modeler;
-                y.comsol_shape = obj.comsol_shape;
-            end
             % Perform the Python operation on klayout polygon
             switch operation_name
                 case "Difference"
@@ -251,6 +251,7 @@ classdef Polygon < Klayout
                     region = region1.and_(region2);
             end
             y.pgon_py = region.merge;
+            y.vertices = Vertices(Utilities.get_vertices_from_klayout(y.pgon_py));
         end
 
         % Copy function

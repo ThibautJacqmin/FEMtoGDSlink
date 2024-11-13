@@ -154,7 +154,8 @@ classdef Polygon < Klayout
                 obj.comsol_shape.selection('point').set(previous_object_name, vertices_indices);
             end
         end
-        function make_2D_array(obj, ncopies_x, ncopies_y, vertices, gds_modeler, layer)
+        function y = make_2D_array(obj, ncopies_x, ncopies_y, vertices, gds_modeler, layer)
+            % returns a polygon
             arguments
                 obj
                 ncopies_x {mustBeA(ncopies_x, {'Variable', 'Parameter', 'DependentParameter'})}
@@ -176,10 +177,22 @@ classdef Polygon < Klayout
             array_2_cell_instance = obj.pya.CellInstArray(intermediate_cell_2.cell_index(), transformation, ...
                 obj.pya.Vector(vertices.value(2, 1), vertices.value(2, 2)), obj.pya.Vector(1, 0), ncopies_y.value, 1);
             gds_modeler.pycell.insert(array_2_cell_instance);
-
+            % Select all polygons in Cell
+            region = obj.pya.Region();
+            region.insert(gds_modeler.pycell.shapes(layer));
+            % Create Polygon object to return
+            y = Polygon;
+            y.pgon_py = region.merge;
+            y.vertices = Vertices(Utilities.get_vertices_from_klayout(y.pgon_py));
+           
             if obj.comsol_flag
-                obj.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies_x, vertices.get_sub_vertex(1), obj.comsol_shape);
-                obj.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies_y, vertices.get_sub_vertex(2), obj.comsol_shape);
+                y.comsol_modeler = obj.comsol_modeler;
+                y.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies_x, vertices.get_sub_vertex(1), obj.comsol_shape);
+                y.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies_y, vertices.get_sub_vertex(2), y.comsol_shape);
+                % Create Union (otherwise selection difficult later)
+                previous_object_name = string(y.comsol_shape.tag); % array name
+                y.comsol_shape = obj.comsol_modeler.create_comsol_object("Union");
+                y.comsol_shape.selection('input').set(previous_object_name);
             end
         end
         function make_1D_array(obj, ncopies, vertex, gds_modeler, layer)

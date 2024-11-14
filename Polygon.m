@@ -177,14 +177,12 @@ classdef Polygon < Klayout
             array_2_cell_instance = obj.pya.CellInstArray(intermediate_cell_2.cell_index(), transformation, ...
                 obj.pya.Vector(vertices.value(2, 1), vertices.value(2, 2)), obj.pya.Vector(1, 0), ncopies_y.value, 1);
             gds_modeler.pycell.insert(array_2_cell_instance);
-            % Select all polygons in Cell
-            region = obj.pya.Region();
-            region.insert(gds_modeler.pycell.shapes(layer));
+            gds_modeler.pycell.flatten(layer);
             % Create Polygon object to return
             y = Polygon;
-            y.pgon_py = region.merge;
+            py.importlib.import_module('pytools');
+            y.pgon_py = gds_modeler.pya.Polygon.from_s(py.pytools.cell_vertices_to_string(gds_modeler.pycell, gds_modeler.pylayout, layer));
             y.vertices = Vertices(Utilities.get_vertices_from_klayout(y.pgon_py));
-           
             if obj.comsol_flag
                 y.comsol_modeler = obj.comsol_modeler;
                 y.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies_x, vertices.get_sub_vertex(1), obj.comsol_shape);
@@ -247,11 +245,19 @@ classdef Polygon < Klayout
         function y = apply_operation(obj, obj2, operation_name)
             % This is a wrapper for minus, plus, intersect, and boolean
             % operations. obj2 can be a cell array of objects and operation
+            if isa(obj.pgon_py, 'py.klayout.dbcore.Region')
+                region1 = obj.pgon_py;
+            else
+                region1 = obj.pya.Region(); 
+                region1.insert(obj.pgon_py);
+            end
+            if isa(obj2.pgon_py, 'py.klayout.dbcore.Region')
+                region2 = obj2.pgon_py;
+            else
+                region2 = obj.pya.Region();
+                region2.insert(obj2.pgon_py);
+            end
 
-            region1 = obj.pya.Region();
-            region1.insert(obj.pgon_py);
-            region2 = obj.pya.Region();
-            region2.insert(obj2.pgon_py);
             y = Polygon;
             % Perform the Python operation on klayout polygon
             switch operation_name
@@ -263,8 +269,8 @@ classdef Polygon < Klayout
                     % Weird that and_ is implemented and not and...
                     region = region1.and_(region2);
             end
-            y.pgon_py = region.merge;
-            y.vertices = Vertices(Utilities.get_vertices_from_klayout(y.pgon_py));
+            y.pgon_py = region.merged;
+            y.vertices = Vertices(Utilities.get_vertices_from_klayout(y.pgon_py)); % gives NaN...
         end
 
         % Copy function

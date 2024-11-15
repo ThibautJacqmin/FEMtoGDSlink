@@ -10,10 +10,14 @@ classdef Vertices<handle
         function obj = Vertices(array, prefactor)
             arguments
                 array (:, 2) double = [0, 0]
-                prefactor Parameter = Parameter("", 1)
+                prefactor = Parameter("", 1)
+            end
+            if isa(prefactor, "Parameter")
+                obj.prefactor = prefactor;
+            else
+                obj.prefactor = Parameter("", prefactor);
             end
             obj.array = array;
-            obj.prefactor = prefactor;
         end
         function y = get.value(obj)
            y = round(obj.array.*obj.prefactor.value);

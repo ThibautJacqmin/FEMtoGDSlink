@@ -3,7 +3,6 @@ classdef Polygon < Klayout
     % from Klayout stores coordinates in integer. Note that we always
     % set the resolution to 1 nm.
     % https://www.klayout.de/doc/code/class_Polygon.html
-    % This class maps a Klayout python polygon onto a Malab polyshape
     properties 
         vertices % Vertices object
         pgon_py  % python polygon

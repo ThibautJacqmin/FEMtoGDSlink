@@ -33,34 +33,11 @@ classdef GDSModeler < Klayout
             obj.shapes{end+1}.layer = int8(layer);
             obj.shapes{end}.shape = shape;
         end
+        function delete_layer(obj, layer)
+            obj.pylayout.delete_layer(layer);
+        end
         function write(obj, filename)
             obj.pylayout.write(filename);
-        end
-        function make_array(obj, x, y, nx, ny, args)
-            % Make an array of size nx x ny
-            % with all shapes from a given layer
-            % or with a given shape
-            % or without optional argument : the whole design
-            % (only implementation now)
-            arguments
-                obj
-                x
-                y
-                nx
-                ny
-                args.layer
-            end
-            for shape=obj.shapes
-                if shape{1}.layer==args.layer
-                    for ix = 1:nx
-                        for iy = 1:ny
-                            shape_copy = shape{1}.shape.copy;
-                            shape_copy.move(Vertices([ix*x.value, iy*y.value]));
-                            obj.add_to_layer(shape{1}.layer, shape_copy);
-                        end
-                    end
-                end
-            end
         end
         function mark = add_alignment_mark(obj, args)
             arguments

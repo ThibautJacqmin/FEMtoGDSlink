@@ -144,6 +144,7 @@ classdef Polygon < Klayout
             end
             obj.pgon_py = obj.pgon_py.round_corners(fillet_radius.value,...
                 fillet_radius.value, fillet_npoints.value); 
+            obj.vertices = Vertices(Utilities.get_vertices_from_klayout(obj.pgon_py));
             disp("Number of points in fillets cannot be set in Comsol")
             if obj.comsol_flag
                 previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected

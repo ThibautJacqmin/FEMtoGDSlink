@@ -1,7 +1,7 @@
 classdef Vertices<handle
     properties
-        array
-        prefactor
+        array      % coefficient without dimension
+        prefactor  % prefactor containing the phyical dimension
     end
     properties (Dependent)
         value

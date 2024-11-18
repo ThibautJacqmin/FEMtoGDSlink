@@ -194,7 +194,7 @@ classdef Polygon < Klayout
                 y.comsol_shape.selection('input').set(previous_object_name);
             end
         end
-        function make_1D_array(obj, ncopies, vertex, gds_modeler, layer)
+        function y = make_1D_array(obj, ncopies, vertex, gds_modeler, layer)
             % Need to modify as 2D arrays otherwise does not work
             arguments
                 obj
@@ -210,8 +210,20 @@ classdef Polygon < Klayout
             cell_instance = obj.pya.CellInstArray(new_cell.cell_index(), transformation, ...
                 obj.pya.Vector(vertex.value(1), vertex.value(2)), obj.pya.Vector(0, 1), ncopies.value, 1);
             gds_modeler.pycell.insert(cell_instance);
+            gds_modeler.pycell.flatten(-1);
+            region = obj.pya.Region();
+            region.insert(gds_modeler.pycell.shapes(layer));
+            region.merge();
+            % Create Polygon object to return
+            y = Polygon;
+            y.pgon_py = region;
             if obj.comsol_flag
+                y.comsol_modeler = obj.comsol_modeler;
                 obj.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies, vertex, obj.comsol_shape);
+                % Create Union (otherwise selection difficult later)
+                previous_object_name = string(y.comsol_shape.tag); % array name
+                y.comsol_shape = obj.comsol_modeler.create_comsol_object("Union");
+                y.comsol_shape.selection('input').set(previous_object_name);
             end
         end
 

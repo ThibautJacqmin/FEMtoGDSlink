@@ -51,11 +51,11 @@ classdef ComsolModeler < handle
                 y=1;
             end
         end
-        function add_parameter(obj, name, value, unit)
+        function add_parameter(obj, value, name, unit)
             arguments
                 obj
-                name {mustBeTextScalar}
                 value {double}
+                name {mustBeTextScalar}
                 unit {mustBeTextScalar} = ""
             end
             unit_str = "";

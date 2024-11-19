@@ -16,13 +16,10 @@ classdef Lattice < handle
     methods
         function obj = Lattice(a, nw, nh)
             % Constructor to initialize the lattice
-            % a: lattice constant
-            % nw: number of unit cells in the width
-            % nh: number of unit cells in the height
             arguments
-                a double
-                nw {mustBeInteger}
-                nh {mustBeInteger}
+                a double   % a: lattice constant
+                nw {mustBeInteger}  % nw: number of unit cells in the width
+                nh {mustBeInteger}   % nh: number of unit cells in the height
             end
             obj.a = a; obj.nw = nw; obj.nh = nh;
         end

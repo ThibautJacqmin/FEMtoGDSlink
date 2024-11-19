@@ -10,7 +10,8 @@ classdef Lattice < handle
         nw % number of unit cells in the width of the square structure
         nh % number of unit cells in the height of the square structure
         Gamma = [0, 0] % coordinates of Gamma symmetry point in reciprocal space
-        irreducibleBZ % Vertices of irreducible Brillouin Zone
+        unitCellContour % Vertices of unit cell contour
+        irreducibleBrillouinZoneContour % Vertices of irreducible Brillouin Zone
     end
     methods
         function obj = Lattice(a, nw, nh)
@@ -45,9 +46,14 @@ classdef Lattice < handle
             % Reciprocal lattice vector b2
             y = obj.b*[1/2, sqrt(3)/2];
         end
-        function y = get.irreducibleBZ(obj)
+        function y = get.irreducibleBrillouinZoneContour(obj)
             % Coordinates of the corners of the irreducible BZ
             y = [obj.Gamma; obj.M; obj.K; obj.Gamma];
+        end
+        function c = get.unitCellContour(obj)
+            x = [0, obj.a1(1), obj.a1(1) + obj.a2(1), obj.a2(1), 0];
+            y = [0, obj.a1(2), obj.a1(2) + obj.a2(2), obj.a2(2), 0];
+            c = [x;y]';
         end
         function lattice_nodes = computeGeometry(obj, name)
             arguments
@@ -64,9 +70,8 @@ classdef Lattice < handle
             quiver(0, 0, obj.a1(1), obj.a1(2), 0, 'r', 'LineWidth', 1.5, 'DisplayName', 'a1');
             quiver(0, 0, obj.a2(1), obj.a2(2), 0, 'b', 'LineWidth', 1.5, 'DisplayName', 'a2');
             % Draw unit cell
-            unit_cell_x = [0, obj.a1(1), obj.a1(1) + obj.a2(1), obj.a2(1), 0];
-            unit_cell_y = [0, obj.a1(2), obj.a1(2) + obj.a2(2), obj.a2(2), 0];
-            plot(unit_cell_x, unit_cell_y, '--k', 'DisplayName', 'Unit Cell'); % Dashed black line
+            fill(obj.unitCellContour(:, 1), obj.unitCellContour(:, 2), 'g', 'FaceAlpha', 0.2, ...
+                'EdgeColor', 'none', 'HandleVisibility', 'off');
             % Add labels and legend
             xlabel('x');
             ylabel('y');
@@ -117,7 +122,8 @@ classdef Lattice < handle
             text(obj.K(1), obj.K(2), 'K', 'VerticalAlignment', 'bottom');
 
             % Fill the triangle formed by Gamma, M, and K
-            fill(obj.irreducibleBZ(:,1), obj.irreducibleBZ(:,2), 'g', 'FaceAlpha', 0.2, ...
+            fill(obj.irreducibleBrillouinZoneContour(:,1), ...
+                obj.irreducibleBrillouinZoneContour(:,2), 'g', 'FaceAlpha', 0.2, ...
                 'EdgeColor', 'none', 'HandleVisibility', 'off');
 
             % Label axes

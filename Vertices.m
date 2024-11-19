@@ -22,6 +22,9 @@ classdef Vertices<handle
         function y = get.value(obj)
            y = round(obj.array.*obj.prefactor.value);
         end
+        function y = isobarycentre(obj)
+            y = mean(obj.array);
+        end
         function s = comsol_string(obj)
             s = Utilities.vertices_to_comsol_string(obj.array, ...
                 comsol_parameter_name=obj.prefactor.name);

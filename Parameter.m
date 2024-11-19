@@ -9,7 +9,7 @@ classdef Parameter<handle
         function obj = Parameter(value, name, args)
             arguments                
                 value
-                name {mustBeTextScalar} = "temp_name"
+                name {mustBeTextScalar} = ""
                 args.unit = "nm"
                 args.comsol_modeler ComsolModeler=ComsolModeler.empty
             end

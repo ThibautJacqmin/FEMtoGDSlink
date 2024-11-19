@@ -10,7 +10,7 @@ classdef Vertices<handle
         function obj = Vertices(array, prefactor)
             arguments
                 array (:, 2) double = [0, 0]
-                prefactor = Parameter("", 1)
+                prefactor = Parameter(1, "")
             end
             if isa(prefactor, "Parameter")
                 obj.prefactor = prefactor;

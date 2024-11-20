@@ -5,6 +5,8 @@ classdef HoneyCombLattice < Lattice
         hexagonal_lattice % base hexagonal lattice
         M     % coordinates of M symmetry point in reciprocal space
         K     % coordinates of K (Dirac) symmetry point in reciprocal space
+        siteA % coordinates of site A in single unit cell (obtained with unitCellContour function)
+        siteB % coordinates of site B in single unit cell (obtained with unitCellContour function)
     end
     methods
         function obj = HoneyCombLattice(a, nw, nh)
@@ -40,6 +42,17 @@ classdef HoneyCombLattice < Lattice
         end
         function y = get.K(obj)
             y = obj.hexagonal_lattice.K;
+        end
+        function z = get.siteA(obj)
+            c = obj.unitCellContour;
+            x = c(1, 1) + (obj.a1(1)+obj.a2(1))/3;
+            y = c(1, 2) + (obj.a1(2)+obj.a2(2))/3;
+            z = [x, y];
+        end
+        function z = get.siteB(obj)
+            x = obj.siteA(1) + (obj.a1(1)+obj.a2(1))/3;
+            y = obj.siteA(2) + (obj.a1(2)+obj.a2(2))/3;
+            z = [x, y];
         end
     end
 end

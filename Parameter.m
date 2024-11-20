@@ -33,11 +33,11 @@ classdef Parameter<handle
                 case 'double'
                     % Case of addition with a number
                     y = Parameter(obj.value+parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"+"+string(parameter_object);
+                    y.comsol_string = "("+obj.comsol_string+")+("+string(parameter_object)+")";
                 case 'Parameter'
                     % Case of addition with a Parameter object
                     y = Parameter(obj.value+parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"+"+parameter_object.comsol_string;
+                    y.comsol_string = "("+obj.comsol_string+")+("+parameter_object.comsol_string+")";
             end
             if obj.comsol_flag
                 obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
@@ -47,10 +47,10 @@ classdef Parameter<handle
             switch class(parameter_object)
                 case 'double'
                     y = Parameter(obj.value-parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"-"+string(parameter_object);
+                    y.comsol_string = "("+obj.comsol_string+")-("+string(parameter_object)+")";
                 case 'Parameter'
                     y = Parameter(obj.value+parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"-"+parameter_object.comsol_string;
+                    y.comsol_string = "("+obj.comsol_string+")-("+parameter_object.comsol_string+")";
             end
             if obj.comsol_flag
                 obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
@@ -60,10 +60,10 @@ classdef Parameter<handle
             switch class(parameter_object)
                 case 'double'
                     y = Parameter(obj.value*parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"*"+string(parameter_object);
+                    y.comsol_string = "("+obj.comsol_string+")*("+string(parameter_object)+")";
                 case 'Parameter'
                     y = Parameter(obj.value*parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"*"+parameter_object.comsol_string;
+                    y.comsol_string = "("+obj.comsol_string+")*("+parameter_object.comsol_string+")";
             end
             if obj.comsol_flag
                 obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
@@ -73,10 +73,10 @@ classdef Parameter<handle
             switch class(parameter_object)
                 case 'double'
                     y = Parameter(obj.value*parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"*"+string(parameter_object);
+                    y.comsol_string = "("+obj.comsol_string+")*("+string(parameter_object)+")";
                 case 'Parameter'
                     y = Parameter(obj.value*parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"*"+parameter_object.comsol_string;
+                    y.comsol_string = "("+obj.comsol_string+")*("+parameter_object.comsol_string+")";
             end
             if obj.comsol_flag
                 obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
@@ -86,10 +86,10 @@ classdef Parameter<handle
             switch class(parameter_object)
                 case 'double'
                     y = Parameter(obj.value/parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"/"+string(parameter_object);
+                    y.comsol_string = "("+obj.comsol_string+")/("+string(parameter_object)+")";
                 case 'Parameter'
                     y = Parameter(obj.value/parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"/"+parameter_object.comsol_string;
+                    y.comsol_string = "("+obj.comsol_string+")/("+parameter_object.comsol_string+")";
             end
             if obj.comsol_flag
                 obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
@@ -99,10 +99,10 @@ classdef Parameter<handle
             switch class(parameter_object)
                 case 'double'
                     y = Parameter(obj.value/parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"/"+string(parameter_object);
+                    y.comsol_string = "("+obj.comsol_string+")/("+string(parameter_object)+")";
                 case 'Parameter'
                     y = Parameter(obj.value/parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = obj.comsol_string+"/"+parameter_object.comsol_string;
+                    y.comsol_string = "("+obj.comsol_string+")/("+parameter_object.comsol_string+")";
             end
             if obj.comsol_flag
                 obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");

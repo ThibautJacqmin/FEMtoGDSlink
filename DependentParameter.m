@@ -1,14 +1,14 @@
 classdef DependentParameter<DependentParametersAndVariables
     methods
-        function obj = DependentParameter(name, anonymous_function, parameter, args)
+        function obj = DependentParameter(anonymous_function, parameter, name, args)
             arguments
-                name {mustBeTextScalar}
                 anonymous_function function_handle
                 parameter Parameter
+                name {mustBeTextScalar} = ""
                 args.comsol_modeler ComsolModeler=ComsolModeler.empty
             end
-            obj = obj@DependentParametersAndVariables(name, ...
-                anonymous_function, parameter, ...
+            obj = obj@DependentParametersAndVariables(anonymous_function, ...
+                parameter, name,...
                 comsol_modeler=args.comsol_modeler);
         end
         function add_object(obj, name, expression)

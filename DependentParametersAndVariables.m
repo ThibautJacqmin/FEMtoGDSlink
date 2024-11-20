@@ -1,17 +1,17 @@
 classdef DependentParametersAndVariables < handle
     properties
         name
-        anonymous_function 
+        anonymous_function
         parameter
         unit
         comsol_modeler
     end
     methods
-        function obj = DependentParametersAndVariables(name, anonymous_function, parameter, args)
+        function obj = DependentParametersAndVariables(anonymous_function, parameter, name, args)
             arguments
-                name {mustBeTextScalar}
                 anonymous_function function_handle
                 parameter Parameter
+                name {mustBeTextScalar}=""
                 args.comsol_modeler ComsolModeler=ComsolModeler.empty
             end
             obj.name = name;
@@ -24,7 +24,7 @@ classdef DependentParametersAndVariables < handle
                 var_name = expression.extractBetween("@(", ")");
                 expression = expression.extractAfter("@("+var_name+")");
                 expression = expression.replace(var_name, parameter.name);
-                obj.add_object(name, expression)
+                obj.add_object(name, expression);
             end
         end
         function y = value(obj)

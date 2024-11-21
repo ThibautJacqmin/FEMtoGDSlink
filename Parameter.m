@@ -31,11 +31,11 @@ classdef Parameter<handle
             % Implements +, -, *, / operations for Parameters
              switch class(parameter_object)
                 case 'double'
-                    % Case of addition with a number
+                    % Case of operation with a number
                     y = Parameter(eval("(obj.value" + operation + "parameter_object)"), "dummy", comsol_modeler=obj.comsol_modeler);
                     y.comsol_string = "("+obj.comsol_string+")" + operation + "("+string(parameter_object)+")";
                 case 'Parameter'
-                    % Case of addition with a Parameter object
+                    % Case of operation with a Parameter object
                     y = Parameter(eval("(obj.value" + operation + "parameter_object.value)"), "dummy", comsol_modeler=obj.comsol_modeler);
                     y.comsol_string = "("+obj.comsol_string+")" + operation + "("+parameter_object.comsol_string+")";
             end

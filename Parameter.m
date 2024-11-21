@@ -27,86 +27,45 @@ classdef Parameter<handle
                 end
             end
         end
-        function y = plus(obj, parameter_object)
-            % Implements addition for parameters
-            switch class(parameter_object)
+        function y = apply_operation(obj, parameter_object, operation)
+            % Implements +, -, *, / operations for Parameters
+             switch class(parameter_object)
                 case 'double'
                     % Case of addition with a number
-                    y = Parameter(obj.value+parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")+("+string(parameter_object)+")";
+                    y = Parameter(eval("(obj.value" + operation + "parameter_object)"), "dummy", comsol_modeler=obj.comsol_modeler);
+                    y.comsol_string = "("+obj.comsol_string+")" + operation + "("+string(parameter_object)+")";
                 case 'Parameter'
                     % Case of addition with a Parameter object
-                    y = Parameter(obj.value+parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")+("+parameter_object.comsol_string+")";
+                    y = Parameter(eval("(obj.value" + operation + "parameter_object.value)"), "dummy", comsol_modeler=obj.comsol_modeler);
+                    y.comsol_string = "("+obj.comsol_string+")" + operation + "("+parameter_object.comsol_string+")";
             end
             if obj.comsol_flag
                 obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
             end
+        end
+        function y = plus(obj, parameter_object)
+            % Implements addition for parameters
+            y = obj.apply_operation(parameter_object, "+");
         end
         function y = minus(obj, parameter_object)
-            switch class(parameter_object)
-                case 'double'
-                    y = Parameter(obj.value-parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")-("+string(parameter_object)+")";
-                case 'Parameter'
-                    y = Parameter(obj.value+parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")-("+parameter_object.comsol_string+")";
-            end
-            if obj.comsol_flag
-                obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
-            end
+            % Implements subtraction for parameters
+            y = obj.apply_operation(parameter_object, "-");
         end
         function y = times(obj, parameter_object)
-            switch class(parameter_object)
-                case 'double'
-                    y = Parameter(obj.value*parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")*("+string(parameter_object)+")";
-                case 'Parameter'
-                    y = Parameter(obj.value*parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")*("+parameter_object.comsol_string+")";
-            end
-            if obj.comsol_flag
-                obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
-            end
+            % Implements multiplication .* for parameters
+            y = obj.apply_operation(parameter_object, "*");
         end
         function y = mtimes(obj, parameter_object)
-            switch class(parameter_object)
-                case 'double'
-                    y = Parameter(obj.value*parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")*("+string(parameter_object)+")";
-                case 'Parameter'
-                    y = Parameter(obj.value*parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")*("+parameter_object.comsol_string+")";
-            end
-            if obj.comsol_flag
-                obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
-            end
+            % Implements multiplication * for parameters
+            y = obj.apply_operation(parameter_object, "*");
         end
         function y = rdivide(obj, parameter_object)
-            switch class(parameter_object)
-                case 'double'
-                    y = Parameter(obj.value/parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")/("+string(parameter_object)+")";
-                case 'Parameter'
-                    y = Parameter(obj.value/parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")/("+parameter_object.comsol_string+")";
-            end
-            if obj.comsol_flag
-                obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
-            end
+            % Implements division ./ for parameters
+            y = obj.apply_operation(parameter_object, "/");
         end
         function y = mrdivide(obj, parameter_object)
-            switch class(parameter_object)
-                case 'double'
-                    y = Parameter(obj.value/parameter_object, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")/("+string(parameter_object)+")";
-                case 'Parameter'
-                    y = Parameter(obj.value/parameter_object.value, "dummy", comsol_modeler=obj.comsol_modeler);
-                    y.comsol_string = "("+obj.comsol_string+")/("+parameter_object.comsol_string+")";
-            end
-            if obj.comsol_flag
-                obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
-            end
+            % Implements division / for parameters
+            y = obj.apply_operation(parameter_object, "/");
         end
         function y = comsol_flag(obj)
             y = ~isempty(obj.comsol_modeler);

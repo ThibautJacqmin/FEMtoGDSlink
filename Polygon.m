@@ -9,6 +9,7 @@ classdef Polygon < Klayout
         comsol_modeler
         comsol_shape
         comsol_name     % Full comsol name of element (pol1, fil12,sca23,...)
+        layer % layer where Polygon is added (if added to any layer)
     end
     methods
         function obj = Polygon(args)
@@ -234,7 +235,8 @@ classdef Polygon < Klayout
                 sub_obj.comsol_modeler = obj.comsol_modeler;
                 previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
                 sub_obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Difference");
-                sub_obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_subtract.comsol_shape.tag)]);
+                sub_obj.comsol_shape.selection('input').set(previous_object_name);
+                sub_obj.comsol_shape.selection('input2').set(string(object_to_subtract.comsol_shape.tag));
             end            
         end
         function add_obj = plus(obj, object_to_add)

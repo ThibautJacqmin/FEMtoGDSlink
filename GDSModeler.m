@@ -29,6 +29,7 @@ classdef GDSModeler < Klayout
                 shape
                 klayout_cell = obj.pycell
             end
+            shape.layer = layer;
             klayout_cell.shapes(layer).insert(shape.pgon_py);
             obj.shapes{end+1}.layer = int8(layer);
             obj.shapes{end}.shape = shape;

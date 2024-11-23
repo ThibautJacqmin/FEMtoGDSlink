@@ -19,7 +19,7 @@ classdef Vertices<handle
             else
                 obj.prefactor = Parameter("", prefactor);
             end
-            if ndims(obj.array) == 2
+            if ndims(array) == 2
                 obj.array = array;
             elseif ndims(array) == 3
                 s = size(array);

@@ -7,6 +7,7 @@ classdef Vertices<handle
         value
         xvalue
         yvalue
+        nvertices  % number of vertices
     end
     methods
         function obj = Vertices(array, prefactor)
@@ -35,6 +36,9 @@ classdef Vertices<handle
         function y = get.yvalue(obj)
            y = round(obj.array(:, 2).*obj.prefactor.value);
         end
+        function y = get.nvertices(obj)
+            y = size(obj.array, 1);
+        end
         function y = isobarycentre(obj)
             y = mean(obj.array);
         end
@@ -56,12 +60,53 @@ classdef Vertices<handle
         function y = get_sub_vertex(obj, vertex_index)
             y = Vertices(obj.array(vertex_index, :), obj.prefactor);
         end
-        function y = plus(obj, vertices_object)
-            % Concatenation de Vertices
-            % Pas top comme nom, il faut aussi une fonction pour ajouter des vecteurs.  
+        function y = concat(obj, vertices_object)
+            % Concatenation of Vertices
             assert(obj.prefactor.value==vertices_object.prefactor.value, ...
                             "Error: Vertices prefactors must be the same");
             y = Vertices([obj.array; vertices_object.array], obj.prefactor);
+        end
+        function y = plus(obj, vertices_to_add)
+            % Adds Vertices to another Vertices object (adding components
+            % by components) Or add a vector to a Vertices object
+            % vertices_to_add can be either a Vertices object or a [x, y]
+            % (1, 2) vector
+            if isa(vertices_to_add, "double") & size(vertices_to_add)==[1, 2]
+                vertices_to_add = Vertices(repmat(vertices_to_add, obj.nvertices, 1));
+            end
+            % Adds Vertices
+            if obj.prefactor==vertices_to_add.prefactor
+                % Keep prefactor if same
+                y = Vertices(obj.array+vertices_to_add.array, obj.prefactor);
+            else
+                % Set prefactor to 1 is different
+                y = Vertices(obj.value+vertices_to_add.value);
+            end
+        end
+        function y = minus(obj, vertices_to_subtract)
+            % Subtract Vertices to another Vertices object (subtracting components
+            % by components) Or add a vector to a Vertices object
+            % vertices_to_subtract can be either a Vertices object or a [x, y]
+            % (1, 2) vector
+            if isa(vertices_to_subtract, "double") & size(vertices_to_add)==[1, 2]
+                vertices_to_subtract = Vertices(repmat(vertices_to_add, obj.nvertices, 1));
+            end
+            % Subtract Vertices
+            if obj.prefactor==vertices_to_subtract.prefactor
+                % Keep prefactor if same
+                y = Vertices(obj.array-vertices_to_subtract.array, obj.prefactor);
+            else
+                % Set prefactor to 1 is different
+                y = Vertices(obj.value-vertices_to_subtract.value);
+            end
+        end
+        function obj = times(obj, coefficient)
+            % Mutliply Vertices by a coefficient
+            obj.prefactor = obj.prefactor*coefficient;
+        end
+        function obj = mrdivide(obj, coefficient)
+            % Divide Vertices by a coefficient
+            obj.prefactor = obj.prefactor/coefficient;
         end
                 
     end

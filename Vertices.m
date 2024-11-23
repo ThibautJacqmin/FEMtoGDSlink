@@ -5,11 +5,13 @@ classdef Vertices<handle
     end
     properties (Dependent)
         value
+        xvalue
+        yvalue
     end
     methods
         function obj = Vertices(array, prefactor)
             arguments
-                array (:, 2) double = [0, 0]
+                array double = [0, 0]
                 prefactor = Parameter(1, "")
             end
             if isa(prefactor, "Parameter")
@@ -17,10 +19,21 @@ classdef Vertices<handle
             else
                 obj.prefactor = Parameter("", prefactor);
             end
-            obj.array = array;
+            if ndims(obj.array) == 2
+                obj.array = array;
+            elseif ndims(array) == 3
+                s = size(array);
+                obj.array = reshape(array, s(1)*s(2), 2);
+            end
         end
         function y = get.value(obj)
            y = round(obj.array.*obj.prefactor.value);
+        end
+        function y = get.xvalue(obj)
+           y = round(obj.array(:, 1).*obj.prefactor.value);
+        end
+        function y = get.yvalue(obj)
+           y = round(obj.array(:, 2).*obj.prefactor.value);
         end
         function y = isobarycentre(obj)
             y = mean(obj.array);

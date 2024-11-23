@@ -31,8 +31,8 @@ classdef Box < Polygon
                 args.bottom_left Vertices
                 args.bottom_right Vertices
                 args.vertices Vertices
-                args.fillet_width Parameter = Parameter("", 1)
-                args.fillet_height Parameter = Parameter("", 1)
+                args.fillet_width Parameter = Parameter(1, "")
+                args.fillet_height Parameter = Parameter(1, "")
                 args.comsol_modeler ComsolModeler=ComsolModeler.empty
             end
             % Comsol
@@ -85,16 +85,16 @@ classdef Box < Polygon
             obj.set_center_height_width(obj.center, height, obj.width)
         end
         function l = get.left(obj)
-            l = Parameter("left", obj.vertices.value(1, 1));
+            l = Parameter(obj.vertices.value(1, 1), "left");
         end
         function r = get.right(obj)
-            r = Parameter("right", obj.vertices.value(3, 1));
+            r = Parameter(obj.vertices.value(3, 1), "right");
         end
         function b = get.bottom(obj)
-            b = Parameter("bottom", obj.vertices.value(1, 2));
+            b = Parameter(obj.vertices.value(1, 2), "bottom");
         end
         function t = get.top(obj)
-            t = Parameter("top", obj.vertices.value(3, 2));
+            t = Parameter(obj.vertices.value(3, 2), "top");
         end
         function tl = get.top_left(obj)
             tl = [obj.left, obj.top];

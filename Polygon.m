@@ -3,7 +3,7 @@ classdef Polygon < Klayout
     % from Klayout stores coordinates in integer. Note that we always
     % set the resolution to 1 nm.
     % https://www.klayout.de/doc/code/class_Polygon.html
-    properties 
+    properties
         vertices % Vertices object
         pgon_py  % python polygon
         comsol_modeler
@@ -34,8 +34,8 @@ classdef Polygon < Klayout
         function y = comsol_flag(obj)
             y = ~isempty(obj.comsol_modeler);
         end
-        function y = npoints(obj)
-            y = size(obj.vertices.array, 1);
+        function y = nvertices(obj)
+            y = obj.vertices.nvertices;
         end
         % Transformations
         function move(obj, vector)
@@ -43,17 +43,18 @@ classdef Polygon < Klayout
                 obj
                 vector Vertices
             end
-            % Absolument ajouter une fonction d'addition de Vertices
+            % Modifier cette ligne pour utiliser les opérations sur les
+            % Vertices directement
             obj.vertices.array = obj.vertices.array + [vector.value(1), vector.value(2)]./obj.vertices.prefactor.value;
             % Python
             obj.pgon_py.move(vector.value(1), vector.value(2));
             % Comsol
             if obj.comsol_flag
                 previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Move");           
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Move");
                 obj.comsol_shape.set('displx', vector.value(1));
                 obj.comsol_shape.set('disply', vector.value(2));
-                obj.comsol_shape.selection('input').set(previous_object_name);             
+                obj.comsol_shape.selection('input').set(previous_object_name);
             end
         end
         function rotate(obj, angle, reference_point)
@@ -72,7 +73,7 @@ classdef Polygon < Klayout
             % Comsol
             if obj.comsol_flag
                 previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Rotate");       
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Rotate");
                 obj.comsol_shape.set('rot', angle.name);
                 obj.comsol_shape.set('pos', reference_point);
                 obj.comsol_shape.selection('input').set(previous_object_name);
@@ -89,7 +90,7 @@ classdef Polygon < Klayout
             % Comsol
             if obj.comsol_flag
                 previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Scale");  
+                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Scale");
                 obj.comsol_shape.set('factor', scaling_factor.name);
                 obj.comsol_shape.selection('input').set(previous_object_name);
             end
@@ -144,14 +145,14 @@ classdef Polygon < Klayout
                 fillet_npoints Parameter
             end
             obj.pgon_py = obj.pgon_py.round_corners(fillet_radius.value,...
-                fillet_radius.value, fillet_npoints.value); 
+                fillet_radius.value, fillet_npoints.value);
             obj.vertices = Vertices(Utilities.get_vertices_from_klayout(obj.pgon_py));
             disp("Number of points in fillets cannot be set in Comsol")
             if obj.comsol_flag
                 previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                vertices_indices = linspace(1, obj.npoints);
+                vertices_indices = linspace(1, obj.nvertices);
                 obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Fillet");
-                obj.comsol_shape.set('radius', fillet_radius.name); 
+                obj.comsol_shape.set('radius', fillet_radius.name);
                 obj.comsol_shape.selection('point').set(previous_object_name, vertices_indices);
             end
         end
@@ -167,7 +168,7 @@ classdef Polygon < Klayout
             end
             cell_name_1 = 'intermediate_cell_1';
             intermediate_cell_1 = gds_modeler.pylayout.create_cell(cell_name_1);
-            gds_modeler.add_to_layer(layer, obj, intermediate_cell_1);         
+            gds_modeler.add_to_layer(layer, obj, intermediate_cell_1);
             transformation = obj.pya.Trans(obj.pya.Point(0,0));
             array_1_cell_instance = obj.pya.CellInstArray(intermediate_cell_1.cell_index(), transformation, ...
                 obj.pya.Vector(vertices.value(1, 1), vertices.value(1, 2)), obj.pya.Vector(0, 1), ncopies_x.value, 1);
@@ -206,7 +207,7 @@ classdef Polygon < Klayout
             end
             cell_name = 'intermediate_cell';
             new_cell = gds_modeler.pylayout.create_cell(cell_name);
-            gds_modeler.add_to_layer(layer, obj, new_cell);         
+            gds_modeler.add_to_layer(layer, obj, new_cell);
             transformation = obj.pya.Trans(obj.pya.Point(0,0));
             cell_instance = obj.pya.CellInstArray(new_cell.cell_index(), transformation, ...
                 obj.pya.Vector(vertex.value(1), vertex.value(2)), obj.pya.Vector(0, 1), ncopies.value, 1);
@@ -237,7 +238,7 @@ classdef Polygon < Klayout
                 sub_obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Difference");
                 sub_obj.comsol_shape.selection('input').set(previous_object_name);
                 sub_obj.comsol_shape.selection('input2').set(string(object_to_subtract.comsol_shape.tag));
-            end            
+            end
         end
         function add_obj = plus(obj, object_to_add)
             add_obj = obj.apply_operation(object_to_add, "Union");
@@ -254,14 +255,16 @@ classdef Polygon < Klayout
                 intersection_obj.comsol_modeler = obj.comsol_modeler;
                 previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
                 intersection_obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Intersection");
-                intersection_obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_intersect.comsol_shape.tag)]);
+                sub_obj.comsol_shape.selection('input').set(previous_object_name); %To be checked
+                sub_obj.comsol_shape.selection('input2').set(string(object_to_intersect.comsol_shape.tag)); % To be checked
+                disp('warning check selection for intersection operation in Polygon for Comsol')
             end
-            
+
         end
         function y = apply_operation(obj, obj2, operation_name)
             % This is a wrapper for minus, plus, intersect, and boolean
             % operations. obj2 can be a cell array of objects and operation
-            region1 = obj.pya.Region(); 
+            region1 = obj.pya.Region();
             region1.insert(obj.pgon_py);
             region1.flatten;
             region1.merge;
@@ -292,6 +295,8 @@ classdef Polygon < Klayout
                 % If klayout region
                 y.pgon_py = obj.pya.Region();
                 y.pgon_py.insert(obj.pgon_py);
+                y.pgon_py.flatten;
+                y.pgon_py.merge;
             else % if klayout polygon
                 y.pgon_py = obj.pya.Polygon.from_s(obj.pgon_py.to_s);
             end
@@ -302,6 +307,44 @@ classdef Polygon < Klayout
                 y.comsol_modeler = obj.comsol_modeler;
                 y.comsol_shape = obj.comsol_modeler.create_comsol_object("Copy");
                 y.comsol_shape.selection('input').set(string(obj.comsol_shape.tag));
+            end
+        end
+        function y = copy_to_positions(obj, args)
+            % This methods copies a Polygon to positions input as Vertices
+            % object. The origin vertice is vertex_to_copy.
+            arguments
+                obj Polygon
+                args.vertex_to_copy  % coordinates of vertex to copy
+                args.new_positions Vertices   % Vertices where to duplicate the shape
+                args.layer
+            end
+            
+            % Klayout
+            y = Polygon;
+            % Store ensemble of polygons in a KLayout Region
+            y.pgon_py = obj.pya.Region();
+            for i=1:args.new_positions.nvertices
+                y.pgon_py.insert(obj.pgon_py.transformed(obj.pya.Trans( ...
+                    obj.pya.Point(args.new_positions.value(i, 1), args.new_positions.value(i, 2)))));
+            end
+            y.pgon_py.flatten;
+            y.pgon_py.merge;
+            % Retrieve vertices
+            y.vertices = Vertices(Utilities.get_vertices_from_klayout(y.pgon_py));
+
+
+            % Comsol
+            if obj.comsol_flag
+                y.comsol_modeler = obj.comsol_modeler;
+                y.comsol_shape = obj.comsol_modeler.create_comsol_object("Copy");
+                y.comsol_shape.set('keep', false);
+                y.comsol_shape.selection('input').set(string(obj.comsol_shape.tag));
+                y.comsol_shape.set("specify", "pos");
+                y.comsol_shape.set("oldpos", "coord");
+                y.comsol_shape.set("newpos", "coord");
+                y.comsol_shape.set("oldposcoord", args.vertex_to_copy);
+                y.comsol_shape.set("newposx", args.new_positions.xvalue);
+                y.comsol_shape.set("newposy",  args.new_positions.yvalue);
             end
         end
     end

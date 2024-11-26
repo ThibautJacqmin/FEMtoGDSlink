@@ -32,15 +32,12 @@ classdef Parameter<handle
              switch class(parameter_object)
                 case 'double'
                     % Case of operation with a number
-                    y = Parameter(eval("(obj.value" + operation + "parameter_object)"), "dummy", comsol_modeler=obj.comsol_modeler);
+                    y = Parameter(eval("(obj.value" + operation + "parameter_object)"));
                     y.comsol_string = "("+obj.comsol_string+")" + operation + "("+string(parameter_object)+")";
                 case 'Parameter'
                     % Case of operation with a Parameter object
-                    y = Parameter(eval("(obj.value" + operation + "parameter_object.value)"), "dummy", comsol_modeler=obj.comsol_modeler);
+                    y = Parameter(eval("(obj.value" + operation + "parameter_object.value)"));
                     y.comsol_string = "("+obj.comsol_string+")" + operation + "("+parameter_object.comsol_string+")";
-            end
-            if obj.comsol_flag
-                obj.comsol_modeler.add_parameter(y.comsol_string, "dummy");
             end
         end
         function y = plus(obj, parameter_object)

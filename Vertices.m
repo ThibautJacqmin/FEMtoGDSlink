@@ -18,7 +18,7 @@ classdef Vertices<handle
             if isa(prefactor, "Parameter")
                 obj.prefactor = prefactor;
             else
-                obj.prefactor = Parameter("", prefactor);
+                obj.prefactor = Parameter(prefactor, "");
             end
             if ndims(array) == 2
                 obj.array = array;
@@ -43,15 +43,15 @@ classdef Vertices<handle
             y = mean(obj.array);
         end
         function s = comsol_string(obj)
-            s = Utilities.vertices_to_comsol_string(obj.array, ...
+            s = Utilities.vertices_to_comsol_string(obj.value, ...
                 comsol_parameter_name=obj.prefactor.name);
         end
         function s = comsol_string_x(obj)
-            s =  Utilities.vertices_to_comsol_string(obj.array(:, 1), ...
+            s =  Utilities.vertices_to_comsol_string(obj.value(:, 1), ...
                 comsol_parameter_name=obj.prefactor.name);
         end
         function s = comsol_string_y(obj)
-            s = Utilities.vertices_to_comsol_string(obj.array(:, 2), ...
+            s = Utilities.vertices_to_comsol_string(obj.value(:, 2), ...
                 comsol_parameter_name=obj.prefactor.name);
         end
         function s = klayout_string(obj)

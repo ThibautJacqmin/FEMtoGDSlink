@@ -51,6 +51,7 @@ classdef GDSModeler < Klayout
             for fieldname=string(fieldnames(data))'
                 mark.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_klayout_string(data.(fieldname)*1e3)));
             end
+            mark.adopt_klayout_shape(mark.pgon_py);
             mark.vertices = Vertices(Utilities.get_vertices_from_klayout(mark.pgon_py));
         end
         function two_inch_wafer = add_two_inch_wafer(obj)
@@ -61,6 +62,7 @@ classdef GDSModeler < Klayout
             two_inch_wafer = Polygon;
             two_inch_wafer.pgon_py = obj.pya.Region();
             two_inch_wafer.pgon_py.insert(obj.pya.Polygon.from_s(Utilities.vertices_to_klayout_string(data.wafer_edge*1e3)));
+            two_inch_wafer.adopt_klayout_shape(two_inch_wafer.pgon_py);
             two_inch_wafer.vertices = Vertices(Utilities.get_vertices_from_klayout(two_inch_wafer.pgon_py));
         end
         

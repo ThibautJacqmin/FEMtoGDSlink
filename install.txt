@@ -1,0 +1,2 @@
+# klayout can only be installed with pip
+pip install klayout

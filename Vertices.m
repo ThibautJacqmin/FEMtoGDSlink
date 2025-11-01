@@ -40,7 +40,7 @@ classdef Vertices<handle
             y = size(obj.array, 1);
         end
         function y = isobarycentre(obj)
-            y = mean(obj.array);
+            y = mean(obj.array)*obj.prefactor.value;
         end
         function s = comsol_string(obj)
             s = Utilities.vertices_to_comsol_string(obj.value, ...

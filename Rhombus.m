@@ -1,0 +1,4 @@
+classdef Rhombus < Polygon
+
+
+end

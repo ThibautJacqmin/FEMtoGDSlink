@@ -97,16 +97,16 @@ classdef Box < Polygon
             t = Parameter(obj.vertices.value(3, 2), "top");
         end
         function tl = get.top_left(obj)
-            tl = [obj.left, obj.top];
+            tl = [obj.left.value, obj.top.value];
         end
         function tr = get.top_right(obj)
-            tr = [obj.right, obj.top];
+            tr = [obj.right.value, obj.top.value];
         end
         function bl = get.bottom_left(obj)
-            bl = [obj.left, obj.bottom];
+            bl = [obj.left.value, obj.bottom.value];
         end
         function br = get.bottom_right(obj)
-            br = [obj.right, obj.bottom];
+            br = [obj.right.value, obj.bottom.value];
         end
         function fillet_polygons = get_fillets(obj)
             fillet_polygons = {};

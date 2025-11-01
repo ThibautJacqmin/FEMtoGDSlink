@@ -1,0 +1,21 @@
+# Borrowed from klayoutmattias: https://github.com/lightwave-lab/klayout/blob/pymod/.travis.yml
+language: python
+python: '3.6'
+os: linux
+
+# klayout builds from source so this saves 15 minutes on subsequent jobs
+cache: pip
+
+# this is a dummy script
+script:
+  - DOCKER=1 make test
+
+deploy:
+  provider: pypi
+  user: atait
+  password:
+    secure: "CaVo7OioBXJORgyN1a5U9/TSSEUCTTylvf53+OhZYG7pVmMO2Ld+sso4bWrN8htaIV9DJYy/UTWBdCzmlr9s647I5cjktSWxr/egHptK60+bLUQ/58WzpCLacLryv0149qIqVAXnpXtMI5qd++EVtVtpILPA0mRtkCju2kD8b4haZ1NfTz0Wsg66Guc1pUZcrTCqnRvzc4jyUOnROgxl2f5TAZKGUjWL+SVVKtNBkj1Wt9rUxTC6UdoZ5TeYc5SCw4owIZ+D0RDhPEaWIocu10YA+Q25EH274ylEltjnMUZwprLQYOO4sG226Pb5paGv2Cn3+P/rUoC48wiNUn7zBPCmw6mC2njJa2N8LsWBMbZl6BTdC53IOMUkwvbzsyTl4aiYZuCO7C8i+kStOMj5wvpiUuChv6KD/FQv8ydcgmBGyfMDm73uw+Nfhk+O3TUiLp+ehz3i52jus9aY0+HKurqZ3f95jI57hesFJP+/Ssa0l8aIUxHQNk7O077rIO7vrzv6zwO2wqIgrphIzfxIRVJEEF1YMkSw41rC5Wem0Uh8KgGbtZ++mO2krpa547npVirlM+TfI+xJYL4phOy+ugjrnv+P2vh1UqSCUTk2DJbRSo+sLX3SZr9PCbJvaWferEjUpr1z+JxNNPGLZ5GfmyheDApWxMQWAkWrFA1o0hg="
+  distributions: "sdist bdist_wheel"
+  on:
+    tags: true
+    branch: master

@@ -1,0 +1,17 @@
+# Bytecode
+__pycache__
+*.py[cod]
+
+# DS stores
+*.DS_Store
+.DS_Store
+
+# Builds
+dist
+build
+*.egg-info
+
+# Virtual environment and test artifacts
+venv
+*.gds
+*.oas

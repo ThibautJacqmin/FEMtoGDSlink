@@ -10,29 +10,49 @@ classdef Polygon < Klayout
         comsol_shape
         comsol_name     % Full comsol name of element (pol1, fil12,sca23,...)
         layer % layer where Polygon is added (if added to any layer)
+        comsol_adapter ComsolShapeAdapter
     end
     methods
         function obj = Polygon(args)
             arguments
                 args.vertices Vertices=Vertices.empty
                 args.comsol_modeler ComsolModeler=ComsolModeler.empty
+                args.initialize_comsol (1,1) logical = true
             end
             % Vertices object
             obj.vertices = args.vertices;
             % Klayout (Python) Polygon
             if ~isempty(obj.vertices)
                 obj.pgon_py = obj.pya.Polygon.from_s(obj.vertices.klayout_string);
-                % Comsol
-                obj.comsol_modeler = args.comsol_modeler;
-                if obj.comsol_flag
-                    obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Polygon");
-                    obj.comsol_shape.set('x', obj.vertices.comsol_string_x);
-                    obj.comsol_shape.set('y', obj.vertices.comsol_string_y);
-                end
+            end
+            % Comsol
+            obj.comsol_modeler = args.comsol_modeler;
+            obj.comsol_adapter = ComsolShapeAdapter(obj.comsol_modeler);
+            if obj.comsol_flag && ~isempty(obj.vertices) && args.initialize_comsol
+                obj.comsol_adapter.initializePolygon(obj.vertices);
+                obj.sync_comsol_shape();
             end
         end
         function y = comsol_flag(obj)
-            y = ~isempty(obj.comsol_modeler);
+            y = ~isempty(obj.comsol_adapter) && obj.comsol_adapter.isActive();
+        end
+        function sync_comsol_shape(obj)
+            if obj.comsol_flag
+                obj.comsol_shape = obj.comsol_adapter.shape;
+            else
+                obj.comsol_shape = [];
+            end
+        end
+        function assign_comsol_adapter(obj, adapter)
+            if nargin < 2 || isempty(adapter) || ~adapter.isActive()
+                return;
+            end
+            if isempty(adapter.shape)
+                return;
+            end
+            obj.comsol_adapter = adapter;
+            obj.comsol_modeler = adapter.getModeler();
+            obj.sync_comsol_shape();
         end
         function y = nvertices(obj)
             y = obj.vertices.nvertices;
@@ -50,11 +70,8 @@ classdef Polygon < Klayout
             obj.pgon_py.move(vector.value(1), vector.value(2));
             % Comsol
             if obj.comsol_flag
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Move");
-                obj.comsol_shape.set('displx', vector.value(1));
-                obj.comsol_shape.set('disply', vector.value(2));
-                obj.comsol_shape.selection('input').set(previous_object_name);
+                obj.comsol_adapter.move(vector);
+                obj.sync_comsol_shape();
             end
         end
         function rotate(obj, angle, reference_point)
@@ -72,11 +89,8 @@ classdef Polygon < Klayout
             obj.pgon_py.move(reference_point(1), reference_point(2));
             % Comsol
             if obj.comsol_flag
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Rotate");
-                obj.comsol_shape.set('rot', angle.name);
-                obj.comsol_shape.set('pos', reference_point);
-                obj.comsol_shape.selection('input').set(previous_object_name);
+                obj.comsol_adapter.rotate(angle, reference_point);
+                obj.sync_comsol_shape();
             end
         end
         function scale(obj, scaling_factor)
@@ -89,10 +103,8 @@ classdef Polygon < Klayout
             obj.pgon_py.transform(scaling);
             % Comsol
             if obj.comsol_flag
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Scale");
-                obj.comsol_shape.set('factor', scaling_factor.name);
-                obj.comsol_shape.selection('input').set(previous_object_name);
+                obj.comsol_adapter.scale(scaling_factor);
+                obj.sync_comsol_shape();
             end
         end
         function flip_horizontally(obj, axis)
@@ -107,11 +119,8 @@ classdef Polygon < Klayout
             obj.pgon_py.move(axis.value, 0);
             % Comsol
             if obj.comsol_flag
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Mirror");
-                obj.comsol_shape.set('pos', [axis.name, 0]); % point on reflexion axis
-                obj.comsol_shape.set('axis', [1, 0]); % normal to reflexion axis
-                obj.comsol_shape.selection('input').set(previous_object_name);
+                obj.comsol_adapter.mirrorHorizontal(axis);
+                obj.sync_comsol_shape();
             end
         end
         function flip_vertically(obj, axis)
@@ -126,11 +135,8 @@ classdef Polygon < Klayout
             obj.pgon_py.move(0, axis.value);
             % Comsol
             if obj.comsol_flag
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Mirror");
-                obj.comsol_shape.set('pos', [0, axis.name]); % point on reflexion axis
-                obj.comsol_shape.set('axis', [0, 1]); % normal to reflexion axis
-                obj.comsol_shape.selection('input').set(previous_object_name);
+                obj.comsol_adapter.mirrorVertical(axis);
+                obj.sync_comsol_shape();
             end
         end
         function round_corners(obj, fillet_radius, fillet_npoints)
@@ -149,11 +155,9 @@ classdef Polygon < Klayout
             obj.vertices = Vertices(Utilities.get_vertices_from_klayout(obj.pgon_py));
             disp("Number of points in fillets cannot be set in Comsol")
             if obj.comsol_flag
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                vertices_indices = linspace(1, obj.nvertices);
-                obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Fillet");
-                obj.comsol_shape.set('radius', fillet_radius.name);
-                obj.comsol_shape.selection('point').set(previous_object_name, vertices_indices);
+                vertices_indices = 1:obj.nvertices;
+                obj.comsol_adapter.fillet(fillet_radius, vertices_indices);
+                obj.sync_comsol_shape();
             end
         end
         function y = make_2D_array(obj, ncopies_x, ncopies_y, vertices, gds_modeler, layer)
@@ -187,13 +191,11 @@ classdef Polygon < Klayout
             y = Polygon;
             y.pgon_py = region;
             if obj.comsol_flag
-                y.comsol_modeler = obj.comsol_modeler;
-                y.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies_x, vertices.get_sub_vertex(1), obj.comsol_shape);
-                y.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies_y, vertices.get_sub_vertex(2), y.comsol_shape);
-                % Create Union (otherwise selection difficult later)
-                previous_object_name = string(y.comsol_shape.tag); % array name
-                y.comsol_shape = obj.comsol_modeler.create_comsol_object("Union");
-                y.comsol_shape.selection('input').set(previous_object_name);
+                array_adapter = obj.comsol_adapter.spawn();
+                array_adapter.linearArray(ncopies_x, vertices.get_sub_vertex(1));
+                array_adapter.linearArray(ncopies_y, vertices.get_sub_vertex(2));
+                array_adapter.finalizeArray();
+                y.assign_comsol_adapter(array_adapter);
             end
         end
         function y = make_1D_array(obj, ncopies, vertex, gds_modeler, layer)
@@ -220,44 +222,36 @@ classdef Polygon < Klayout
             y = Polygon;
             y.pgon_py = region;
             if obj.comsol_flag
-                y.comsol_modeler = obj.comsol_modeler;
-                obj.comsol_shape = obj.comsol_modeler.make_1D_array(ncopies, vertex, obj.comsol_shape);
-                % Create Union (otherwise selection difficult later)
-                previous_object_name = string(y.comsol_shape.tag); % array name
-                y.comsol_shape = obj.comsol_modeler.create_comsol_object("Union");
-                y.comsol_shape.selection('input').set(previous_object_name);
+                array_adapter = obj.comsol_adapter.spawn();
+                array_adapter.linearArray(ncopies, vertex);
+                array_adapter.finalizeArray();
+                y.assign_comsol_adapter(array_adapter);
             end
         end
 
         % Boolean operations
         function sub_obj = minus(obj, object_to_subtract)
             sub_obj = obj.apply_operation(object_to_subtract, "Difference");
-            if obj.comsol_flag
-                sub_obj.comsol_modeler = obj.comsol_modeler;
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                sub_obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Difference");
-                sub_obj.comsol_shape.selection('input').set(previous_object_name);
-                sub_obj.comsol_shape.selection('input2').set(string(object_to_subtract.comsol_shape.tag));
+            if obj.comsol_flag && Polygon.has_comsol_target(object_to_subtract)
+                difference_adapter = obj.comsol_adapter.spawn();
+                difference_adapter.difference(object_to_subtract);
+                sub_obj.assign_comsol_adapter(difference_adapter);
             end
         end
         function add_obj = plus(obj, object_to_add)
             add_obj = obj.apply_operation(object_to_add, "Union");
-            if obj.comsol_flag
-                add_obj.comsol_modeler = obj.comsol_modeler;
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                add_obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Union");
-                add_obj.comsol_shape.selection('input').set([previous_object_name, string(object_to_add.comsol_shape.tag)]);
+            if obj.comsol_flag && Polygon.has_comsol_target(object_to_add)
+                union_adapter = obj.comsol_adapter.spawn();
+                union_adapter.unite(object_to_add);
+                add_obj.assign_comsol_adapter(union_adapter);
             end
         end
         function intersection_obj = intersect(obj, object_to_intersect)
             intersection_obj = obj.apply_operation(object_to_intersect, "Intersection");
-            if obj.comsol_flag
-                intersection_obj.comsol_modeler = obj.comsol_modeler;
-                previous_object_name = string(obj.comsol_shape.tag); % save name of initial comsol object to be selected
-                intersection_obj.comsol_shape = obj.comsol_modeler.create_comsol_object("Intersection");
-                sub_obj.comsol_shape.selection('input').set(previous_object_name); %To be checked
-                sub_obj.comsol_shape.selection('input2').set(string(object_to_intersect.comsol_shape.tag)); % To be checked
-                disp('warning check selection for intersection operation in Polygon for Comsol')
+            if obj.comsol_flag && Polygon.has_comsol_target(object_to_intersect)
+                intersection_adapter = obj.comsol_adapter.spawn();
+                intersection_adapter.intersect(object_to_intersect);
+                intersection_obj.assign_comsol_adapter(intersection_adapter);
             end
 
         end
@@ -304,9 +298,8 @@ classdef Polygon < Klayout
             y.vertices = Vertices(Utilities.get_vertices_from_klayout(y.pgon_py));
             % Comsol
             if obj.comsol_flag
-                y.comsol_modeler = obj.comsol_modeler;
-                y.comsol_shape = obj.comsol_modeler.create_comsol_object("Copy");
-                y.comsol_shape.selection('input').set(string(obj.comsol_shape.tag));
+                copy_adapter = obj.comsol_adapter.copy();
+                y.assign_comsol_adapter(copy_adapter);
             end
         end
         function y = copy_to_positions(obj, args)
@@ -335,16 +328,27 @@ classdef Polygon < Klayout
 
             % Comsol
             if obj.comsol_flag
-                y.comsol_modeler = obj.comsol_modeler;
-                y.comsol_shape = obj.comsol_modeler.create_comsol_object("Copy");
-                y.comsol_shape.set('keep', false);
-                y.comsol_shape.selection('input').set(string(obj.comsol_shape.tag));
-                y.comsol_shape.set("specify", "pos");
-                y.comsol_shape.set("oldpos", "coord");
-                y.comsol_shape.set("newpos", "coord");
-                y.comsol_shape.set("oldposcoord", args.vertex_to_copy);
-                y.comsol_shape.set("newposx", args.new_positions.xvalue);
-                y.comsol_shape.set("newposy",  args.new_positions.yvalue);
+                copy_adapter = obj.comsol_adapter.spawn();
+                copy_adapter.copyPositions(vertex_to_copy=args.vertex_to_copy, new_positions=args.new_positions);
+                y.assign_comsol_adapter(copy_adapter);
+            end
+        end
+    end
+    methods (Static, Access = private)
+        function flag = has_comsol_target(target)
+            if isa(target, 'Polygon')
+                flag = target.comsol_flag;
+            elseif isa(target, 'ComsolShapeAdapter')
+                flag = target.isActive() && ~isempty(target.shape);
+            elseif iscell(target)
+                if isempty(target)
+                    flag = false;
+                else
+                    flags = cellfun(@(item) Polygon.has_comsol_target(item), target);
+                    flag = all(flags);
+                end
+            else
+                flag = false;
             end
         end
     end

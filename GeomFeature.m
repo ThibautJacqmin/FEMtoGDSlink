@@ -18,6 +18,9 @@ classdef GeomFeature < handle
             if nargin < 1
                 return;
             end
+            if isempty(ctx)
+                ctx = GeometrySession.require_current();
+            end
             obj.ctx = ctx;
             obj.inputs = {};
             obj.params = struct();
@@ -41,6 +44,10 @@ classdef GeomFeature < handle
 
         function val = get.layer(obj)
             val = obj.layer_;
+        end
+
+        function ctx = context(obj)
+            ctx = obj.ctx;
         end
 
         function add_input(obj, feature)

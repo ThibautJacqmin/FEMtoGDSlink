@@ -10,12 +10,15 @@ classdef GeometrySession < handle
         comsol_backend
         gds_backend
         node_counter
+        emit_on_create
     end
     methods
         function obj = GeometrySession(args)
             arguments
                 args.enable_comsol logical = true
                 args.enable_gds logical = true
+                args.emit_on_create logical = false
+                args.set_as_current logical = true
             end
 
             if args.enable_comsol
@@ -37,6 +40,11 @@ classdef GeometrySession < handle
             obj.comsol_backend = [];
             obj.gds_backend = [];
             obj.node_counter = int32(0);
+            obj.emit_on_create = args.emit_on_create;
+
+            if args.set_as_current
+                GeometrySession.set_current(obj);
+            end
 
             % Default layer mapping (layer 1 on workplane wp1).
             obj.add_layer("default", gds_layer=1, comsol_workplane="wp1");
@@ -81,6 +89,12 @@ classdef GeometrySession < handle
             obj.node_counter = obj.node_counter + 1;
             feature.id = obj.node_counter;
             obj.nodes{end+1} = feature;
+            if obj.emit_on_create && obj.has_comsol()
+                if isempty(obj.comsol_backend)
+                    obj.comsol_backend = ComsolBackend(obj);
+                end
+                obj.comsol_backend.tag_for(feature);
+            end
         end
 
         function tf = has_comsol(obj)
@@ -137,6 +151,28 @@ classdef GeometrySession < handle
             end
             obj.gds_backend.emit_all(obj.nodes);
             obj.gds.write(filename);
+        end
+    end
+    methods (Static)
+        function set_current(ctx)
+            persistent current_ctx
+            current_ctx = ctx;
+        end
+
+        function ctx = get_current()
+            persistent current_ctx
+            if isempty(current_ctx)
+                ctx = [];
+            else
+                ctx = current_ctx;
+            end
+        end
+
+        function ctx = require_current()
+            ctx = GeometrySession.get_current();
+            if isempty(ctx)
+                error("No active GeometrySession. Create one or call GeometrySession.set_current(ctx).");
+            end
         end
     end
 end

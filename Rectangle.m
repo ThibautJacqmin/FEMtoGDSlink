@@ -8,12 +8,15 @@ classdef Rectangle < GeomFeature
     methods
         function obj = Rectangle(ctx, args)
             arguments
-                ctx GeometrySession
+                ctx GeometrySession = GeometrySession.empty
                 args.center = [0, 0]
                 args.width = 1
                 args.height = 1
                 args.layer = "default"
                 args.output logical = true
+            end
+            if isempty(ctx)
+                ctx = GeometrySession.require_current();
             end
             obj@GeomFeature(ctx, args.layer);
             obj.output = args.output;

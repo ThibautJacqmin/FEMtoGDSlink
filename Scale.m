@@ -80,7 +80,11 @@ classdef Scale < GeomFeature
                 p = val;
                 return;
             end
-            p = Parameter(val, default_name);
+            if default_name == "factor"
+                p = Parameter(val, default_name, unit="");
+            else
+                p = Parameter(val, default_name);
+            end
         end
 
         function v = to_vertices(obj, val)

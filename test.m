@@ -1,4 +1,5 @@
-ctx = GeometrySession(enable_comsol=false, enable_gds=true, emit_on_create=false);
+ctx = GeometrySession(enable_comsol=false, enable_gds=true, emit_on_create=false, ...
+    snap_mode="strict", snap_grid_nm=1, warn_on_snap=true);
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
     comsol_selection="metal1", comsol_selection_state="all");
 

@@ -91,7 +91,11 @@ classdef Fillet < GeomFeature
                 p = val;
                 return;
             end
-            p = Parameter(val, default_name);
+            if default_name == "npoints"
+                p = Parameter(val, default_name, unit="");
+            else
+                p = Parameter(val, default_name);
+            end
         end
     end
 end

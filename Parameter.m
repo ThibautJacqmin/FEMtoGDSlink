@@ -1,72 +1,123 @@
-classdef Parameter<handle
+classdef Parameter
+    % Expression-aware scalar parameter used by geometry features.
     properties
-        value
-        name
-        unit
-        comsol_string
-        comsol_modeler
+        value double = 0
+        name string = ""
+        unit string = "nm"
+        expr string = ""
     end
     methods
-        function obj = Parameter(value, name, comsol_string, args)
+        function obj = Parameter(value, name, args)
             arguments
-                value
+                value = 0
                 name {mustBeTextScalar} = ""
-                comsol_string {mustBeTextScalar} = ""
-                args.unit = "nm"
-                args.comsol_modeler ComsolModeler=ComsolModeler.empty
+                args.unit {mustBeTextScalar} = "nm"
+                args.expr {mustBeTextScalar} = ""
             end
-            obj.name = name;
-            obj.value = value;
-            obj.unit = args.unit;
-            obj.comsol_string = obj.name;                
-            obj.comsol_modeler = args.comsol_modeler;
-            if obj.comsol_flag
-                try
-                    obj.comsol_modeler.add_parameter(obj.value, obj.comsol_string, obj.unit);
-                catch
-                end
+            obj.value = double(value);
+            obj.name = string(name);
+            obj.unit = string(args.unit);
+
+            if strlength(args.expr) > 0
+                obj.expr = string(args.expr);
+            elseif strlength(obj.name) > 0
+                obj.expr = obj.name;
+            else
+                obj.expr = string(obj.value);
             end
-        end
-        function y = apply_operation(obj, parameter_object, operation)
-            % Implements +, -, *, / operations for Parameters
-             switch class(parameter_object)
-                case 'double'
-                    % Case of operation with a number
-                    y = Parameter(eval("(obj.value" + operation + "parameter_object)"));
-                    y.comsol_string = "("+obj.comsol_string+")" + operation + "("+string(parameter_object)+")";
-                case 'Parameter'
-                    % Case of operation with a Parameter object
-                    y = Parameter(eval("(obj.value" + operation + "parameter_object.value)"));
-                    y.comsol_string = "("+obj.comsol_string+")" + operation + "("+parameter_object.comsol_string+")";
-            end
-        end
-        function y = plus(obj, parameter_object)
-            % Implements addition for parameters
-            y = obj.apply_operation(parameter_object, "+");
-        end
-        function y = minus(obj, parameter_object)
-            % Implements subtraction for parameters
-            y = obj.apply_operation(parameter_object, "-");
-        end
-        function y = times(obj, parameter_object)
-            % Implements multiplication .* for parameters
-            y = obj.apply_operation(parameter_object, "*");
-        end
-        function y = mtimes(obj, parameter_object)
-            % Implements multiplication * for parameters
-            y = obj.apply_operation(parameter_object, "*");
-        end
-        function y = rdivide(obj, parameter_object)
-            % Implements division ./ for parameters
-            y = obj.apply_operation(parameter_object, "/");
-        end
-        function y = mrdivide(obj, parameter_object)
-            % Implements division / for parameters
-            y = obj.apply_operation(parameter_object, "/");
-        end
-        function y = comsol_flag(obj)
-            y = ~isempty(obj.comsol_modeler);
         end
 
+        function tf = is_named(obj)
+            tf = strlength(obj.name) > 0;
+        end
+
+        function token = expression_token(obj)
+            if obj.is_named()
+                token = obj.name;
+            else
+                token = obj.expr;
+            end
+        end
+
+        function y = plus(obj, rhs)
+            y = obj.apply_operation(rhs, "+");
+        end
+
+        function y = minus(obj, rhs)
+            y = obj.apply_operation(rhs, "-");
+        end
+
+        function y = times(obj, rhs)
+            y = obj.apply_operation(rhs, "*");
+        end
+
+        function y = mtimes(obj, rhs)
+            y = obj.apply_operation(rhs, "*");
+        end
+
+        function y = rdivide(obj, rhs)
+            y = obj.apply_operation(rhs, "/");
+        end
+
+        function y = mrdivide(obj, rhs)
+            y = obj.apply_operation(rhs, "/");
+        end
+    end
+    methods (Access=private)
+        function y = apply_operation(obj, rhs, operation)
+            [rhs_value, rhs_expr, rhs_unit] = Parameter.coerce_operand(rhs);
+            lhs_expr = obj.expression_token();
+
+            switch operation
+                case "+"
+                    y_value = obj.value + rhs_value;
+                case "-"
+                    y_value = obj.value - rhs_value;
+                case "*"
+                    y_value = obj.value * rhs_value;
+                case "/"
+                    y_value = obj.value / rhs_value;
+                otherwise
+                    error("Unsupported operation '%s'.", operation);
+            end
+
+            y_expr = "(" + lhs_expr + ")" + operation + "(" + rhs_expr + ")";
+            y_unit = Parameter.combine_units(obj.unit, rhs_unit, operation);
+            y = Parameter(y_value, "", unit=y_unit, expr=y_expr);
+        end
+    end
+    methods (Static, Access=private)
+        function [value, expr, unit] = coerce_operand(rhs)
+            if isa(rhs, "Parameter")
+                value = rhs.value;
+                expr = rhs.expression_token();
+                unit = rhs.unit;
+            elseif isnumeric(rhs) && isscalar(rhs)
+                value = double(rhs);
+                expr = string(rhs);
+                unit = "";
+            else
+                error("Parameter operations require scalar double or Parameter.");
+            end
+        end
+
+        function unit = combine_units(lhs_unit, rhs_unit, operation)
+            lhs_unit = string(lhs_unit);
+            rhs_unit = string(rhs_unit);
+
+            switch operation
+                case {"+", "-"}
+                    if strlength(lhs_unit) == 0
+                        unit = rhs_unit;
+                    elseif strlength(rhs_unit) == 0 || lhs_unit == rhs_unit
+                        unit = lhs_unit;
+                    else
+                        unit = "";
+                    end
+                otherwise
+                    % Unit algebra is intentionally conservative in this skeleton.
+                    unit = "";
+            end
+        end
     end
 end

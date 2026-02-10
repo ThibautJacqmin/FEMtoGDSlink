@@ -54,16 +54,20 @@ classdef ComsolModeler < handle
         function add_parameter(obj, value, name, unit)
             arguments
                 obj
-                value {double}
+                value
                 name {mustBeTextScalar}
                 unit {mustBeTextScalar} = ""
             end
-            unit_str = "";
-            if unit.strlength~=0
-                unit_str =  "["+num2str(unit)+"]";
+            if isnumeric(value)
+                value_str = string(value);
+                if strlength(unit) ~= 0
+                    value_str = value_str + "[" + string(unit) + "]";
+                end
+            else
+                value_str = string(value);
             end
 
-            obj.model.param.set(name, string(value)+unit_str, "");
+            obj.model.param.set(name, value_str, "");
         end
         function add_variable(obj, name, expression)
             arguments

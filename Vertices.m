@@ -28,13 +28,13 @@ classdef Vertices<handle
             end
         end
         function y = get.value(obj)
-           y = round(obj.array.*obj.prefactor.value);
+           y = obj.array.*obj.prefactor.value;
         end
         function y = get.xvalue(obj)
-           y = round(obj.array(:, 1).*obj.prefactor.value);
+           y = obj.array(:, 1).*obj.prefactor.value;
         end
         function y = get.yvalue(obj)
-           y = round(obj.array(:, 2).*obj.prefactor.value);
+           y = obj.array(:, 2).*obj.prefactor.value;
         end
         function y = get.nvertices(obj)
             y = size(obj.array, 1);
@@ -43,16 +43,15 @@ classdef Vertices<handle
             y = mean(obj.array);
         end
         function s = comsol_string(obj)
-            s = Utilities.vertices_to_comsol_string(obj.value, ...
-                comsol_parameter_name=obj.prefactor.name);
+            x = string(obj.comsol_string_x());
+            y = string(obj.comsol_string_y());
+            s = cellstr(x + "," + y);
         end
         function s = comsol_string_x(obj)
-            s =  Utilities.vertices_to_comsol_string(obj.value(:, 1), ...
-                comsol_parameter_name=obj.prefactor.name);
+            s = obj.expr_components(obj.array(:, 1));
         end
         function s = comsol_string_y(obj)
-            s = Utilities.vertices_to_comsol_string(obj.value(:, 2), ...
-                comsol_parameter_name=obj.prefactor.name);
+            s = obj.expr_components(obj.array(:, 2));
         end
         function s = klayout_string(obj)
             s = Utilities.vertices_to_klayout_string(obj.value);
@@ -71,11 +70,11 @@ classdef Vertices<handle
             % by components) Or add a vector to a Vertices object
             % vertices_to_add can be either a Vertices object or a [x, y]
             % (1, 2) vector
-            if isa(vertices_to_add, "double") & size(vertices_to_add)==[1, 2]
+            if isa(vertices_to_add, "double") && isequal(size(vertices_to_add), [1, 2])
                 vertices_to_add = Vertices(repmat(vertices_to_add, obj.nvertices, 1));
             end
             % Adds Vertices
-            if obj.prefactor==vertices_to_add.prefactor
+            if isequal(obj.prefactor, vertices_to_add.prefactor)
                 % Keep prefactor if same
                 y = Vertices(obj.array+vertices_to_add.array, obj.prefactor);
             else
@@ -88,11 +87,11 @@ classdef Vertices<handle
             % by components) Or add a vector to a Vertices object
             % vertices_to_subtract can be either a Vertices object or a [x, y]
             % (1, 2) vector
-            if isa(vertices_to_subtract, "double") & size(vertices_to_add)==[1, 2]
-                vertices_to_subtract = Vertices(repmat(vertices_to_add, obj.nvertices, 1));
+            if isa(vertices_to_subtract, "double") && isequal(size(vertices_to_subtract), [1, 2])
+                vertices_to_subtract = Vertices(repmat(vertices_to_subtract, obj.nvertices, 1));
             end
             % Subtract Vertices
-            if obj.prefactor==vertices_to_subtract.prefactor
+            if isequal(obj.prefactor, vertices_to_subtract.prefactor)
                 % Keep prefactor if same
                 y = Vertices(obj.array-vertices_to_subtract.array, obj.prefactor);
             else
@@ -108,6 +107,22 @@ classdef Vertices<handle
             % Divide Vertices by a coefficient
             obj.prefactor = obj.prefactor/coefficient;
         end
-                
+
+        function y = gds_value(obj)
+            % Integer coordinates for GDS emission (1 nm database unit).
+            y = round(obj.value);
+        end
+    end
+    methods (Access=private)
+        function s = expr_components(obj, coefficients)
+            coeff = string(coefficients(:));
+            factor = string(obj.prefactor.expression_token());
+            if factor == "1"
+                expr = coeff;
+            else
+                expr = "(" + coeff + ")*(" + factor + ")";
+            end
+            s = cellstr(expr);
+        end
     end
 end

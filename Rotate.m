@@ -80,7 +80,11 @@ classdef Rotate < GeomFeature
                 p = val;
                 return;
             end
-            p = Parameter(val, default_name);
+            if default_name == "angle"
+                p = Parameter(val, default_name, unit="");
+            else
+                p = Parameter(val, default_name);
+            end
         end
 
         function v = to_vertices(obj, val)

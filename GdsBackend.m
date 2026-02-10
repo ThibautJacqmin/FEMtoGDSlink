@@ -53,7 +53,7 @@ classdef GdsBackend < handle
         end
 
         function region = build_Rectangle(obj, node)
-            verts = node.vertices();
+            verts = obj.session.gds_integer(node.vertices(), "Rectangle vertices");
             poly = obj.modeler.pya.Polygon.from_s(Utilities.vertices_to_klayout_string(verts));
             region = obj.modeler.pya.Region();
             region.insert(poly);
@@ -62,14 +62,14 @@ classdef GdsBackend < handle
 
         function region = build_Move(obj, node)
             base = obj.region_for(node.target);
-            delta = obj.vector_value(node.delta);
+            delta = obj.gds_length_vector(node.delta, "Move delta");
             t = obj.modeler.pya.Trans(obj.modeler.pya.Point(delta(1), delta(2)));
             region = base.transformed(t);
         end
 
         function region = build_Rotate(obj, node)
             base = obj.region_for(node.target);
-            origin = obj.vector_value(node.origin);
+            origin = obj.gds_length_vector(node.origin, "Rotate origin");
             angle = obj.scalar_value(node.angle);
             region = obj.apply_translate(base, -origin(1), -origin(2));
             rot = obj.modeler.pya.CplxTrans(1, angle, py.bool(0), 0, 0);
@@ -79,7 +79,7 @@ classdef GdsBackend < handle
 
         function region = build_Scale(obj, node)
             base = obj.region_for(node.target);
-            origin = obj.vector_value(node.origin);
+            origin = obj.gds_length_vector(node.origin, "Scale origin");
             factor = obj.scalar_value(node.factor);
             region = obj.apply_translate(base, -origin(1), -origin(2));
             sca = obj.modeler.pya.CplxTrans(factor);
@@ -89,7 +89,7 @@ classdef GdsBackend < handle
 
         function region = build_Mirror(obj, node)
             base = obj.region_for(node.target);
-            point = obj.vector_value(node.point);
+            point = obj.gds_length_vector(node.point, "Mirror point");
             axis = obj.vector_value(node.axis);
             if numel(axis) ~= 2
                 error("Mirror axis must be a 2D vector.");
@@ -144,7 +144,7 @@ classdef GdsBackend < handle
 
         function region = build_Fillet(obj, node)
             base = obj.region_for(node.target);
-            radius = obj.scalar_value(node.radius);
+            radius = obj.gds_length_scalar(node.radius, "Fillet radius");
             npoints = obj.scalar_value(node.npoints);
             region = base;
             if py.hasattr(region, "round_corners")
@@ -178,6 +178,16 @@ classdef GdsBackend < handle
         function region = apply_translate(obj, region, dx, dy)
             t = obj.modeler.pya.Trans(obj.modeler.pya.Point(dx, dy));
             region = region.transformed(t);
+        end
+
+        function vec = gds_length_vector(obj, val, context)
+            vec = obj.vector_value(val);
+            vec = obj.session.gds_integer(vec, context);
+        end
+
+        function s = gds_length_scalar(obj, val, context)
+            s = obj.scalar_value(val);
+            s = obj.session.gds_integer(s, context);
         end
     end
 end

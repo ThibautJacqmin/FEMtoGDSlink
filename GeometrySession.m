@@ -11,6 +11,10 @@ classdef GeometrySession < handle
         gds_backend
         node_counter
         emit_on_create
+        snap_mode
+        snap_grid_nm
+        warn_on_snap
+        snap_warned
     end
     methods
         function obj = GeometrySession(args)
@@ -19,6 +23,9 @@ classdef GeometrySession < handle
                 args.enable_gds logical = true
                 args.emit_on_create logical = false
                 args.set_as_current logical = true
+                args.snap_mode {mustBeTextScalar} = "strict"
+                args.snap_grid_nm double = 1
+                args.warn_on_snap logical = true
             end
 
             if args.enable_comsol
@@ -41,6 +48,10 @@ classdef GeometrySession < handle
             obj.gds_backend = [];
             obj.node_counter = int32(0);
             obj.emit_on_create = args.emit_on_create;
+            obj.snap_mode = GeometrySession.validate_snap_mode(args.snap_mode);
+            obj.snap_grid_nm = GeometrySession.validate_snap_grid(args.snap_grid_nm);
+            obj.warn_on_snap = args.warn_on_snap;
+            obj.snap_warned = containers.Map('KeyType', 'char', 'ValueType', 'logical');
 
             if args.set_as_current
                 GeometrySession.set_current(obj);
@@ -161,6 +172,43 @@ classdef GeometrySession < handle
             obj.gds_backend.emit_all(obj.nodes);
             obj.gds.write(filename);
         end
+
+        function snapped = snap_length(obj, values, context)
+            arguments
+                obj GeometrySession
+                values
+                context {mustBeTextScalar} = "geometry"
+            end
+            if obj.snap_mode == "off"
+                snapped = values;
+                return;
+            end
+
+            grid = obj.snap_grid_nm;
+            snapped = round(values ./ grid) .* grid;
+            if obj.warn_on_snap
+                delta = abs(snapped - values);
+                if any(delta(:) > 1e-12)
+                    key = char(string(context));
+                    if ~isKey(obj.snap_warned, key)
+                        warning("GeometrySession:Snap", ...
+                            "Snapped %s to %.12g nm grid (max delta %.6g nm).", ...
+                            char(context), grid, max(delta(:)));
+                        obj.snap_warned(key) = true;
+                    end
+                end
+            end
+        end
+
+        function ints = gds_integer(obj, values, context)
+            arguments
+                obj GeometrySession
+                values
+                context {mustBeTextScalar} = "gds"
+            end
+            snapped = obj.snap_length(values, context);
+            ints = round(snapped);
+        end
     end
     methods (Static)
         function set_current(ctx)
@@ -184,6 +232,21 @@ classdef GeometrySession < handle
         end
     end
     methods (Static, Access=private)
+        function mode = validate_snap_mode(raw_mode)
+            mode = lower(string(raw_mode));
+            if ~any(mode == ["strict", "off"])
+                error("snap_mode must be 'strict' or 'off'.");
+            end
+        end
+
+        function grid = validate_snap_grid(raw_grid)
+            grid = double(raw_grid);
+            if ~(isscalar(grid) && isfinite(grid) && grid >= 1 && abs(grid-round(grid)) < 1e-12)
+                error("snap_grid_nm must be a positive integer >= 1.");
+            end
+            grid = round(grid);
+        end
+
         function ctx = current_context_store(varargin)
             persistent current_ctx
             if nargin == 1

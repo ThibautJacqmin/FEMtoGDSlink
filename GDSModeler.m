@@ -15,9 +15,14 @@ classdef GDSModeler < Klayout
             obj.pylayout.dbu = obj.pydbu;
             % Create cell
             obj.pycell = obj.pylayout.create_cell("Main");
+            obj.shapes = {};
         end
-        function py_layer = create_layer(obj, number)
-            py_layer = obj.pylayout.layer(string(number));
+        function py_layer = create_layer(obj, number, datatype)
+            if nargin < 3
+                py_layer = obj.pylayout.layer(string(number));
+            else
+                py_layer = obj.pylayout.layer(int32(number), int32(datatype));
+            end
         end
         function add_to_layer(obj, layer, shape, klayout_cell)
             % Last argument allows to add to a different cell than the main

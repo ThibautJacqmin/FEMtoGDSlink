@@ -15,6 +15,7 @@ classdef GeometrySession < handle
         snap_grid_nm
         warn_on_snap
         snap_warned
+        snap_stats
     end
     methods
         function obj = GeometrySession(args)
@@ -52,6 +53,7 @@ classdef GeometrySession < handle
             obj.snap_grid_nm = GeometrySession.validate_snap_grid(args.snap_grid_nm);
             obj.warn_on_snap = args.warn_on_snap;
             obj.snap_warned = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+            obj.snap_stats = containers.Map('KeyType', 'char', 'ValueType', 'any');
 
             if args.set_as_current
                 GeometrySession.set_current(obj);
@@ -190,6 +192,7 @@ classdef GeometrySession < handle
                 delta = abs(snapped - values);
                 if any(delta(:) > 1e-12)
                     key = char(string(context));
+                    obj.record_snap(key, delta);
                     if ~isKey(obj.snap_warned, key)
                         warning("GeometrySession:Snap", ...
                             "Snapped %s to %.12g nm grid (max delta %.6g nm).", ...
@@ -208,6 +211,48 @@ classdef GeometrySession < handle
             end
             snapped = obj.snap_length(values, context);
             ints = round(snapped);
+        end
+
+        function clear_snap_report(obj)
+            obj.snap_warned = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+            obj.snap_stats = containers.Map('KeyType', 'char', 'ValueType', 'any');
+        end
+
+        function report = snap_report(obj, args)
+            arguments
+                obj GeometrySession
+                args.display logical = true
+            end
+            keys_list = obj.snap_stats.keys;
+            if isempty(keys_list)
+                report = table(strings(0, 1), zeros(0, 1), zeros(0, 1), zeros(0, 1), ...
+                    'VariableNames', {'Context', 'SnapCount', 'MaxDeltaNm', 'GridNm'});
+                if args.display
+                    disp("No snap events recorded.");
+                end
+                return;
+            end
+
+            n = numel(keys_list);
+            context = strings(n, 1);
+            snap_count = zeros(n, 1);
+            max_delta = zeros(n, 1);
+            grid_nm = zeros(n, 1);
+
+            for i = 1:n
+                key = keys_list{i};
+                stats = obj.snap_stats(key);
+                context(i) = string(key);
+                snap_count(i) = stats.count;
+                max_delta(i) = stats.max_delta_nm;
+                grid_nm(i) = stats.grid_nm;
+            end
+
+            report = table(context, snap_count, max_delta, grid_nm, ...
+                'VariableNames', {'Context', 'SnapCount', 'MaxDeltaNm', 'GridNm'});
+            if args.display
+                disp(report);
+            end
         end
     end
     methods (Static)
@@ -253,6 +298,24 @@ classdef GeometrySession < handle
                 current_ctx = varargin{1};
             end
             ctx = current_ctx;
+        end
+    end
+    methods (Access=private)
+        function record_snap(obj, key, delta)
+            changed = delta(delta > 1e-12);
+            if isempty(changed)
+                return;
+            end
+
+            if isKey(obj.snap_stats, key)
+                stats = obj.snap_stats(key);
+            else
+                stats = struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.snap_grid_nm);
+            end
+
+            stats.count = stats.count + numel(changed);
+            stats.max_delta_nm = max(stats.max_delta_nm, max(changed));
+            obj.snap_stats(key) = stats;
         end
     end
 end

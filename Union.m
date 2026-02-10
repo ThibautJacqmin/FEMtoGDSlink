@@ -17,6 +17,7 @@ classdef Union < GeomFeature
             for i = 1:numel(members)
                 obj.add_input(members{i});
             end
+            obj.finalize();
         end
 
         function val = get.members(obj)

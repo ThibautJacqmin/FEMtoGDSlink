@@ -20,6 +20,7 @@ classdef Fillet < GeomFeature
             obj.radius = args.radius;
             obj.npoints = args.npoints;
             obj.points = args.points;
+            obj.finalize();
         end
 
         function set.radius(obj, val)

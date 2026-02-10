@@ -8,6 +8,7 @@ classdef GeomFeature < handle
         inputs
         params
         output logical = true
+        is_initialized logical = false
     end
     properties (Access=protected)
         ctx
@@ -67,6 +68,16 @@ classdef GeomFeature < handle
                 value = obj.params.(key);
             else
                 value = default;
+            end
+        end
+
+        function finalize(obj)
+            if obj.is_initialized
+                return;
+            end
+            obj.is_initialized = true;
+            if ~isempty(obj.ctx)
+                obj.ctx.node_initialized(obj);
             end
         end
     end

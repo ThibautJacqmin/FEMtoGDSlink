@@ -19,6 +19,7 @@ classdef Difference < GeomFeature
             for i = 1:numel(tool_list)
                 obj.add_input(tool_list{i});
             end
+            obj.finalize();
         end
 
         function val = get.base(obj)

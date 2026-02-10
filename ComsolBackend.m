@@ -6,6 +6,7 @@ classdef ComsolBackend < handle
         defined_params
         feature_tags
         emitting
+        selection_tags
     end
     methods
         function obj = ComsolBackend(session)
@@ -14,6 +15,7 @@ classdef ComsolBackend < handle
             obj.defined_params = containers.Map('KeyType', 'char', 'ValueType', 'logical');
             obj.feature_tags = containers.Map('KeyType', 'int32', 'ValueType', 'char');
             obj.emitting = containers.Map('KeyType', 'int32', 'ValueType', 'logical');
+            obj.selection_tags = containers.Map('KeyType', 'char', 'ValueType', 'char');
         end
 
         function emit_all(obj, nodes)
@@ -62,6 +64,7 @@ classdef ComsolBackend < handle
             else
                 feature.set('size', {obj.to_comsol_token(w), obj.to_comsol_token(h)});
             end
+            obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
@@ -76,6 +79,7 @@ classdef ComsolBackend < handle
             delta = obj.vector_value(node.delta);
             feature.set('displx', delta(1));
             feature.set('disply', delta(2));
+            obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
@@ -89,6 +93,7 @@ classdef ComsolBackend < handle
             feature.selection('input').set(input_tag);
             feature.set('rot', obj.to_comsol_token(obj.expr(node.angle)));
             feature.set('pos', obj.vector_value(node.origin));
+            obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
@@ -102,6 +107,7 @@ classdef ComsolBackend < handle
             feature.selection('input').set(input_tag);
             feature.set('factor', obj.to_comsol_token(obj.expr(node.factor)));
             feature.set('pos', obj.vector_value(node.origin));
+            obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
@@ -115,6 +121,7 @@ classdef ComsolBackend < handle
             feature.selection('input').set(input_tag);
             feature.set('pos', obj.vector_value(node.point));
             feature.set('axis', obj.vector_value(node.axis));
+            obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
@@ -126,6 +133,7 @@ classdef ComsolBackend < handle
             tag = obj.session.next_comsol_tag("uni");
             feature = wp.geom.create(tag, 'Union');
             feature.selection('input').set(tags);
+            obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
@@ -141,6 +149,7 @@ classdef ComsolBackend < handle
             if ~isempty(tool_tags)
                 feature.selection('input2').set(tool_tags);
             end
+            obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
@@ -152,6 +161,7 @@ classdef ComsolBackend < handle
             tag = obj.session.next_comsol_tag("int");
             feature = wp.geom.create(tag, 'Intersection');
             feature.selection('input').set(tags);
+            obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
@@ -172,6 +182,7 @@ classdef ComsolBackend < handle
             else
                 warning("Fillet points not specified; COMSOL may require point selection.");
             end
+            obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
     end
@@ -237,6 +248,82 @@ classdef ComsolBackend < handle
             tags = strings(1, numel(inputs));
             for i = 1:numel(inputs)
                 tags(i) = string(obj.tag_for(inputs{i}));
+            end
+        end
+
+        function apply_layer_selection(obj, layer, feature)
+            if ~layer.comsol_enable_selection
+                return;
+            end
+
+            name = string(layer.comsol_selection);
+            if strlength(name) == 0
+                name = string(layer.name);
+            end
+            sel_tag = obj.selection_tag(layer, name);
+            show_token = obj.selection_show_token(layer.comsol_selection_state);
+            if show_token == "off"
+                return;
+            end
+
+            try
+                feature.set('selresult', true);
+            catch
+            end
+            try
+                feature.set('selresultshow', char(show_token));
+            catch
+            end
+            try
+                feature.set('contributeto', sel_tag);
+            catch ex
+                warning("Could not assign layer selection '%s': %s", ...
+                    char(name), ex.message);
+            end
+        end
+
+        function tag = selection_tag(obj, layer, name)
+            key = char(string(layer.comsol_workplane) + "|" + string(name));
+            if isKey(obj.selection_tags, key)
+                tag = obj.selection_tags(key);
+                return;
+            end
+
+            tag = char(obj.session.next_comsol_tag("csel"));
+            obj.selection_tags(key) = tag;
+
+            wp = obj.session.get_workplane(layer);
+            % Best-effort creation of a cumulative selection node in this workplane.
+            try
+                wp.geom.selection.create(tag, 'CumulativeSelection');
+            catch
+                try
+                    wp.geom.selection().create(tag, 'CumulativeSelection');
+                catch
+                end
+            end
+            try
+                wp.geom.selection(tag).label(char(name));
+            catch
+            end
+        end
+
+        function token = selection_show_token(obj, state)
+            s = lower(string(state));
+            if s == "all"
+                token = "all";
+            elseif any(s == ["domain", "domains", "dom"])
+                token = "dom";
+            elseif any(s == ["boundary", "boundaries", "bnd"])
+                token = "bnd";
+            elseif any(s == ["edge", "edges", "edg"])
+                token = "edg";
+            elseif any(s == ["point", "points", "pnt"])
+                token = "pnt";
+            elseif any(s == ["off", "none"])
+                token = "off";
+            else
+                error("Unknown selection_state '%s'.", char(s));
             end
         end
     end

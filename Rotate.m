@@ -18,6 +18,7 @@ classdef Rotate < GeomFeature
             obj.add_input(target);
             obj.angle = args.angle;
             obj.origin = args.origin;
+            obj.finalize();
         end
 
         function set.angle(obj, val)

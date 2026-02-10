@@ -18,6 +18,7 @@ classdef Scale < GeomFeature
             obj.add_input(target);
             obj.factor = args.factor;
             obj.origin = args.origin;
+            obj.finalize();
         end
 
         function set.factor(obj, val)

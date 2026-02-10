@@ -16,6 +16,7 @@ classdef Move < GeomFeature
             obj.output = args.output;
             obj.add_input(target);
             obj.delta = args.delta;
+            obj.finalize();
         end
 
         function set.delta(obj, val)

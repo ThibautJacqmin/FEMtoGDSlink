@@ -61,11 +61,17 @@ classdef GeometrySession < handle
                 args.gds_layer double = 1
                 args.gds_datatype double = 0
                 args.comsol_workplane {mustBeTextScalar} = "wp1"
+                args.comsol_selection {mustBeTextScalar} = ""
+                args.comsol_selection_state {mustBeTextScalar} = "all"
+                args.comsol_enable_selection logical = true
             end
             layer = LayerSpec(name, ...
                 gds_layer=args.gds_layer, ...
                 gds_datatype=args.gds_datatype, ...
-                comsol_workplane=args.comsol_workplane);
+                comsol_workplane=args.comsol_workplane, ...
+                comsol_selection=args.comsol_selection, ...
+                comsol_selection_state=args.comsol_selection_state, ...
+                comsol_enable_selection=args.comsol_enable_selection);
             obj.layers(char(layer.name)) = layer;
         end
 
@@ -89,6 +95,9 @@ classdef GeometrySession < handle
             obj.node_counter = obj.node_counter + 1;
             feature.id = obj.node_counter;
             obj.nodes{end+1} = feature;
+        end
+
+        function node_initialized(obj, feature)
             if obj.emit_on_create && obj.has_comsol()
                 if isempty(obj.comsol_backend)
                     obj.comsol_backend = ComsolBackend(obj);
@@ -155,12 +164,11 @@ classdef GeometrySession < handle
     end
     methods (Static)
         function set_current(ctx)
-            persistent current_ctx
-            current_ctx = ctx;
+            GeometrySession.current_context_store(ctx);
         end
 
         function ctx = get_current()
-            persistent current_ctx
+            current_ctx = GeometrySession.current_context_store();
             if isempty(current_ctx)
                 ctx = [];
             else
@@ -173,6 +181,15 @@ classdef GeometrySession < handle
             if isempty(ctx)
                 error("No active GeometrySession. Create one or call GeometrySession.set_current(ctx).");
             end
+        end
+    end
+    methods (Static, Access=private)
+        function ctx = current_context_store(varargin)
+            persistent current_ctx
+            if nargin == 1
+                current_ctx = varargin{1};
+            end
+            ctx = current_ctx;
         end
     end
 end

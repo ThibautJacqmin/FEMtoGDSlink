@@ -23,6 +23,7 @@ classdef Rectangle < GeomFeature
             obj.center = args.center;
             obj.width = args.width;
             obj.height = args.height;
+            obj.finalize();
         end
 
         function set.center(obj, val)

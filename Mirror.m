@@ -18,6 +18,7 @@ classdef Mirror < GeomFeature
             obj.add_input(target);
             obj.point = args.point;
             obj.axis = args.axis;
+            obj.finalize();
         end
 
         function set.point(obj, val)

@@ -172,6 +172,36 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "poly_pitch"));
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
+
+        function emitCircleAndEllipsePrimitives(testCase)
+            % Verify COMSOL backend emits Circle/Ellipse primitives.
+            ctx = GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            p_r = Parameter(25, "circ_r");
+            p_a = Parameter(40, "ell_a");
+            p_b = Parameter(18, "ell_b");
+            p_rot = Parameter(30, "ell_rot_deg", unit="");
+
+            c = Circle(ctx, center=[0 0], radius=p_r, layer="m1", output=false);
+            e = Ellipse(ctx, center=[80 0], a=p_a, b=p_b, angle=p_rot, ...
+                layer="m1", output=true);
+            ctx.build_comsol();
+
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(c.id)));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(e.id)));
+            c_tag = string(ctx.comsol_backend.feature_tags(int32(c.id)));
+            e_tag = string(ctx.comsol_backend.feature_tags(int32(e.id)));
+            testCase.verifyTrue(startsWith(c_tag, "cir"));
+            testCase.verifyTrue(startsWith(e_tag, "ell"));
+
+            for nm = ["circ_r", "ell_a", "ell_b", "ell_rot_deg"]
+                testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, char(nm)));
+            end
+            testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
+        end
     end
 
     methods (Static, Access=private)

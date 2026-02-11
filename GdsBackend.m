@@ -60,6 +60,64 @@ classdef GdsBackend < handle
             region.merge();
         end
 
+        function region = build_Circle(obj, node)
+            angle = obj.scalar_value(node.angle);
+            if abs(double(angle) - 360) > 1e-9
+                error("GDS backend currently supports only full circles (angle=360).");
+            end
+
+            pos = obj.gds_length_vector(node.position, "Circle position");
+            r = obj.gds_length_scalar(node.radius, "Circle radius");
+            n = obj.point_count(node.npoints, "Circle npoints");
+            base = lower(string(node.base));
+
+            if base == "center"
+                corner = pos - [r, r];
+            else
+                corner = pos;
+            end
+            upper = corner + [2*r, 2*r];
+
+            box = obj.modeler.pya.Box(int32(corner(1)), int32(corner(2)), ...
+                int32(upper(1)), int32(upper(2)));
+            poly = obj.modeler.pya.Polygon.ellipse(box, int32(n));
+            region = obj.modeler.pya.Region();
+            region.insert(poly);
+            region.merge();
+        end
+
+        function region = build_Ellipse(obj, node)
+            pos = obj.gds_length_vector(node.position, "Ellipse position");
+            a = obj.gds_length_scalar(node.a, "Ellipse semiaxis a");
+            b = obj.gds_length_scalar(node.b, "Ellipse semiaxis b");
+            n = obj.point_count(node.npoints, "Ellipse npoints");
+            base = lower(string(node.base));
+
+            if base == "center"
+                corner = pos - [a, b];
+                pivot = pos;
+            else
+                corner = pos;
+                pivot = pos;
+            end
+            upper = corner + [2*a, 2*b];
+
+            box = obj.modeler.pya.Box(int32(corner(1)), int32(corner(2)), ...
+                int32(upper(1)), int32(upper(2)));
+            poly = obj.modeler.pya.Polygon.ellipse(box, int32(n));
+            region = obj.modeler.pya.Region();
+            region.insert(poly);
+
+            angle = obj.scalar_value(node.angle);
+            if abs(double(angle)) > 1e-12
+                region = obj.apply_translate(region, -pivot(1), -pivot(2));
+                rot = obj.modeler.pya.CplxTrans(1, angle, py.bool(0), 0, 0);
+                region = region.transformed(rot);
+                region = obj.apply_translate(region, pivot(1), pivot(2));
+            end
+            region.merge();
+        end
+
         function region = build_Polygon(obj, node)
             verts = obj.session.gds_integer(node.vertices_value(), "Polygon vertices");
             if size(verts, 1) < 3
@@ -195,7 +253,7 @@ classdef GdsBackend < handle
         end
     end
     methods (Access=private)
-        function v = vector_value(obj, val)
+        function v = vector_value(~, val)
             if isa(val, 'Vertices')
                 v = val.value;
             else
@@ -203,7 +261,7 @@ classdef GdsBackend < handle
             end
         end
 
-        function v = scalar_value(obj, val)
+        function v = scalar_value(~, val)
             if isa(val, 'Parameter')
                 v = val.value;
                 return;
@@ -236,6 +294,14 @@ classdef GdsBackend < handle
             n = round(double(n));
             if ~(isscalar(n) && isfinite(n) && n >= 1)
                 error("%s must be a scalar >= 1.", char(string(context)));
+            end
+        end
+
+        function n = point_count(obj, val, context)
+            n = obj.scalar_value(val);
+            n = round(double(n));
+            if ~(isscalar(n) && isfinite(n) && n >= 8)
+                error("%s must be a scalar integer >= 8.", char(string(context)));
             end
         end
     end

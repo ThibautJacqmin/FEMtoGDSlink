@@ -92,6 +92,30 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyLessThan(double(reg.area()), 1.05 * expected_area);
         end
 
+        function circleAndEllipsePrimitives(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python module 'lygadgets' not available.");
+
+            ctx = TestGdsBackend.newContext();
+            c = Circle(ctx, center=[0 0], radius=50, npoints=128, layer="m1", output=false);
+            e = Ellipse(ctx, center=[200 0], a=80, b=40, angle=30, npoints=128, ...
+                layer="m1", output=true);
+
+            backend = GdsBackend(ctx);
+            reg_c = backend.region_for(c);
+            reg_e = backend.region_for(e);
+
+            area_c_expected = pi * 50 * 50;
+            area_e_expected = pi * 80 * 40;
+
+            testCase.verifyEqual(double(reg_c.count()), 1);
+            testCase.verifyEqual(double(reg_e.count()), 1);
+            testCase.verifyGreaterThan(double(reg_c.area()), 0.95 * area_c_expected);
+            testCase.verifyLessThan(double(reg_c.area()), 1.05 * area_c_expected);
+            testCase.verifyGreaterThan(double(reg_e.area()), 0.95 * area_e_expected);
+            testCase.verifyLessThan(double(reg_e.area()), 1.05 * area_e_expected);
+        end
+
         function polygonPrimitive(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python module 'lygadgets' not available.");

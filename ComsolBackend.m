@@ -79,6 +79,41 @@ classdef ComsolBackend < handle
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
+        function emit_Circle(obj, node)
+            % Emit a COMSOL Circle primitive from a Circle node.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            tag = obj.session.next_comsol_tag("cir");
+            feature = wp.geom.create(tag, 'Circle');
+            feature.set('base', char(node.base));
+            pos = obj.length_vector(node.position, "Circle position");
+            obj.set_pair(feature, 'pos', pos(1), pos(2));
+            obj.set_scalar(feature, 'r', obj.length_component(node.radius, "Circle radius"));
+            obj.set_scalar(feature, 'angle', obj.raw_component(node.angle));
+            obj.set_scalar(feature, 'rot', obj.raw_component(node.rotation));
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_Ellipse(obj, node)
+            % Emit a COMSOL Ellipse primitive from an Ellipse node.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            tag = obj.session.next_comsol_tag("ell");
+            feature = wp.geom.create(tag, 'Ellipse');
+            feature.set('base', char(node.base));
+            pos = obj.length_vector(node.position, "Ellipse position");
+            obj.set_pair(feature, 'pos', pos(1), pos(2));
+            a_val = obj.length_component(node.a, "Ellipse semiaxis a");
+            b_val = obj.length_component(node.b, "Ellipse semiaxis b");
+            obj.set_pair(feature, 'semiaxes', a_val, b_val);
+            obj.set_scalar(feature, 'rot', obj.raw_component(node.angle));
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
         function emit_Polygon(obj, node)
             % Emit a COMSOL Polygon primitive from a Polygon node.
             layer = node.layer;
@@ -577,7 +612,7 @@ classdef ComsolBackend < handle
             out = raw;
         end
 
-        function vec = vector_value(obj, val)
+        function vec = vector_value(~, val)
             % Extract numeric vector from Vertices or raw vector.
             if isa(val, 'Vertices')
                 vec = val.value;
@@ -741,7 +776,7 @@ classdef ComsolBackend < handle
             end
         end
 
-        function token = selection_show_token(obj, state)
+        function token = selection_show_token(~, state)
             % Map user-friendly selection state to COMSOL selresultshow token.
             s = lower(string(state));
             if s == "all"

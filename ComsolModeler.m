@@ -1,4 +1,5 @@
 classdef ComsolModeler < handle
+    % Thin wrapper around COMSOL Java API for geometry/model bookkeeping.
     properties
         model_tag
         model
@@ -11,6 +12,7 @@ classdef ComsolModeler < handle
     end
     methods
         function obj = ComsolModeler
+            % Create a fresh COMSOL model with one component and workplane.
             import com.comsol.model.*
             import com.comsol.model.util.*
             obj.model_tag = ComsolModeler.next_model_tag();
@@ -25,6 +27,7 @@ classdef ComsolModeler < handle
             obj.initialize_workspace();
         end
         function reset_workspace(obj)
+            % Reset component/geometry tree while keeping model/window alive.
             % Reset model content while keeping the same COMSOL model/window.
             try
                 obj.model.variable.remove('var1');
@@ -40,6 +43,7 @@ classdef ComsolModeler < handle
             obj.study = [];
         end
         function names = get_names(obj)
+            % Return geometry child node tags currently in active workplane.
             % Get an string array containin all Comsol names of graphical
             % objects and operation (corresponding to tree nodes in Comsol
             % geometry)
@@ -48,6 +52,7 @@ classdef ComsolModeler < handle
             names = names.split(", ");
         end
         function y = get_next_index(obj, name)
+            % Return next numeric suffix for a COMSOL geometry tag prefix.
             % Retrueve the next index of a node name. For instance if
             % rect1, rect2, and rect3 exists, the function returns 4.
             y = obj.get_names;
@@ -59,6 +64,7 @@ classdef ComsolModeler < handle
             end
         end
         function add_parameter(obj, value, name, unit)
+            % Set one model parameter, converting numeric values to tokens.
             arguments
                 obj
                 value
@@ -77,6 +83,7 @@ classdef ComsolModeler < handle
             obj.model.param.set(name, value_str, "");
         end
         function add_variable(obj, name, expression)
+            % Define one variable under var1.
             arguments
                 obj
                 name {mustBeTextScalar}
@@ -85,6 +92,7 @@ classdef ComsolModeler < handle
             obj.model.variable('var1').set(name, expression, "");
         end
         function add_material(obj, prop)
+            % Create and assign a basic isotropic material definition.
             arguments
                 obj ComsolModeler
                 prop.poisson_ratio double
@@ -111,6 +119,7 @@ classdef ComsolModeler < handle
             mat_object.selection.set(1:obj.geometry.getNBoundaries);
         end
         function add_mesh(obj, meshsize)
+            % Create a default 2D free-triangular mesh configuration.
             arguments
                 obj ComsolModeler
                 meshsize double=4
@@ -122,6 +131,7 @@ classdef ComsolModeler < handle
             ftr.selection.set(1:obj.geometry.getNBoundaries);
         end
         function add_physics(obj, args)
+            % Add shell physics with thickness and initial stress settings.
             arguments
                 obj ComsolModeler
                 args.thickness double
@@ -140,6 +150,7 @@ classdef ComsolModeler < handle
             iss.set('Ni', {'stress*thickness' '0' '0' 'stress*thickness'});
         end
         function add_study(obj)
+            % Add stationary and eigenfrequency study steps for shell physics.
             obj.study = obj.model.study.create('std1');
             stat = obj.study.create('stat', 'Stationary');
             stat.setSolveFor('/physics/shell', true);
@@ -153,13 +164,16 @@ classdef ComsolModeler < handle
             eig.set('eiglr', 100); % largest real part
         end
         function start_gui(obj)
+            % Launch COMSOL Desktop attached to this model.
             mphlaunch(obj.model)
         end
         function plot(obj)
+            % Run geometry and display it through mphgeom.
             obj.geometry.run;
             mphgeom(obj.model);
         end
         function save_to_m_file(obj, filename)
+            % Export current model to a COMSOL-generated MATLAB script.
             arguments
                 obj ComsolModeler
                 filename {mustBeTextScalar}='untitled.m'
@@ -167,6 +181,7 @@ classdef ComsolModeler < handle
             obj.model.save(filename, 'm');
         end
         function comsol_object = create_comsol_object(obj, comsol_object_name)
+            % Create a workplane geometry feature with an auto-generated tag.
             % This function creates a new comsol object in the plane
             % geometry. The comsol name can be "Rotate", "Difference",
             % "Move", "Copy"....
@@ -179,6 +194,7 @@ classdef ComsolModeler < handle
             comsol_object = obj.workplane.geom.create(comsol_name, comsol_object_name);
         end
         function comsol_shape = make_1D_array(obj, ncopies, vertex, initial_comsol_shape)
+            % Build a linear Array feature from an existing geometry tag.
             arguments
                 obj
                 ncopies {mustBeA(ncopies, {'Variable', 'Parameter', 'DependentParameter'})}
@@ -195,6 +211,7 @@ classdef ComsolModeler < handle
     end
     methods (Static)
         function obj = shared(args)
+            % Return a shared ComsolModeler instance, optionally reset first.
             arguments
                 args.reset logical = true
             end
@@ -208,6 +225,7 @@ classdef ComsolModeler < handle
         end
 
         function clear_shared()
+            % Dispose and clear the process-wide shared ComsolModeler.
             obj = ComsolModeler.shared_store();
             if ~isempty(obj) && isvalid(obj)
                 try
@@ -220,18 +238,21 @@ classdef ComsolModeler < handle
         end
 
         function tag = next_model_tag()
+            % Generate a unique COMSOL model tag for new sessions.
             stamp = string(datestr(now, "yyyymmdd_HHMMSSFFF"));
             suffix = string(randi([0, 9999]));
             tag = "Model_" + stamp + "_" + suffix;
         end
 
         function y = comsol_prefix(comsol_object_name)
+            % Return default 3-letter lowercase COMSOL feature prefix.
             % Comsol element prefix (pol, mir, fil, sca, ...)
             y = lower(comsol_object_name.extractBetween(1, 3));
         end
     end
     methods (Access=private)
         function initialize_workspace(obj)
+            % Initialize default variable/component/geometry/workplane nodes.
             % Create variable
             obj.model.variable.create('var1');
             % Create component
@@ -247,6 +268,7 @@ classdef ComsolModeler < handle
     end
     methods (Static, Access=private)
         function obj = shared_store(varargin)
+            % Persistent storage for the shared ComsolModeler instance.
             persistent shared_obj
             if nargin == 1
                 shared_obj = varargin{1};

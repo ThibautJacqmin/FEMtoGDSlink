@@ -19,6 +19,7 @@ classdef GeometrySession < handle
     end
     methods
         function obj = GeometrySession(args)
+            % Build a geometry session and initialize enabled backends.
             arguments
                 args.enable_comsol logical = true
                 args.enable_gds logical = true
@@ -76,6 +77,7 @@ classdef GeometrySession < handle
         end
 
         function layer = add_layer(obj, name, args)
+            % Register a logical layer and its COMSOL/GDS mappings.
             arguments
                 obj
                 name {mustBeTextScalar}
@@ -97,6 +99,7 @@ classdef GeometrySession < handle
         end
 
         function layer = resolve_layer(obj, ref)
+            % Resolve layer input from LayerSpec instance or layer name.
             if isa(ref, 'LayerSpec')
                 layer = ref;
                 return;
@@ -113,12 +116,14 @@ classdef GeometrySession < handle
         end
 
         function register(obj, feature)
+            % Register a graph node and assign an incremental node id.
             obj.node_counter = obj.node_counter + 1;
             feature.id = obj.node_counter;
             obj.nodes{end+1} = feature;
         end
 
         function node_initialized(obj, feature)
+            % Optionally emit COMSOL feature as soon as node is finalized.
             if obj.emit_on_create && obj.has_comsol()
                 if isempty(obj.comsol_backend)
                     obj.comsol_backend = ComsolBackend(obj);
@@ -128,14 +133,17 @@ classdef GeometrySession < handle
         end
 
         function tf = has_comsol(obj)
+            % Return true when COMSOL backend is enabled.
             tf = ~isempty(obj.comsol);
         end
 
         function tf = has_gds(obj)
+            % Return true when GDS backend is enabled.
             tf = ~isempty(obj.gds);
         end
 
         function wp = get_workplane(obj, layer)
+            % Get or lazily create the COMSOL workplane for one layer.
             wp = [];
             if ~obj.has_comsol()
                 return;
@@ -151,6 +159,7 @@ classdef GeometrySession < handle
         end
 
         function tag = next_comsol_tag(obj, prefix)
+            % Generate the next unique tag for a COMSOL feature prefix.
             if ~isKey(obj.comsol_counters, prefix)
                 obj.comsol_counters(prefix) = int32(0);
             end
@@ -159,6 +168,7 @@ classdef GeometrySession < handle
         end
 
         function build_comsol(obj)
+            % Emit all registered nodes through COMSOL backend.
             if ~obj.has_comsol()
                 error("COMSOL backend disabled.");
             end
@@ -169,6 +179,7 @@ classdef GeometrySession < handle
         end
 
         function export_gds(obj, filename)
+            % Emit graph to GDS backend and write layout to disk.
             arguments
                 obj GeometrySession
                 filename {mustBeTextScalar}
@@ -184,6 +195,7 @@ classdef GeometrySession < handle
         end
 
         function snapped = snap_length(obj, values, context)
+            % Snap lengths to grid when snap_mode is strict.
             arguments
                 obj GeometrySession
                 values
@@ -212,6 +224,7 @@ classdef GeometrySession < handle
         end
 
         function ints = gds_integer(obj, values, context)
+            % Snap and round to integer nanometer database units.
             arguments
                 obj GeometrySession
                 values
@@ -222,11 +235,13 @@ classdef GeometrySession < handle
         end
 
         function clear_snap_report(obj)
+            % Reset accumulated snap warnings and statistics.
             obj.snap_warned = containers.Map('KeyType', 'char', 'ValueType', 'logical');
             obj.snap_stats = containers.Map('KeyType', 'char', 'ValueType', 'any');
         end
 
         function report = snap_report(obj, args)
+            % Build tabular report of snap events by context.
             arguments
                 obj GeometrySession
                 args.display logical = true
@@ -264,6 +279,7 @@ classdef GeometrySession < handle
         end
 
         function report = build_report(obj, args)
+            % Return consolidated diagnostic report for session/backends.
             arguments
                 obj GeometrySession
                 args.display logical = true
@@ -314,6 +330,7 @@ classdef GeometrySession < handle
     end
     methods (Static)
         function ctx = with_shared_comsol(args)
+            % Create a session using process-wide shared COMSOL modeler.
             arguments
                 args.enable_gds logical = true
                 args.emit_on_create logical = false
@@ -336,14 +353,17 @@ classdef GeometrySession < handle
         end
 
         function clear_shared_comsol()
+            % Dispose and clear shared COMSOL model used by helper API.
             ComsolModeler.clear_shared();
         end
 
         function set_current(ctx)
+            % Set process-global active GeometrySession.
             GeometrySession.current_context_store(ctx);
         end
 
         function ctx = get_current()
+            % Get process-global active GeometrySession if any.
             current_ctx = GeometrySession.current_context_store();
             if isempty(current_ctx)
                 ctx = [];
@@ -353,6 +373,7 @@ classdef GeometrySession < handle
         end
 
         function ctx = require_current()
+            % Get active GeometrySession or raise an explicit error.
             ctx = GeometrySession.get_current();
             if isempty(ctx)
                 error("No active GeometrySession. Create one or call GeometrySession.set_current(ctx).");
@@ -361,6 +382,7 @@ classdef GeometrySession < handle
     end
     methods (Static, Access=private)
         function mode = validate_snap_mode(raw_mode)
+            % Validate and normalize snap mode text value.
             mode = lower(string(raw_mode));
             if ~any(mode == ["strict", "off"])
                 error("snap_mode must be 'strict' or 'off'.");
@@ -368,6 +390,7 @@ classdef GeometrySession < handle
         end
 
         function grid = validate_snap_grid(raw_grid)
+            % Validate snapping grid as positive integer nanometers.
             grid = double(raw_grid);
             if ~(isscalar(grid) && isfinite(grid) && grid >= 1 && abs(grid-round(grid)) < 1e-12)
                 error("snap_grid_nm must be a positive integer >= 1.");
@@ -376,6 +399,7 @@ classdef GeometrySession < handle
         end
 
         function ctx = current_context_store(varargin)
+            % Persistent storage for current GeometrySession singleton.
             persistent current_ctx
             if nargin == 1
                 current_ctx = varargin{1};
@@ -385,6 +409,7 @@ classdef GeometrySession < handle
     end
     methods (Access=private)
         function record_snap(obj, key, delta)
+            % Aggregate snap statistics for one context key.
             changed = delta(delta > 1e-12);
             if isempty(changed)
                 return;
@@ -402,6 +427,7 @@ classdef GeometrySession < handle
         end
 
         function report = node_report(obj)
+            % Summarize node counts by type/layer and output flag.
             n = numel(obj.nodes);
             classes = strings(n, 1);
             layers = strings(n, 1);
@@ -425,6 +451,7 @@ classdef GeometrySession < handle
         end
 
         function report = gds_report(obj)
+            % Summarize GDS backend cache and emission state.
             report = struct();
             report.initialized = ~isempty(obj.gds_backend);
             report.emitted_nodes = 0;
@@ -437,6 +464,7 @@ classdef GeometrySession < handle
         end
 
         function report = comsol_report(obj)
+            % Summarize COMSOL backend cache and emission state.
             report = struct();
             report.initialized = ~isempty(obj.comsol_backend);
             report.emitted_features = 0;
@@ -453,6 +481,7 @@ classdef GeometrySession < handle
         end
 
         function tbl = count_table(~, labels, outputs, first_col_name)
+            % Aggregate counts and output counts for categorical labels.
             first_col_name = char(first_col_name);
             if isempty(labels)
                 tbl = table(strings(0, 1), zeros(0, 1), zeros(0, 1), ...
@@ -467,10 +496,12 @@ classdef GeometrySession < handle
         end
 
         function n = map_count(~, m)
+            % Return number of keys in a containers.Map.
             n = numel(m.keys);
         end
 
         function n = true_value_count(~, m)
+            % Count true values in a logical-value containers.Map.
             vals = m.values;
             if isempty(vals)
                 n = 0;

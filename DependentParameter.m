@@ -7,6 +7,7 @@ classdef DependentParameter < Parameter
     end
     methods
         function obj = DependentParameter(anonymous_function, parameter, name, args)
+            % Build named parameter from a function of one parent parameter.
             arguments
                 anonymous_function function_handle
                 parameter Parameter
@@ -45,6 +46,7 @@ classdef DependentParameter < Parameter
     end
     methods (Static, Access=private)
         function out = merge_records(lhs, rhs)
+            % Merge dependency arrays while preserving first occurrence.
             out = lhs;
             for i = 1:numel(rhs)
                 rec = rhs(i);

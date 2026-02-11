@@ -1,5 +1,6 @@
 ctx = GeometrySession.with_shared_comsol(enable_gds=true, emit_on_create=false, ...
-    snap_mode="off", snap_grid_nm=1, warn_on_snap=true, reset_model=true);
+    snap_mode='strict', snap_grid_nm=1, warn_on_snap=true, reset_model=true);
+
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
     comsol_selection="metal1", comsol_selection_state="all");
 

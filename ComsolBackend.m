@@ -11,6 +11,7 @@ classdef ComsolBackend < handle
     end
     methods
         function obj = ComsolBackend(session)
+            % Initialize a COMSOL emitter bound to one GeometrySession.
             obj.session = session;
             obj.modeler = session.comsol;
             obj.defined_params = containers.Map('KeyType', 'char', 'ValueType', 'logical');
@@ -21,12 +22,14 @@ classdef ComsolBackend < handle
         end
 
         function emit_all(obj, nodes)
+            % Emit all nodes in registration order.
             for i = 1:numel(nodes)
                 obj.tag_for(nodes{i});
             end
         end
 
         function emit(obj, node)
+            % Dispatch emission based on node class name.
             method = "emit_" + class(node);
             if ismethod(obj, method)
                 obj.(method)(node);
@@ -36,6 +39,7 @@ classdef ComsolBackend < handle
         end
 
         function tag = tag_for(obj, node)
+            % Return or create the COMSOL tag associated with a graph node.
             id = int32(node.id);
             if isKey(obj.feature_tags, id)
                 tag = obj.feature_tags(id);
@@ -51,6 +55,7 @@ classdef ComsolBackend < handle
         end
 
         function emit_Rectangle(obj, node)
+            % Emit a COMSOL Rectangle primitive from a Rectangle node.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
 
@@ -68,6 +73,7 @@ classdef ComsolBackend < handle
         end
 
         function emit_Move(obj, node)
+            % Emit a COMSOL Move operation.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
             input_tag = obj.tag_for(node.target);
@@ -83,6 +89,7 @@ classdef ComsolBackend < handle
         end
 
         function emit_Rotate(obj, node)
+            % Emit a COMSOL Rotate operation.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
             input_tag = obj.tag_for(node.target);
@@ -98,6 +105,7 @@ classdef ComsolBackend < handle
         end
 
         function emit_Scale(obj, node)
+            % Emit a COMSOL Scale operation.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
             input_tag = obj.tag_for(node.target);
@@ -113,6 +121,7 @@ classdef ComsolBackend < handle
         end
 
         function emit_Mirror(obj, node)
+            % Emit a COMSOL Mirror operation.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
             input_tag = obj.tag_for(node.target);
@@ -128,6 +137,7 @@ classdef ComsolBackend < handle
         end
 
         function emit_Union(obj, node)
+            % Emit a COMSOL Union operation.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
             tags = obj.collect_tags(node.inputs);
@@ -140,6 +150,7 @@ classdef ComsolBackend < handle
         end
 
         function emit_Difference(obj, node)
+            % Emit a COMSOL Difference operation.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
             base_tag = obj.tag_for(node.base);
@@ -156,6 +167,7 @@ classdef ComsolBackend < handle
         end
 
         function emit_Intersection(obj, node)
+            % Emit a COMSOL Intersection operation.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
             tags = obj.collect_tags(node.inputs);
@@ -168,6 +180,7 @@ classdef ComsolBackend < handle
         end
 
         function emit_Fillet(obj, node)
+            % Emit a COMSOL Fillet operation with explicit point selection.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
             base_tag = obj.tag_for(node.target);
@@ -213,6 +226,7 @@ classdef ComsolBackend < handle
     end
     methods (Access=private)
         function token = to_comsol_token(~, val)
+            % Convert a MATLAB scalar/string into a COMSOL property token.
             if ischar(val)
                 token = val;
             elseif isstring(val)
@@ -223,6 +237,7 @@ classdef ComsolBackend < handle
         end
 
         function select_all_fillet_points(obj, feature, base_tag, node)
+            % Select all fillet points using explicit indices when possible.
             if isa(node.target, 'Rectangle')
                 feature.selection('point').set(base_tag, 1:4);
                 return;
@@ -237,6 +252,7 @@ classdef ComsolBackend < handle
         end
 
         function indices = infer_fillet_point_indices(obj, target)
+            % Infer point indices from the GDS region equivalent of target.
             indices = [];
             if ~obj.session.has_gds()
                 return;
@@ -277,6 +293,7 @@ classdef ComsolBackend < handle
         end
 
         function define_parameter(obj, p)
+            % Define a named Parameter once in COMSOL param table.
             if ~isa(p, 'Parameter') || ~p.is_named()
                 return;
             end
@@ -301,6 +318,7 @@ classdef ComsolBackend < handle
         end
 
         function define_parameter_dependencies(obj, p)
+            % Define all named dependencies carried by a Parameter object.
             if ~isa(p, 'Parameter')
                 return;
             end
@@ -311,6 +329,7 @@ classdef ComsolBackend < handle
         end
 
         function define_parameter_record(obj, rec)
+            % Define one dependency record entry in COMSOL.
             name = string(rec.name);
             if strlength(name) == 0
                 return;
@@ -338,6 +357,7 @@ classdef ComsolBackend < handle
         end
 
         function set_pair(obj, feature, prop_name, v1, v2)
+            % Set a two-component COMSOL property from numeric or tokens.
             if isnumeric(v1) && isnumeric(v2)
                 feature.set(prop_name, [v1, v2]);
             else
@@ -346,6 +366,7 @@ classdef ComsolBackend < handle
         end
 
         function set_scalar(obj, feature, prop_name, value)
+            % Set a scalar COMSOL property from numeric or token value.
             if isnumeric(value)
                 feature.set(prop_name, value);
             else
@@ -354,6 +375,7 @@ classdef ComsolBackend < handle
         end
 
         function out = raw_component(obj, val)
+            % Convert wrapper objects into raw numeric/token payloads.
             if isa(val, 'Parameter')
                 out = obj.parameter_token(val);
                 return;
@@ -370,6 +392,7 @@ classdef ComsolBackend < handle
         end
 
         function out = length_component(obj, val, context)
+            % Resolve and optionally snap one length component.
             raw = obj.raw_component(val);
             if isnumeric(raw)
                 out = obj.session.snap_length(raw, context);
@@ -383,6 +406,7 @@ classdef ComsolBackend < handle
         end
 
         function vec = vector_value(obj, val)
+            % Extract numeric vector from Vertices or raw vector.
             if isa(val, 'Vertices')
                 vec = val.value;
             else
@@ -391,6 +415,7 @@ classdef ComsolBackend < handle
         end
 
         function vec = length_vector(obj, val, context)
+            % Resolve and optionally snap a 2D length vector.
             if isa(val, 'Vertices')
                 if val.nvertices ~= 1
                     error("Length vectors must resolve to a single [x y] pair.");
@@ -423,6 +448,7 @@ classdef ComsolBackend < handle
         end
 
         function token = parameter_token(obj, p)
+            % Convert Parameter to COMSOL token and register dependencies.
             obj.define_parameter_dependencies(p);
             if p.is_named()
                 obj.define_parameter(p);
@@ -443,6 +469,7 @@ classdef ComsolBackend < handle
         end
 
         function token = snapped_length_token(obj, raw_token)
+            % Create/reuse a named snapped expression parameter (snp*).
             key = char(string(raw_token) + "|" + string(obj.session.snap_grid_nm));
             if isKey(obj.snapped_length_tokens, key)
                 token = obj.snapped_length_tokens(key);
@@ -461,6 +488,7 @@ classdef ComsolBackend < handle
         end
 
         function tags = collect_tags(obj, inputs)
+            % Resolve COMSOL tags for a list of input nodes.
             if isempty(inputs)
                 tags = [];
                 return;
@@ -472,6 +500,7 @@ classdef ComsolBackend < handle
         end
 
         function apply_layer_selection(obj, layer, feature)
+            % Attach generated geometry to configured cumulative selection.
             if ~layer.comsol_enable_selection
                 return;
             end
@@ -503,6 +532,7 @@ classdef ComsolBackend < handle
         end
 
         function tag = selection_tag(obj, layer, name)
+            % Create or retrieve cumulative selection tag for a layer.
             key = char(string(layer.comsol_workplane) + "|" + string(name));
             if isKey(obj.selection_tags, key)
                 tag = obj.selection_tags(key);
@@ -529,6 +559,7 @@ classdef ComsolBackend < handle
         end
 
         function token = selection_show_token(obj, state)
+            % Map user-friendly selection state to COMSOL selresultshow token.
             s = lower(string(state));
             if s == "all"
                 token = "all";

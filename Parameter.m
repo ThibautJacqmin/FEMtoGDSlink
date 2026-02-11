@@ -9,6 +9,7 @@ classdef Parameter
     end
     methods
         function obj = Parameter(value, name, args)
+            % Construct scalar parameter with optional name/unit/expression.
             arguments
                 value = 0
                 name {mustBeTextScalar} = ""
@@ -39,10 +40,12 @@ classdef Parameter
         end
 
         function tf = is_named(obj)
+            % Return true when parameter has a non-empty symbolic name.
             tf = strlength(obj.name) > 0;
         end
 
         function token = expression_token(obj)
+            % Return preferred expression token for downstream emitters.
             if obj.is_named()
                 token = obj.name;
             else
@@ -51,31 +54,38 @@ classdef Parameter
         end
 
         function y = plus(obj, rhs)
+            % Overload + preserving expression and dependency metadata.
             y = obj.apply_operation(rhs, "+");
         end
 
         function y = minus(obj, rhs)
+            % Overload - preserving expression and dependency metadata.
             y = obj.apply_operation(rhs, "-");
         end
 
         function y = times(obj, rhs)
+            % Overload .* preserving expression and dependency metadata.
             y = obj.apply_operation(rhs, "*");
         end
 
         function y = mtimes(obj, rhs)
+            % Overload * preserving expression and dependency metadata.
             y = obj.apply_operation(rhs, "*");
         end
 
         function y = rdivide(obj, rhs)
+            % Overload ./ preserving expression and dependency metadata.
             y = obj.apply_operation(rhs, "/");
         end
 
         function y = mrdivide(obj, rhs)
+            % Overload / preserving expression and dependency metadata.
             y = obj.apply_operation(rhs, "/");
         end
     end
     methods (Access=private)
         function y = apply_operation(obj, rhs, operation)
+            % Execute binary arithmetic and propagate dependency records.
             [rhs_value, rhs_expr, rhs_unit, rhs_records] = Parameter.coerce_operand(rhs);
             lhs_expr = obj.expression_token();
 
@@ -100,6 +110,7 @@ classdef Parameter
     end
     methods (Static, Access=private)
         function [value, expr, unit, records] = coerce_operand(rhs)
+            % Normalize RHS operand to value/expression/unit/dependencies.
             if isa(rhs, "Parameter")
                 value = rhs.value;
                 expr = rhs.expression_token();
@@ -116,6 +127,7 @@ classdef Parameter
         end
 
         function out = merge_dependency_records(lhs, rhs)
+            % Merge two dependency record arrays by parameter name.
             out = lhs;
             for i = 1:numel(rhs)
                 rec = rhs(i);
@@ -142,6 +154,7 @@ classdef Parameter
         end
 
         function unit = combine_units(lhs_unit, rhs_unit, operation)
+            % Conservative unit propagation rules for scalar arithmetic.
             lhs_unit = string(lhs_unit);
             rhs_unit = string(rhs_unit);
 

@@ -22,7 +22,7 @@ classdef Rotate < GeomFeature
         end
 
         function set.angle(obj, val)
-            obj.set_param("angle", obj.to_parameter(val, "angle"));
+            obj.set_param("angle", GeomFeature.coerce_parameter(val, "angle", unit=""));
         end
 
         function val = get.angle(obj)
@@ -30,7 +30,7 @@ classdef Rotate < GeomFeature
         end
 
         function set.origin(obj, val)
-            obj.set_param("origin", obj.to_vertices(val));
+            obj.set_param("origin", GeomFeature.coerce_vertices(val));
         end
 
         function val = get.origin(obj)
@@ -72,27 +72,6 @@ classdef Rotate < GeomFeature
             p.addParameter('output', true);
             p.parse(nv{:});
             args = p.Results;
-        end
-    end
-    methods (Access=private)
-        function p = to_parameter(obj, val, default_name)
-            if isa(val, 'Parameter')
-                p = val;
-                return;
-            end
-            if default_name == "angle"
-                p = Parameter(val, default_name, unit="");
-            else
-                p = Parameter(val, default_name);
-            end
-        end
-
-        function v = to_vertices(obj, val)
-            if isa(val, 'Vertices')
-                v = val;
-                return;
-            end
-            v = Vertices(val);
         end
     end
 end

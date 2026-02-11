@@ -14,7 +14,6 @@ p_tower_scale = Parameter(0.92, "tower_scale", unit="");
 p_tower_angle = Parameter(8, "tower_rot_deg", unit="");
 p_move_unit = Parameter(20, "tower_move_unit");
 
-p_env_center_y = Parameter(95, "env_cy");
 p_env_w = Parameter(380, "env_w");
 p_env_h = Parameter(210, "env_h");
 
@@ -43,8 +42,9 @@ tower_mirrored = Mirror(tower_moved, point=Vertices([0, 0], p_pitch_y), axis=[1,
 towers = Union({tower_moved, tower_mirrored}, layer="metal1", output=false);
 
 % 3) Intersection with an envelope.
-envelope = Rectangle(center=Vertices([0, 1], p_env_center_y), width=p_env_w, ...
-    height=p_env_h, layer="metal1", output=false);
+% Use Rectangle corner mode (bottom-left corner) here.
+envelope = Rectangle(base="corner", corner=[-190, -10], ...
+    width=p_env_w, height=p_env_h, layer="metal1", output=false);
 towers_in_envelope = Intersection({towers, envelope}, layer="metal1", output=false);
 
 % 4) Difference: cut a central trench.

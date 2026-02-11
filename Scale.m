@@ -22,7 +22,7 @@ classdef Scale < GeomFeature
         end
 
         function set.factor(obj, val)
-            obj.set_param("factor", obj.to_parameter(val, "factor"));
+            obj.set_param("factor", GeomFeature.coerce_parameter(val, "factor", unit=""));
         end
 
         function val = get.factor(obj)
@@ -30,7 +30,7 @@ classdef Scale < GeomFeature
         end
 
         function set.origin(obj, val)
-            obj.set_param("origin", obj.to_vertices(val));
+            obj.set_param("origin", GeomFeature.coerce_vertices(val));
         end
 
         function val = get.origin(obj)
@@ -72,27 +72,6 @@ classdef Scale < GeomFeature
             p.addParameter('output', true);
             p.parse(nv{:});
             args = p.Results;
-        end
-    end
-    methods (Access=private)
-        function p = to_parameter(obj, val, default_name)
-            if isa(val, 'Parameter')
-                p = val;
-                return;
-            end
-            if default_name == "factor"
-                p = Parameter(val, default_name, unit="");
-            else
-                p = Parameter(val, default_name);
-            end
-        end
-
-        function v = to_vertices(obj, val)
-            if isa(val, 'Vertices')
-                v = val;
-                return;
-            end
-            v = Vertices(val);
         end
     end
 end

@@ -29,14 +29,10 @@ classdef ComsolModeler < handle
         function reset_workspace(obj)
             % Reset component/geometry tree while keeping model/window alive.
             % Reset model content while keeping the same COMSOL model/window.
-            try
-                obj.model.variable.remove('var1');
-            catch
-            end
-            try
-                obj.model.component.remove('Component');
-            catch
-            end
+            obj.clear_studies();
+            obj.clear_variables();
+            obj.clear_components();
+            obj.clear_parameters();
             obj.initialize_workspace();
             obj.mesh = [];
             obj.shell = [];
@@ -237,6 +233,40 @@ classdef ComsolModeler < handle
             ComsolModeler.shared_store([]);
         end
 
+        function removed = clear_generated_models(args)
+            % Remove generated models from COMSOL server by tag prefix.
+            arguments
+                args.prefix {mustBeTextScalar} = "Model_"
+            end
+            removed = 0;
+            removed_tags = strings(0, 1);
+            try
+                import com.comsol.model.util.*
+                tags = string(ModelUtil.tags());
+            catch
+                return;
+            end
+
+            for i = 1:numel(tags)
+                t = tags(i);
+                if startsWith(t, string(args.prefix))
+                    try
+                        ModelUtil.remove(char(t));
+                        removed = removed + 1;
+                        removed_tags(end+1, 1) = t; %#ok<AGROW>
+                    catch
+                    end
+                end
+            end
+
+            obj = ComsolModeler.shared_store();
+            if ~isempty(obj) && isvalid(obj)
+                if any(string(obj.model_tag) == removed_tags)
+                    ComsolModeler.shared_store([]);
+                end
+            end
+        end
+
         function tag = next_model_tag()
             % Generate a unique COMSOL model tag for new sessions.
             stamp = string(datestr(now, "yyyymmdd_HHMMSSFFF"));
@@ -264,6 +294,95 @@ classdef ComsolModeler < handle
             % Create workplane
             obj.workplane = obj.geometry.create('wp1', 'WorkPlane');
             obj.geometry.feature('wp1').set('unite', true);
+        end
+
+        function clear_parameters(obj)
+            % Clear global parameter table (including generated snp* tokens).
+            try
+                obj.model.param.clear();
+                return;
+            catch
+            end
+
+            names = strings(0, 1);
+            try
+                names = string(obj.model.param.varnames());
+            catch
+            end
+            for i = 1:numel(names)
+                name = char(names(i));
+                try
+                    obj.model.param.remove(name);
+                catch
+                    try
+                        obj.model.param().remove(name);
+                    catch
+                    end
+                end
+            end
+        end
+
+        function clear_components(obj)
+            % Remove all components from model.
+            tags = strings(0, 1);
+            try
+                tags = string(obj.model.component.tags());
+            catch
+            end
+            for i = 1:numel(tags)
+                try
+                    obj.model.component.remove(char(tags(i)));
+                catch
+                end
+            end
+            if isempty(tags)
+                try
+                    obj.model.component.remove('Component');
+                catch
+                end
+            end
+        end
+
+        function clear_variables(obj)
+            % Remove all model variables.
+            tags = strings(0, 1);
+            try
+                tags = string(obj.model.variable.tags());
+            catch
+            end
+            for i = 1:numel(tags)
+                try
+                    obj.model.variable.remove(char(tags(i)));
+                catch
+                end
+            end
+            if isempty(tags)
+                try
+                    obj.model.variable.remove('var1');
+                catch
+                end
+            end
+        end
+
+        function clear_studies(obj)
+            % Remove all model studies.
+            tags = strings(0, 1);
+            try
+                tags = string(obj.model.study.tags());
+            catch
+            end
+            for i = 1:numel(tags)
+                try
+                    obj.model.study.remove(char(tags(i)));
+                catch
+                end
+            end
+            if isempty(tags)
+                try
+                    obj.model.study.remove('std1');
+                catch
+                end
+            end
         end
     end
     methods (Static, Access=private)

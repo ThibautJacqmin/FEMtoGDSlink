@@ -70,6 +70,27 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             reg = backend.region_for(f);
             testCase.verifyGreaterThan(double(reg.count()), 0);
         end
+
+        function rectangleCornerAndRotation(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python module 'lygadgets' not available.");
+
+            ctx = TestGdsBackend.newContext();
+            r = Rectangle(ctx, base="corner", corner=[10 20], ...
+                width=120, height=60, angle=35, layer="m1", output=true);
+            backend = GdsBackend(ctx);
+            reg = backend.region_for(r);
+
+            testCase.verifyEqual(double(reg.count()), 1);
+            it = reg.each_merged();
+            p = py.next(it);
+            testCase.verifyEqual(double(p.num_points()), 4);
+
+            % Area is approximately preserved after integer snapping in GDS.
+            expected_area = 120 * 60;
+            testCase.verifyGreaterThan(double(reg.area()), 0.95 * expected_area);
+            testCase.verifyLessThan(double(reg.area()), 1.05 * expected_area);
+        end
     end
 
     methods (Static, Access=private)

@@ -29,6 +29,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             p_dw = Parameter(20, "tower_dw");
             p_h = Parameter(60, "tower_h");
             p_rot = Parameter(7, "tower_rot_deg", unit="");
+            p_rect_rot = Parameter(18, "rect_rot_deg", unit="");
             p_scale = Parameter(0.95, "tower_scale", unit="");
             p_move = Parameter(10, "tower_move_unit");
             p_rad = Parameter(6, "fillet_r");
@@ -36,7 +37,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
             r1 = Rectangle(ctx, center=Vertices([0, 0], p_pitch), ...
                 width=p_w0 - p_dw, height=p_h, layer="m1", output=false);
-            r2 = Rectangle(ctx, center=[15, 0], width=30, height=20, layer="m1", output=false);
+            r2 = Rectangle(ctx, base="corner", corner=[5, -10], ...
+                width=30, height=20, angle=p_rect_rot, layer="m1", output=false);
             u = Union(ctx, {r1, r2}, layer="m1", output=false);
             d = Difference(ctx, u, {r2}, layer="m1", output=false);
             m = Move(ctx, d, delta=Vertices([1, 0], p_move), output=false);
@@ -55,7 +57,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             end
 
             expected = ["pitch_y", "tower_w0", "tower_dw", "tower_h", ...
-                "tower_rot_deg", "tower_scale", "tower_move_unit", "fillet_r"];
+                "tower_rot_deg", "rect_rot_deg", "tower_scale", "tower_move_unit", "fillet_r"];
             for k = 1:numel(expected)
                 testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, char(expected(k))));
             end
@@ -63,6 +65,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
             fil_tag = string(ctx.comsol_backend.feature_tags(int32(f.id)));
             testCase.verifyTrue(startsWith(fil_tag, "fil"));
+            testCase.verifyEqual(r2.base, "corner");
+            testCase.verifyEqual(r2.angle.value, p_rect_rot.value);
             testCase.verifyEqual(p_n.value, max(8, round(2*p_rad.value)));
         end
 
@@ -95,6 +99,26 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
             testCase.verifyNotEqual(tag1, tag2);
         end
+
+        function resetWorkspaceClearsSnappedParameters(testCase)
+            % Verify shared reset clears old snp* parameters.
+            ctx1 = GeometrySession.with_shared_comsol(enable_gds=true, snap_mode="strict", ...
+                emit_on_create=false, reset_model=true);
+            ctx1.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+
+            p_w = Parameter(120, "w");
+            p_h = Parameter(60, "h");
+            r = Rectangle(ctx1, center=[0 0], width=p_w, height=p_h, layer="m1", output=true); %#ok<NASGU>
+            ctx1.build_comsol();
+
+            names_before = TestComsolBackend.paramNames(ctx1.comsol.model);
+            testCase.verifyTrue(any(startsWith(names_before, "snp")));
+
+            ctx2 = GeometrySession.with_shared_comsol(enable_gds=true, snap_mode="off", ...
+                emit_on_create=false, reset_model=true);
+            names_after = TestComsolBackend.paramNames(ctx2.comsol.model);
+            testCase.verifyFalse(any(startsWith(names_after, "snp")));
+        end
     end
 
     methods (Static, Access=private)
@@ -114,6 +138,19 @@ classdef TestComsolBackend < matlab.unittest.TestCase
                 cached = false;
             end
             tf = cached;
+        end
+
+        function names = paramNames(model)
+            % Read model parameter names as a string array.
+            names = strings(0, 1);
+            try
+                names = string(model.param.varnames());
+            catch
+                try
+                    names = string(model.param().varnames());
+                catch
+                end
+            end
         end
     end
 end

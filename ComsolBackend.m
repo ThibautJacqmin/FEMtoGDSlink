@@ -61,13 +61,18 @@ classdef ComsolBackend < handle
 
             tag = obj.session.next_comsol_tag("rect");
             feature = wp.geom.create(tag, 'Rectangle');
-            feature.set('base', 'center');
-            center = obj.length_vector(node.center, "Rectangle center");
-            obj.set_pair(feature, 'pos', center(1), center(2));
+            feature.set('base', char(node.base));
+            pos = obj.length_vector(node.position, "Rectangle position");
+            obj.set_pair(feature, 'pos', pos(1), pos(2));
 
             w = obj.length_component(node.width, "Rectangle width");
             h = obj.length_component(node.height, "Rectangle height");
             obj.set_pair(feature, 'size', w, h);
+            try
+                obj.set_scalar(feature, 'rot', obj.raw_component(node.angle));
+            catch
+                % Rotation is optional in COMSOL primitive API; ignore if unsupported.
+            end
             obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end

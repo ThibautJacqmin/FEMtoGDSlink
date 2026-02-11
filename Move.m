@@ -20,7 +20,7 @@ classdef Move < GeomFeature
         end
 
         function set.delta(obj, val)
-            obj.set_param("delta", obj.to_vertices(val));
+            obj.set_param("delta", GeomFeature.coerce_vertices(val));
         end
 
         function val = get.delta(obj)
@@ -63,14 +63,5 @@ classdef Move < GeomFeature
             args = p.Results;
         end
 
-    end
-    methods (Access=private)
-        function v = to_vertices(obj, val)
-            if isa(val, 'Vertices')
-                v = val;
-                return;
-            end
-            v = Vertices(val);
-        end
     end
 end

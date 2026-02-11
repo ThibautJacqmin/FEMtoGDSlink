@@ -24,7 +24,7 @@ classdef Fillet < GeomFeature
         end
 
         function set.radius(obj, val)
-            obj.set_param("radius", obj.to_parameter(val, "radius"));
+            obj.set_param("radius", GeomFeature.coerce_parameter(val, "radius"));
         end
 
         function val = get.radius(obj)
@@ -32,7 +32,7 @@ classdef Fillet < GeomFeature
         end
 
         function set.npoints(obj, val)
-            obj.set_param("npoints", obj.to_parameter(val, "npoints"));
+            obj.set_param("npoints", GeomFeature.coerce_parameter(val, "npoints", unit=""));
         end
 
         function val = get.npoints(obj)
@@ -83,19 +83,6 @@ classdef Fillet < GeomFeature
             p.addParameter('output', true);
             p.parse(nv{:});
             args = p.Results;
-        end
-    end
-    methods (Access=private)
-        function p = to_parameter(obj, val, default_name)
-            if isa(val, 'Parameter')
-                p = val;
-                return;
-            end
-            if default_name == "npoints"
-                p = Parameter(val, default_name, unit="");
-            else
-                p = Parameter(val, default_name);
-            end
         end
     end
 end

@@ -22,7 +22,7 @@ classdef Mirror < GeomFeature
         end
 
         function set.point(obj, val)
-            obj.set_param("point", obj.to_vertices(val));
+            obj.set_param("point", GeomFeature.coerce_vertices(val));
         end
 
         function val = get.point(obj)
@@ -30,7 +30,7 @@ classdef Mirror < GeomFeature
         end
 
         function set.axis(obj, val)
-            obj.set_param("axis", obj.to_vertices(val));
+            obj.set_param("axis", GeomFeature.coerce_vertices(val));
         end
 
         function val = get.axis(obj)
@@ -72,15 +72,6 @@ classdef Mirror < GeomFeature
             p.addParameter('output', true);
             p.parse(nv{:});
             args = p.Results;
-        end
-    end
-    methods (Access=private)
-        function v = to_vertices(obj, val)
-            if isa(val, 'Vertices')
-                v = val;
-                return;
-            end
-            v = Vertices(val);
         end
     end
 end

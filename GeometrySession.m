@@ -406,6 +406,36 @@ classdef GeometrySession < handle
             end
             ctx = current_ctx;
         end
+
+        function tbl = count_table(labels, outputs, first_col_name)
+            % Aggregate counts and output counts for categorical labels.
+            first_col_name = char(first_col_name);
+            if isempty(labels)
+                tbl = table(strings(0, 1), zeros(0, 1), zeros(0, 1), ...
+                    'VariableNames', {first_col_name, 'Count', 'OutputCount'});
+                return;
+            end
+            [uniq, ~, idx] = unique(labels);
+            count = accumarray(idx, 1);
+            out_count = accumarray(idx, double(outputs));
+            tbl = table(uniq, count, out_count, ...
+                'VariableNames', {first_col_name, 'Count', 'OutputCount'});
+        end
+
+        function n = map_count(m)
+            % Return number of keys in a containers.Map.
+            n = numel(m.keys);
+        end
+
+        function n = true_value_count(m)
+            % Count true values in a logical-value containers.Map.
+            vals = m.values;
+            if isempty(vals)
+                n = 0;
+                return;
+            end
+            n = sum(cell2mat(vals));
+        end
     end
     methods (Access=private)
         function record_snap(obj, key, delta)
@@ -446,8 +476,8 @@ classdef GeometrySession < handle
             report = struct();
             report.total = n;
             report.output = sum(outputs);
-            report.by_type = obj.count_table(classes, outputs, "Type");
-            report.by_layer = obj.count_table(layers, outputs, "Layer");
+            report.by_type = GeometrySession.count_table(classes, outputs, "Type");
+            report.by_layer = GeometrySession.count_table(layers, outputs, "Layer");
         end
 
         function report = gds_report(obj)
@@ -459,8 +489,8 @@ classdef GeometrySession < handle
             if ~report.initialized
                 return;
             end
-            report.cached_regions = obj.map_count(obj.gds_backend.regions);
-            report.emitted_nodes = obj.true_value_count(obj.gds_backend.emitted);
+            report.cached_regions = GeometrySession.map_count(obj.gds_backend.regions);
+            report.emitted_nodes = GeometrySession.true_value_count(obj.gds_backend.emitted);
         end
 
         function report = comsol_report(obj)
@@ -474,40 +504,10 @@ classdef GeometrySession < handle
             if ~report.initialized
                 return;
             end
-            report.emitted_features = obj.map_count(obj.comsol_backend.feature_tags);
-            report.selections = obj.map_count(obj.comsol_backend.selection_tags);
-            report.snapped_expr_params = obj.map_count(obj.comsol_backend.snapped_length_tokens);
-            report.defined_params = obj.map_count(obj.comsol_backend.defined_params);
-        end
-
-        function tbl = count_table(~, labels, outputs, first_col_name)
-            % Aggregate counts and output counts for categorical labels.
-            first_col_name = char(first_col_name);
-            if isempty(labels)
-                tbl = table(strings(0, 1), zeros(0, 1), zeros(0, 1), ...
-                    'VariableNames', {first_col_name, 'Count', 'OutputCount'});
-                return;
-            end
-            [uniq, ~, idx] = unique(labels);
-            count = accumarray(idx, 1);
-            out_count = accumarray(idx, double(outputs));
-            tbl = table(uniq, count, out_count, ...
-                'VariableNames', {first_col_name, 'Count', 'OutputCount'});
-        end
-
-        function n = map_count(~, m)
-            % Return number of keys in a containers.Map.
-            n = numel(m.keys);
-        end
-
-        function n = true_value_count(~, m)
-            % Count true values in a logical-value containers.Map.
-            vals = m.values;
-            if isempty(vals)
-                n = 0;
-                return;
-            end
-            n = sum(cell2mat(vals));
+            report.emitted_features = GeometrySession.map_count(obj.comsol_backend.feature_tags);
+            report.selections = GeometrySession.map_count(obj.comsol_backend.selection_tags);
+            report.snapped_expr_params = GeometrySession.map_count(obj.comsol_backend.snapped_length_tokens);
+            report.defined_params = GeometrySession.map_count(obj.comsol_backend.defined_params);
         end
     end
 end

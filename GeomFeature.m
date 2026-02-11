@@ -118,5 +118,110 @@ classdef GeomFeature < handle
             end
             v = Vertices(val);
         end
+
+        function [ctx, target, nv] = parse_target_context(op_name, varargin)
+            % Parse [ctx] target and trailing name/value options.
+            op = string(op_name);
+            if isempty(varargin)
+                error("%s requires a target feature.", char(op));
+            end
+
+            if isa(varargin{1}, 'GeometrySession')
+                ctx = varargin{1};
+                if numel(varargin) < 2
+                    error("%s requires a target feature.", char(op));
+                end
+                target = varargin{2};
+                nv = varargin(3:end);
+            else
+                target = varargin{1};
+                if isa(target, 'GeomFeature')
+                    ctx = target.context();
+                else
+                    ctx = GeometrySession.require_current();
+                end
+                nv = varargin(2:end);
+            end
+
+            if ~isa(target, 'GeomFeature')
+                error("%s target must be a GeomFeature.", char(op));
+            end
+        end
+
+        function [ctx, members, nv] = parse_members_context(op_name, varargin)
+            % Parse [ctx] members and trailing name/value options.
+            op = string(op_name);
+            if isempty(varargin)
+                error("%s requires member features.", char(op));
+            end
+
+            if isa(varargin{1}, 'GeometrySession')
+                ctx = varargin{1};
+                if numel(varargin) < 2
+                    error("%s requires member features.", char(op));
+                end
+                members = varargin{2};
+                nv = varargin(3:end);
+            else
+                members = varargin{1};
+                members = GeomFeature.normalize_feature_inputs(members, op);
+                if ~isempty(members)
+                    ctx = members{1}.context();
+                else
+                    ctx = GeometrySession.require_current();
+                end
+                nv = varargin(2:end);
+            end
+
+            members = GeomFeature.normalize_feature_inputs(members, op);
+        end
+
+        function [ctx, base, tools, nv] = parse_base_tools_context(op_name, varargin)
+            % Parse [ctx] base, tools and trailing name/value options.
+            op = string(op_name);
+            if numel(varargin) < 2
+                error("%s requires base and tool features.", char(op));
+            end
+
+            if isa(varargin{1}, 'GeometrySession')
+                ctx = varargin{1};
+                base = varargin{2};
+                if numel(varargin) < 3
+                    error("%s requires tool features.", char(op));
+                end
+                tools = varargin{3};
+                nv = varargin(4:end);
+            else
+                base = varargin{1};
+                tools = varargin{2};
+                if isa(base, 'GeomFeature')
+                    ctx = base.context();
+                else
+                    ctx = GeometrySession.require_current();
+                end
+                nv = varargin(3:end);
+            end
+
+            if ~isa(base, 'GeomFeature')
+                error("%s base must be a GeomFeature.", char(op));
+            end
+            tools = GeomFeature.normalize_feature_inputs(tools, op + " tool");
+        end
+
+        function inputs = normalize_feature_inputs(members, op_name)
+            % Normalize feature inputs to a validated cell array.
+            if iscell(members)
+                inputs = members;
+            else
+                inputs = num2cell(members);
+            end
+
+            op = string(op_name);
+            for i = 1:numel(inputs)
+                if ~isa(inputs{i}, 'GeomFeature')
+                    error("%s members must be GeomFeature objects.", char(op));
+                end
+            end
+        end
     end
 end

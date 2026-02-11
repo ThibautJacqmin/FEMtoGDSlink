@@ -97,15 +97,18 @@ classdef Polygon < GeomFeature
                 ctx = GeometrySession.get_current();
                 nv = varargin;
             end
+            args = Polygon.parse_options(nv{:});
+        end
 
-            p = inputParser;
-            p.addParameter('vertices', []);
-            p.addParameter('layer', "default");
-            p.addParameter('output', true);
-            % Legacy compatibility: accepted but unused in feature mode.
-            p.addParameter('comsol_modeler', ComsolModeler.empty);
-            p.parse(nv{:});
-            args = p.Results;
+        function parsed = parse_options(args)
+            arguments
+                args.vertices = []
+                args.layer = "default"
+                args.output logical = true
+                % Legacy compatibility: accepted but unused in feature mode.
+                args.comsol_modeler = ComsolModeler.empty
+            end
+            parsed = args;
         end
     end
 end

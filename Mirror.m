@@ -43,35 +43,18 @@ classdef Mirror < GeomFeature
     end
     methods (Static, Access=private)
         function [ctx, target, args] = parse_inputs(varargin)
-            if nargin < 1
-                error("Mirror requires a target feature.");
+            [ctx, target, nv] = GeomFeature.parse_target_context("Mirror", varargin{:});
+            args = Mirror.parse_options(nv{:});
+        end
+
+        function parsed = parse_options(args)
+            arguments
+                args.point = [0, 0]
+                args.axis = [1, 0]
+                args.layer = []
+                args.output logical = true
             end
-            if isa(varargin{1}, 'GeometrySession')
-                ctx = varargin{1};
-                if numel(varargin) < 2
-                    error("Mirror requires a target feature.");
-                end
-                target = varargin{2};
-                nv = varargin(3:end);
-            else
-                target = varargin{1};
-                if isa(target, 'GeomFeature')
-                    ctx = target.context();
-                else
-                    ctx = GeometrySession.require_current();
-                end
-                nv = varargin(2:end);
-            end
-            if ~isa(target, 'GeomFeature')
-                error("Mirror target must be a GeomFeature.");
-            end
-            p = inputParser;
-            p.addParameter('point', [0, 0]);
-            p.addParameter('axis', [1, 0]);
-            p.addParameter('layer', []);
-            p.addParameter('output', true);
-            p.parse(nv{:});
-            args = p.Results;
+            parsed = args;
         end
     end
 end

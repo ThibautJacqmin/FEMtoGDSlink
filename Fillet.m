@@ -53,36 +53,19 @@ classdef Fillet < GeomFeature
     end
     methods (Static, Access=private)
         function [ctx, target, args] = parse_inputs(varargin)
-            if nargin < 1
-                error("Fillet requires a target feature.");
+            [ctx, target, nv] = GeomFeature.parse_target_context("Fillet", varargin{:});
+            args = Fillet.parse_options(nv{:});
+        end
+
+        function parsed = parse_options(args)
+            arguments
+                args.radius = 1
+                args.npoints = 8
+                args.points = []
+                args.layer = []
+                args.output logical = true
             end
-            if isa(varargin{1}, 'GeometrySession')
-                ctx = varargin{1};
-                if numel(varargin) < 2
-                    error("Fillet requires a target feature.");
-                end
-                target = varargin{2};
-                nv = varargin(3:end);
-            else
-                target = varargin{1};
-                if isa(target, 'GeomFeature')
-                    ctx = target.context();
-                else
-                    ctx = GeometrySession.require_current();
-                end
-                nv = varargin(2:end);
-            end
-            if ~isa(target, 'GeomFeature')
-                error("Fillet target must be a GeomFeature.");
-            end
-            p = inputParser;
-            p.addParameter('radius', 1);
-            p.addParameter('npoints', 8);
-            p.addParameter('points', []);
-            p.addParameter('layer', []);
-            p.addParameter('output', true);
-            p.parse(nv{:});
-            args = p.Results;
+            parsed = args;
         end
     end
 end

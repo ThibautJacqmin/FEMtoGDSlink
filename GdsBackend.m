@@ -60,6 +60,17 @@ classdef GdsBackend < handle
             region.merge();
         end
 
+        function region = build_Polygon(obj, node)
+            verts = obj.session.gds_integer(node.vertices_value(), "Polygon vertices");
+            if size(verts, 1) < 3
+                error("Polygon requires at least 3 vertices.");
+            end
+            poly = obj.modeler.pya.Polygon.from_s(Utilities.vertices_to_klayout_string(verts));
+            region = obj.modeler.pya.Region();
+            region.insert(poly);
+            region.merge();
+        end
+
         function region = build_Move(obj, node)
             base = obj.region_for(node.target);
             delta = obj.gds_length_vector(node.delta, "Move delta");

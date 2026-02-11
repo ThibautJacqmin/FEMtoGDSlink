@@ -153,6 +153,25 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             end
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
+
+        function emitPolygonPrimitive(testCase)
+            % Verify COMSOL backend emits Polygon primitive and dependencies.
+            ctx = GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            p = Parameter(30, "poly_pitch");
+            poly = Polygon(ctx, vertices=Vertices([0 0; 4 0; 4 2; 0 2], p), ...
+                layer="m1", output=true);
+            ctx.build_comsol();
+
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(poly.id)));
+            tag = string(ctx.comsol_backend.feature_tags(int32(poly.id)));
+            testCase.verifyTrue(startsWith(tag, "pol"));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "poly_pitch"));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
+        end
     end
 
     methods (Static, Access=private)

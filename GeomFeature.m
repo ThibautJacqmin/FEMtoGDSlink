@@ -20,20 +20,7 @@ classdef GeomFeature < handle
             if nargin < 1
                 return;
             end
-            if isempty(ctx)
-                ctx = GeometrySession.require_current();
-            end
-            obj.ctx = ctx;
-            obj.inputs = {};
-            obj.params = struct();
-            if nargin >= 2 && ~isempty(layer)
-                obj.layer = layer;
-            else
-                obj.layer = "default";
-            end
-            if ~isempty(ctx)
-                ctx.register(obj);
-            end
+            obj.initialize_feature(ctx, layer);
         end
 
         function set.layer(obj, val)
@@ -86,6 +73,25 @@ classdef GeomFeature < handle
             obj.is_initialized = true;
             if ~isempty(obj.ctx)
                 obj.ctx.node_initialized(obj);
+            end
+        end
+    end
+    methods (Access=protected)
+        function initialize_feature(obj, ctx, layer)
+            % Initialize context/layer/parameter storage and register node.
+            if isempty(ctx)
+                ctx = GeometrySession.require_current();
+            end
+            obj.ctx = ctx;
+            obj.inputs = {};
+            obj.params = struct();
+            if nargin >= 2 && ~isempty(layer)
+                obj.layer = layer;
+            else
+                obj.layer = "default";
+            end
+            if ~isempty(ctx)
+                ctx.register(obj);
             end
         end
     end

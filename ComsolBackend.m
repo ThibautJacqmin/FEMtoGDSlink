@@ -79,6 +79,25 @@ classdef ComsolBackend < handle
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
+        function emit_Polygon(obj, node)
+            % Emit a COMSOL Polygon primitive from a Polygon node.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            verts = node.vertices;
+            if isempty(verts) || verts.nvertices < 3
+                error("Polygon requires at least 3 vertices.");
+            end
+
+            tag = obj.session.next_comsol_tag("pol");
+            feature = wp.geom.create(tag, 'Polygon');
+            [xvals, yvals] = obj.polygon_components(verts, "Polygon vertices");
+            feature.set('x', xvals);
+            feature.set('y', yvals);
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
         function emit_Move(obj, node)
             % Emit a COMSOL Move operation.
             layer = node.layer;
@@ -475,6 +494,29 @@ classdef ComsolBackend < handle
         function token = vector_token(obj, x, y)
             % Convert two components into COMSOL "x,y" token syntax.
             token = obj.to_comsol_token(x) + "," + obj.to_comsol_token(y);
+        end
+
+        function [xvals, yvals] = polygon_components(obj, verts, context)
+            % Build COMSOL-ready x/y component token lists for Polygon.
+            if isa(verts.prefactor, 'Parameter')
+                obj.parameter_token(verts.prefactor);
+            end
+
+            xexpr = string(verts.comsol_string_x());
+            yexpr = string(verts.comsol_string_y());
+            if numel(xexpr) ~= numel(yexpr)
+                error("Polygon x/y coordinate component counts must match.");
+            end
+
+            n = numel(xexpr);
+            xvals = cell(1, n);
+            yvals = cell(1, n);
+            for i = 1:n
+                x = obj.length_component(xexpr(i), string(context) + " x");
+                y = obj.length_component(yexpr(i), string(context) + " y");
+                xvals{i} = obj.to_comsol_token(x);
+                yvals{i} = obj.to_comsol_token(y);
+            end
         end
 
         function enable_keep_input(~, feature)

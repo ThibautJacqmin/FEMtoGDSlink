@@ -92,6 +92,22 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyLessThan(double(reg.area()), 1.05 * expected_area);
         end
 
+        function polygonPrimitive(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python module 'lygadgets' not available.");
+
+            ctx = TestGdsBackend.newContext();
+            p = Parameter(25, "poly_pitch");
+            poly = Polygon(ctx, vertices=Vertices([0 0; 2 0; 2 1; 0 1], p), ...
+                layer="m1", output=true);
+            backend = GdsBackend(ctx);
+            reg = backend.region_for(poly);
+
+            testCase.verifyEqual(double(reg.count()), 1);
+            expected_area = 2 * 1 * (p.value^2);
+            testCase.verifyEqual(double(reg.area()), expected_area);
+        end
+
         function array1DAnd2D(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python module 'lygadgets' not available.");

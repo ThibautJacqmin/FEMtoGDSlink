@@ -54,10 +54,9 @@ towers_cut = Difference(towers_in_envelope, {trench}, layer="metal1", output=fal
 
 % 5) Fillet the final shape and export.
 final_shape = Fillet(towers_cut, radius=p_fillet_r, npoints=p_fillet_n, ...
-    points="all", layer="metal1", output=true); %#ok<NASGU>
+    points="all", layer="metal1", output=true); 
 
 % To debug in COMSOL as you build:
-% ctx = GeometrySession(enable_comsol=true, enable_gds=true, emit_on_create=true);
 ctx.build_comsol();
 ctx.export_gds("out.gds");
 

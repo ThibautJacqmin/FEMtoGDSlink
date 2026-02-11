@@ -1,5 +1,6 @@
 classdef ComsolModeler < handle
     properties
+        model_tag
         model
         component
         geometry
@@ -12,8 +13,9 @@ classdef ComsolModeler < handle
         function obj = ComsolModeler
             import com.comsol.model.*
             import com.comsol.model.util.*
+            obj.model_tag = ComsolModeler.next_model_tag();
             % Create new model
-            obj.model = ModelUtil.create('Model');
+            obj.model = ModelUtil.create(char(obj.model_tag));
             % Activate progress bar
             ModelUtil.showProgress(true);
             % Disable Comsol model history
@@ -187,6 +189,12 @@ classdef ComsolModeler < handle
         end
     end
     methods (Static)
+        function tag = next_model_tag()
+            stamp = string(datestr(now, "yyyymmdd_HHMMSSFFF"));
+            suffix = string(randi([0, 9999]));
+            tag = "Model_" + stamp + "_" + suffix;
+        end
+
         function y = comsol_prefix(comsol_object_name)
             % Comsol element prefix (pol, mir, fil, sca, ...)
             y = lower(comsol_object_name.extractBetween(1, 3));

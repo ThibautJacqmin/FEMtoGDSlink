@@ -254,6 +254,55 @@ classdef GeometrySession < handle
                 disp(report);
             end
         end
+
+        function report = build_report(obj, args)
+            arguments
+                obj GeometrySession
+                args.display logical = true
+            end
+
+            report = struct();
+            report.timestamp = datetime("now");
+            report.session = struct( ...
+                "comsol_enabled", obj.has_comsol(), ...
+                "gds_enabled", obj.has_gds(), ...
+                "snap_mode", string(obj.snap_mode), ...
+                "snap_grid_nm", obj.snap_grid_nm, ...
+                "warn_on_snap", obj.warn_on_snap);
+
+            report.nodes = obj.node_report();
+            report.gds = obj.gds_report();
+            report.comsol = obj.comsol_report();
+            report.snap = obj.snap_report(display=false);
+
+            if args.display
+                fprintf("Build Report (%s)\n", string(report.timestamp));
+                fprintf("Session: COMSOL=%d, GDS=%d, snap_mode=%s, snap_grid_nm=%g\n", ...
+                    report.session.comsol_enabled, report.session.gds_enabled, ...
+                    report.session.snap_mode, report.session.snap_grid_nm);
+
+                fprintf("Nodes: total=%d, output=%d\n", ...
+                    report.nodes.total, report.nodes.output);
+                if height(report.nodes.by_type) > 0
+                    disp(report.nodes.by_type);
+                end
+                if height(report.nodes.by_layer) > 0
+                    disp(report.nodes.by_layer);
+                end
+
+                fprintf("GDS backend: initialized=%d, emitted_nodes=%d, cached_regions=%d\n", ...
+                    report.gds.initialized, report.gds.emitted_nodes, report.gds.cached_regions);
+                fprintf("COMSOL backend: initialized=%d, emitted_features=%d, selections=%d, snapped_expr_params=%d, defined_params=%d\n", ...
+                    report.comsol.initialized, report.comsol.emitted_features, report.comsol.selections, ...
+                    report.comsol.snapped_expr_params, report.comsol.defined_params);
+
+                if height(report.snap) > 0
+                    disp(report.snap);
+                else
+                    disp("No snap events recorded.");
+                end
+            end
+        end
     end
     methods (Static)
         function set_current(ctx)
@@ -316,6 +365,84 @@ classdef GeometrySession < handle
             stats.count = stats.count + numel(changed);
             stats.max_delta_nm = max(stats.max_delta_nm, max(changed));
             obj.snap_stats(key) = stats;
+        end
+
+        function report = node_report(obj)
+            n = numel(obj.nodes);
+            classes = strings(n, 1);
+            layers = strings(n, 1);
+            outputs = false(n, 1);
+            for i = 1:n
+                node = obj.nodes{i};
+                classes(i) = string(class(node));
+                outputs(i) = logical(node.output);
+                if isa(node.layer, "LayerSpec")
+                    layers(i) = string(node.layer.name);
+                else
+                    layers(i) = string(node.layer);
+                end
+            end
+
+            report = struct();
+            report.total = n;
+            report.output = sum(outputs);
+            report.by_type = obj.count_table(classes, outputs, "Type");
+            report.by_layer = obj.count_table(layers, outputs, "Layer");
+        end
+
+        function report = gds_report(obj)
+            report = struct();
+            report.initialized = ~isempty(obj.gds_backend);
+            report.emitted_nodes = 0;
+            report.cached_regions = 0;
+            if ~report.initialized
+                return;
+            end
+            report.cached_regions = obj.map_count(obj.gds_backend.regions);
+            report.emitted_nodes = obj.true_value_count(obj.gds_backend.emitted);
+        end
+
+        function report = comsol_report(obj)
+            report = struct();
+            report.initialized = ~isempty(obj.comsol_backend);
+            report.emitted_features = 0;
+            report.selections = 0;
+            report.snapped_expr_params = 0;
+            report.defined_params = 0;
+            if ~report.initialized
+                return;
+            end
+            report.emitted_features = obj.map_count(obj.comsol_backend.feature_tags);
+            report.selections = obj.map_count(obj.comsol_backend.selection_tags);
+            report.snapped_expr_params = obj.map_count(obj.comsol_backend.snapped_length_tokens);
+            report.defined_params = obj.map_count(obj.comsol_backend.defined_params);
+        end
+
+        function tbl = count_table(~, labels, outputs, first_col_name)
+            first_col_name = char(first_col_name);
+            if isempty(labels)
+                tbl = table(strings(0, 1), zeros(0, 1), zeros(0, 1), ...
+                    'VariableNames', {first_col_name, 'Count', 'OutputCount'});
+                return;
+            end
+            [uniq, ~, idx] = unique(labels);
+            count = accumarray(idx, 1);
+            out_count = accumarray(idx, double(outputs));
+            tbl = table(uniq, count, out_count, ...
+                'VariableNames', {first_col_name, 'Count', 'OutputCount'});
+        end
+
+        function n = map_count(~, m)
+            n = numel(m.keys);
+        end
+
+        function n = true_value_count(~, m)
+            vals = m.values;
+            if isempty(vals)
+                n = 0;
+                return;
+            end
+            n = sum(cell2mat(vals));
         end
     end
 end

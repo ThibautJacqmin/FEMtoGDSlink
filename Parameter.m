@@ -5,6 +5,7 @@ classdef Parameter
         name string = ""
         unit string = "nm"
         expr string = ""
+        dependency_records struct = struct('name', {}, 'value', {}, 'unit', {}, 'expr', {})
     end
     methods
         function obj = Parameter(value, name, args)
@@ -24,6 +25,16 @@ classdef Parameter
                 obj.expr = obj.name;
             else
                 obj.expr = string(obj.value);
+            end
+
+            if obj.is_named()
+                obj.dependency_records = struct( ...
+                    'name', obj.name, ...
+                    'value', obj.value, ...
+                    'unit', obj.unit, ...
+                    'expr', obj.expr);
+            else
+                obj.dependency_records = struct('name', {}, 'value', {}, 'unit', {}, 'expr', {});
             end
         end
 
@@ -65,7 +76,7 @@ classdef Parameter
     end
     methods (Access=private)
         function y = apply_operation(obj, rhs, operation)
-            [rhs_value, rhs_expr, rhs_unit] = Parameter.coerce_operand(rhs);
+            [rhs_value, rhs_expr, rhs_unit, rhs_records] = Parameter.coerce_operand(rhs);
             lhs_expr = obj.expression_token();
 
             switch operation
@@ -84,20 +95,49 @@ classdef Parameter
             y_expr = "(" + lhs_expr + ")" + operation + "(" + rhs_expr + ")";
             y_unit = Parameter.combine_units(obj.unit, rhs_unit, operation);
             y = Parameter(y_value, "", unit=y_unit, expr=y_expr);
+            y.dependency_records = Parameter.merge_dependency_records(obj.dependency_records, rhs_records);
         end
     end
     methods (Static, Access=private)
-        function [value, expr, unit] = coerce_operand(rhs)
+        function [value, expr, unit, records] = coerce_operand(rhs)
             if isa(rhs, "Parameter")
                 value = rhs.value;
                 expr = rhs.expression_token();
                 unit = rhs.unit;
+                records = rhs.dependency_records;
             elseif isnumeric(rhs) && isscalar(rhs)
                 value = double(rhs);
                 expr = string(rhs);
                 unit = "";
+                records = struct('name', {}, 'value', {}, 'unit', {}, 'expr', {});
             else
                 error("Parameter operations require scalar double or Parameter.");
+            end
+        end
+
+        function out = merge_dependency_records(lhs, rhs)
+            out = lhs;
+            for i = 1:numel(rhs)
+                rec = rhs(i);
+                if strlength(string(rec.name)) == 0
+                    continue;
+                end
+                idx = 0;
+                for j = 1:numel(out)
+                    if string(out(j).name) == string(rec.name)
+                        idx = j;
+                        break;
+                    end
+                end
+                if idx == 0
+                    out(end+1) = rec; %#ok<AGROW>
+                elseif abs(out(idx).value - rec.value) > 1e-12 || ...
+                        string(out(idx).unit) ~= string(rec.unit) || ...
+                        string(out(idx).expr) ~= string(rec.expr)
+                    warning("Parameter:DependencyConflict", ...
+                        "Conflicting definitions for parameter '%s'; keeping first definition.", ...
+                        char(string(rec.name)));
+                end
             end
         end
 

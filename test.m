@@ -1,5 +1,5 @@
-ctx = GeometrySession(enable_comsol=false, enable_gds=true, emit_on_create=false, ...
-    snap_mode="strict", snap_grid_nm=1, warn_on_snap=true);
+ctx = GeometrySession(enable_comsol=true, enable_gds=true, emit_on_create=false, ...
+    snap_mode="off", snap_grid_nm=1, warn_on_snap=true);
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
     comsol_selection="metal1", comsol_selection_state="all");
 
@@ -57,8 +57,8 @@ final_shape = Fillet(towers_cut, radius=p_fillet_r, npoints=p_fillet_n, ...
 
 % To debug in COMSOL as you build:
 % ctx = GeometrySession(enable_comsol=true, enable_gds=true, emit_on_create=true);
-% ctx.build_comsol();
+ctx.build_comsol();
 ctx.export_gds("out.gds");
 
-% Snap report after geometry generation/export.
-ctx.snap_report();
+% Consolidated build report (includes snap report).
+ctx.build_report();

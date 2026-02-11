@@ -58,7 +58,7 @@ classdef ComsolBackend < handle
             feature = wp.geom.create(tag, 'Rectangle');
             feature.set('base', 'center');
             center = obj.length_vector(node.center, "Rectangle center");
-            feature.set('pos', center);
+            obj.set_pair(feature, 'pos', center(1), center(2));
 
             w = obj.length_component(node.width, "Rectangle width");
             h = obj.length_component(node.height, "Rectangle height");
@@ -76,8 +76,8 @@ classdef ComsolBackend < handle
             feature = wp.geom.create(tag, 'Move');
             feature.selection('input').set(input_tag);
             delta = obj.length_vector(node.delta, "Move delta");
-            feature.set('displx', delta(1));
-            feature.set('disply', delta(2));
+            obj.set_scalar(feature, 'displx', delta(1));
+            obj.set_scalar(feature, 'disply', delta(2));
             obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
@@ -91,7 +91,8 @@ classdef ComsolBackend < handle
             feature = wp.geom.create(tag, 'Rotate');
             feature.selection('input').set(input_tag);
             obj.set_scalar(feature, 'rot', obj.raw_component(node.angle));
-            feature.set('pos', obj.length_vector(node.origin, "Rotate origin"));
+            origin = obj.length_vector(node.origin, "Rotate origin");
+            obj.set_pair(feature, 'pos', origin(1), origin(2));
             obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
@@ -105,7 +106,8 @@ classdef ComsolBackend < handle
             feature = wp.geom.create(tag, 'Scale');
             feature.selection('input').set(input_tag);
             obj.set_scalar(feature, 'factor', obj.raw_component(node.factor));
-            feature.set('pos', obj.length_vector(node.origin, "Scale origin"));
+            origin = obj.length_vector(node.origin, "Scale origin");
+            obj.set_pair(feature, 'pos', origin(1), origin(2));
             obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
@@ -118,7 +120,8 @@ classdef ComsolBackend < handle
             tag = obj.session.next_comsol_tag("mir");
             feature = wp.geom.create(tag, 'Mirror');
             feature.selection('input').set(input_tag);
-            feature.set('pos', obj.length_vector(node.point, "Mirror point"));
+            point = obj.length_vector(node.point, "Mirror point");
+            obj.set_pair(feature, 'pos', point(1), point(2));
             feature.set('axis', obj.vector_value(node.axis));
             obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
@@ -220,6 +223,43 @@ classdef ComsolBackend < handle
             obj.defined_params(key) = true;
         end
 
+        function define_parameter_dependencies(obj, p)
+            if ~isa(p, 'Parameter')
+                return;
+            end
+            records = p.dependency_records;
+            for i = 1:numel(records)
+                obj.define_parameter_record(records(i));
+            end
+        end
+
+        function define_parameter_record(obj, rec)
+            name = string(rec.name);
+            if strlength(name) == 0
+                return;
+            end
+
+            key = char(name);
+            if isKey(obj.defined_params, key)
+                return;
+            end
+
+            expr = string(rec.expr);
+            if strlength(expr) == 0 || expr == name
+                unit = string(rec.unit);
+                if strlength(unit) ~= 0
+                    val = string(rec.value) + "[" + unit + "]";
+                else
+                    val = string(rec.value);
+                end
+            else
+                val = expr;
+            end
+
+            obj.modeler.model.param.set(name, val, "");
+            obj.defined_params(key) = true;
+        end
+
         function set_pair(obj, feature, prop_name, v1, v2)
             if isnumeric(v1) && isnumeric(v2)
                 feature.set(prop_name, [v1, v2]);
@@ -275,17 +315,38 @@ classdef ComsolBackend < handle
 
         function vec = length_vector(obj, val, context)
             if isa(val, 'Vertices')
-                vec = val.value;
+                if val.nvertices ~= 1
+                    error("Length vectors must resolve to a single [x y] pair.");
+                end
+                if isa(val.prefactor, 'Parameter')
+                    obj.parameter_token(val.prefactor);
+                end
+                xexpr = string(val.comsol_string_x());
+                yexpr = string(val.comsol_string_y());
+                vec = [ ...
+                    obj.length_component(xexpr(1), string(context) + " x"), ...
+                    obj.length_component(yexpr(1), string(context) + " y")];
+                return;
             else
                 vec = val;
             end
-            if ~isnumeric(vec)
-                error("Length vectors must resolve to numeric values.");
+
+            if isnumeric(vec)
+                vec = obj.session.snap_length(vec, context);
+                return;
             end
-            vec = obj.session.snap_length(vec, context);
+
+            tok = string(vec);
+            if numel(tok) ~= 2
+                error("Length vectors must resolve to exactly two components.");
+            end
+            vec = [ ...
+                obj.length_component(tok(1), string(context) + " x"), ...
+                obj.length_component(tok(2), string(context) + " y")];
         end
 
         function token = parameter_token(obj, p)
+            obj.define_parameter_dependencies(p);
             if p.is_named()
                 obj.define_parameter(p);
                 token = char(p.name);

@@ -1,11 +1,11 @@
-ctx = GeometrySession(enable_comsol=true, enable_gds=true, emit_on_create=false, ...
-    snap_mode="off", snap_grid_nm=1, warn_on_snap=true);
+ctx = GeometrySession.with_shared_comsol(enable_gds=true, emit_on_create=false, ...
+    snap_mode="off", snap_grid_nm=1, warn_on_snap=true, reset_model=true);
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
     comsol_selection="metal1", comsol_selection_state="all");
 
 % Global design parameters.
 nlevels = 6;
-p_pitch_y = Parameter(36, "pitch_y");
+p_pitch_y = Parameter(36, "pitch_y1");
 p_base_width = Parameter(260, "tower_w0");
 p_width_step = Parameter(32, "tower_dw");
 p_level_height = Parameter(28, "tower_h");
@@ -53,7 +53,7 @@ towers_cut = Difference(towers_in_envelope, {trench}, layer="metal1", output=fal
 
 % 5) Fillet the final shape and export.
 final_shape = Fillet(towers_cut, radius=p_fillet_r, npoints=p_fillet_n, ...
-    layer="metal1", output=true); %#ok<NASGU>
+    points="all", layer="metal1", output=true); %#ok<NASGU>
 
 % To debug in COMSOL as you build:
 % ctx = GeometrySession(enable_comsol=true, enable_gds=true, emit_on_create=true);

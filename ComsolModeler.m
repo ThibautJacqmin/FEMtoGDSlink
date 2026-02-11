@@ -22,17 +22,22 @@ classdef ComsolModeler < handle
             obj.model.hist.disable;
             % Set working path
             obj.model.modelPath(pwd);
-            % Create variable
-            obj.model.variable.create('var1');
-            % Create component
-            obj.component = obj.model.component.create('Component', true);
-            % Create 3D geometry
-            obj.geometry = obj.component.geom.create('Geometry', 3);
-            % Set length unit to nanometer like in KLayout
-            obj.geometry.lengthUnit("nm");
-            % Create workplane
-            obj.workplane = obj.geometry.create('wp1', 'WorkPlane');
-            obj.geometry.feature('wp1').set('unite', true);
+            obj.initialize_workspace();
+        end
+        function reset_workspace(obj)
+            % Reset model content while keeping the same COMSOL model/window.
+            try
+                obj.model.variable.remove('var1');
+            catch
+            end
+            try
+                obj.model.component.remove('Component');
+            catch
+            end
+            obj.initialize_workspace();
+            obj.mesh = [];
+            obj.shell = [];
+            obj.study = [];
         end
         function names = get_names(obj)
             % Get an string array containin all Comsol names of graphical
@@ -189,6 +194,31 @@ classdef ComsolModeler < handle
         end
     end
     methods (Static)
+        function obj = shared(args)
+            arguments
+                args.reset logical = true
+            end
+            obj = ComsolModeler.shared_store();
+            if isempty(obj) || ~isvalid(obj)
+                obj = ComsolModeler();
+            elseif args.reset
+                obj.reset_workspace();
+            end
+            ComsolModeler.shared_store(obj);
+        end
+
+        function clear_shared()
+            obj = ComsolModeler.shared_store();
+            if ~isempty(obj) && isvalid(obj)
+                try
+                    import com.comsol.model.util.*
+                    ModelUtil.remove(char(obj.model_tag));
+                catch
+                end
+            end
+            ComsolModeler.shared_store([]);
+        end
+
         function tag = next_model_tag()
             stamp = string(datestr(now, "yyyymmdd_HHMMSSFFF"));
             suffix = string(randi([0, 9999]));
@@ -198,6 +228,30 @@ classdef ComsolModeler < handle
         function y = comsol_prefix(comsol_object_name)
             % Comsol element prefix (pol, mir, fil, sca, ...)
             y = lower(comsol_object_name.extractBetween(1, 3));
+        end
+    end
+    methods (Access=private)
+        function initialize_workspace(obj)
+            % Create variable
+            obj.model.variable.create('var1');
+            % Create component
+            obj.component = obj.model.component.create('Component', true);
+            % Create 3D geometry
+            obj.geometry = obj.component.geom.create('Geometry', 3);
+            % Set length unit to nanometer like in KLayout
+            obj.geometry.lengthUnit("nm");
+            % Create workplane
+            obj.workplane = obj.geometry.create('wp1', 'WorkPlane');
+            obj.geometry.feature('wp1').set('unite', true);
+        end
+    end
+    methods (Static, Access=private)
+        function obj = shared_store(varargin)
+            persistent shared_obj
+            if nargin == 1
+                shared_obj = varargin{1};
+            end
+            obj = shared_obj;
         end
     end
 end

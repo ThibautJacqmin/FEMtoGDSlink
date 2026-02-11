@@ -27,10 +27,18 @@ classdef GeometrySession < handle
                 args.snap_mode {mustBeTextScalar} = "strict"
                 args.snap_grid_nm double = 1
                 args.warn_on_snap logical = true
+                args.reuse_comsol_gui logical = false
+                args.comsol_modeler ComsolModeler = ComsolModeler.empty
             end
 
             if args.enable_comsol
-                obj.comsol = ComsolModeler;
+                if ~isempty(args.comsol_modeler)
+                    obj.comsol = args.comsol_modeler;
+                elseif args.reuse_comsol_gui
+                    obj.comsol = ComsolModeler.shared(reset=true);
+                else
+                    obj.comsol = ComsolModeler;
+                end
             else
                 obj.comsol = [];
             end
@@ -305,6 +313,32 @@ classdef GeometrySession < handle
         end
     end
     methods (Static)
+        function ctx = with_shared_comsol(args)
+            arguments
+                args.enable_gds logical = true
+                args.emit_on_create logical = false
+                args.set_as_current logical = true
+                args.snap_mode {mustBeTextScalar} = "strict"
+                args.snap_grid_nm double = 1
+                args.warn_on_snap logical = true
+                args.reset_model logical = true
+            end
+            shared_modeler = ComsolModeler.shared(reset=args.reset_model);
+            ctx = GeometrySession( ...
+                enable_comsol=true, ...
+                enable_gds=args.enable_gds, ...
+                emit_on_create=args.emit_on_create, ...
+                set_as_current=args.set_as_current, ...
+                snap_mode=args.snap_mode, ...
+                snap_grid_nm=args.snap_grid_nm, ...
+                warn_on_snap=args.warn_on_snap, ...
+                comsol_modeler=shared_modeler);
+        end
+
+        function clear_shared_comsol()
+            ComsolModeler.clear_shared();
+        end
+
         function set_current(ctx)
             GeometrySession.current_context_store(ctx);
         end

@@ -174,15 +174,38 @@ classdef ComsolBackend < handle
 
             tag = obj.session.next_comsol_tag("fil");
             feature = wp.geom.create(tag, 'Fillet');
+            % Fillet input API differs across COMSOL versions/workplane contexts.
+            try
+                feature.selection('input').set(base_tag);
+            catch
+                % Some COMSOL versions only support selecting point entities
+                % as feature input via selection('point').set(base_tag, ...).
+            end
             obj.set_scalar(feature, 'radius', obj.length_component(node.radius, "Fillet radius"));
             points = node.points;
             if isempty(points) && isa(node.target, 'Rectangle')
                 points = 1:4;
             end
             if ~isempty(points)
-                feature.selection('point').set(base_tag, points);
+                if isa(points, 'Parameter')
+                    points = points.value;
+                end
+                if isstring(points) || ischar(points)
+                    mode = lower(string(points));
+                    if mode == "all"
+                        obj.select_all_fillet_points(feature, base_tag, node);
+                    else
+                        error("Unsupported fillet points mode '%s'. Use numeric indices or 'all'.", ...
+                            char(mode));
+                    end
+                else
+                    points = double(points);
+                    points = points(:).';
+                    points = round(points);
+                    feature.selection('point').set(base_tag, points);
+                end
             else
-                warning("Fillet points not specified; COMSOL may require point selection.");
+                obj.select_all_fillet_points(feature, base_tag, node);
             end
             obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
@@ -196,6 +219,60 @@ classdef ComsolBackend < handle
                 token = char(val);
             else
                 token = num2str(val);
+            end
+        end
+
+        function select_all_fillet_points(obj, feature, base_tag, node)
+            if isa(node.target, 'Rectangle')
+                feature.selection('point').set(base_tag, 1:4);
+                return;
+            end
+            indices = obj.infer_fillet_point_indices(node.target);
+            if ~isempty(indices)
+                feature.selection('point').set(base_tag, indices);
+                return;
+            end
+            % Fallback when we cannot infer point indices.
+            feature.selection('point').all;
+        end
+
+        function indices = infer_fillet_point_indices(obj, target)
+            indices = [];
+            if ~obj.session.has_gds()
+                return;
+            end
+
+            if isempty(obj.session.gds_backend)
+                obj.session.gds_backend = GdsBackend(obj.session);
+            end
+
+            try
+                reg = obj.session.gds_backend.region_for(target);
+            catch
+                return;
+            end
+
+            try
+                it = reg.each_merged();
+            catch
+                return;
+            end
+
+            total_points = 0;
+            while true
+                try
+                    poly = py.next(it);
+                catch
+                    break;
+                end
+                try
+                    total_points = total_points + double(poly.num_points());
+                catch
+                end
+            end
+
+            if total_points > 0
+                indices = 1:round(total_points);
             end
         end
 

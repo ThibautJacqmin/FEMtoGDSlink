@@ -91,6 +91,32 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyGreaterThan(double(reg.area()), 0.95 * expected_area);
             testCase.verifyLessThan(double(reg.area()), 1.05 * expected_area);
         end
+
+        function array1DAnd2D(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python module 'lygadgets' not available.");
+
+            ctx = TestGdsBackend.newContext();
+            p_nx = Parameter(4, "arr_nx", unit="");
+            p_ny = Parameter(3, "arr_ny", unit="");
+            p_pitch_x = Parameter(220, "arr_pitch_x");
+            p_pitch_y = Parameter(140, "arr_pitch_y");
+
+            base = Rectangle(ctx, center=[0 0], width=100, height=50, layer="m1", output=false);
+            arr1 = Array1D(ctx, base, ncopies=p_nx, delta=Vertices([1, 0], p_pitch_x), ...
+                layer="m1", output=false);
+            arr2 = Array2D(ctx, base, ncopies_x=p_nx, ncopies_y=p_ny, ...
+                delta_x=Vertices([1, 0], p_pitch_x), delta_y=Vertices([0, 1], p_pitch_y), ...
+                layer="m1", output=true);
+
+            backend = GdsBackend(ctx);
+            reg1 = backend.region_for(arr1);
+            reg2 = backend.region_for(arr2);
+            base_area = 100 * 50;
+
+            testCase.verifyEqual(double(reg1.area()), p_nx.value * base_area);
+            testCase.verifyEqual(double(reg2.area()), p_nx.value * p_ny.value * base_area);
+        end
     end
 
     methods (Static, Access=private)

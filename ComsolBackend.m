@@ -22,9 +22,11 @@ classdef ComsolBackend < handle
         end
 
         function emit_all(obj, nodes)
-            % Emit all nodes in registration order.
+            % Emit graph from output nodes only; dependencies emit recursively.
             for i = 1:numel(nodes)
-                obj.tag_for(nodes{i});
+                if nodes{i}.output
+                    obj.tag_for(nodes{i});
+                end
             end
         end
 
@@ -182,6 +184,56 @@ classdef ComsolBackend < handle
             feature.selection('input').set(tags);
             obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_Array1D(obj, node)
+            % Emit a COMSOL 1D Array operation.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            input_tag = obj.tag_for(node.target);
+
+            tag = obj.session.next_comsol_tag("arr");
+            feature = wp.geom.create(tag, 'Array');
+            feature.set('type', 'linear');
+            obj.enable_keep_input(feature);
+            obj.set_scalar(feature, 'linearsize', obj.copy_count_token(node.ncopies, "Array1D ncopies"));
+            disp_vec = obj.length_vector(node.delta, "Array1D delta");
+            obj.set_scalar(feature, 'displ', obj.vector_token(disp_vec(1), disp_vec(2)));
+            obj.set_input_selection(feature, input_tag);
+            obj.set_input_selection(feature, input_tag);
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_Array2D(obj, node)
+            % Emit a COMSOL 2D array by chaining two linear arrays.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            input_tag = obj.tag_for(node.target);
+
+            tag_x = obj.session.next_comsol_tag("arr");
+            feature_x = wp.geom.create(tag_x, 'Array');
+            feature_x.set('type', 'linear');
+            obj.enable_keep_input(feature_x);
+            obj.set_scalar(feature_x, 'linearsize', ...
+                obj.copy_count_token(node.ncopies_x, "Array2D ncopies_x"));
+            disp_x = obj.length_vector(node.delta_x, "Array2D delta_x");
+            obj.set_scalar(feature_x, 'displ', obj.vector_token(disp_x(1), disp_x(2)));
+            obj.set_input_selection(feature_x, input_tag);
+            obj.set_input_selection(feature_x, input_tag);
+
+            tag_y = obj.session.next_comsol_tag("arr");
+            feature_y = wp.geom.create(tag_y, 'Array');
+            feature_y.set('type', 'linear');
+            obj.enable_keep_input(feature_y);
+            obj.set_scalar(feature_y, 'linearsize', ...
+                obj.copy_count_token(node.ncopies_y, "Array2D ncopies_y"));
+            disp_y = obj.length_vector(node.delta_y, "Array2D delta_y");
+            obj.set_scalar(feature_y, 'displ', obj.vector_token(disp_y(1), disp_y(2)));
+            obj.set_input_selection(feature_y, tag_x);
+            obj.set_input_selection(feature_y, tag_x);
+            obj.apply_layer_selection(layer, feature_y);
+            obj.feature_tags(int32(node.id)) = char(tag_y);
         end
 
         function emit_Fillet(obj, node)
@@ -379,6 +431,65 @@ classdef ComsolBackend < handle
             end
         end
 
+        function set_input_selection(~, feature, tags)
+            % Set input feature selection with robust scalar/list handling.
+            tok = string(tags);
+            if ischar(tags)
+                try
+                    feature.selection('input').set(tags);
+                catch
+                end
+                try
+                    feature.set('input', tags);
+                catch
+                end
+                return;
+            end
+            if isscalar(tok)
+                one = char(tok);
+                try
+                    feature.selection('input').set(one);
+                catch
+                end
+                try
+                    feature.set('input', one);
+                catch
+                    try
+                        feature.set('input', {one});
+                    catch
+                    end
+                end
+            else
+                many = cellstr(tok(:).');
+                try
+                    feature.selection('input').set(many);
+                catch
+                end
+                try
+                    feature.set('input', many);
+                catch
+                end
+            end
+        end
+
+        function token = vector_token(obj, x, y)
+            % Convert two components into COMSOL "x,y" token syntax.
+            token = obj.to_comsol_token(x) + "," + obj.to_comsol_token(y);
+        end
+
+        function enable_keep_input(~, feature)
+            % Best effort: keep source objects available for downstream features.
+            try
+                feature.set('keep', true);
+                return;
+            catch
+            end
+            try
+                feature.set('keepinput', true);
+            catch
+            end
+        end
+
         function out = raw_component(obj, val)
             % Convert wrapper objects into raw numeric/token payloads.
             if isa(val, 'Parameter')
@@ -410,6 +521,20 @@ classdef ComsolBackend < handle
             end
         end
 
+        function out = copy_count_token(obj, val, context)
+            % Resolve and validate copy count token for COMSOL Array features.
+            raw = obj.raw_component(val);
+            if isnumeric(raw)
+                n = round(double(raw));
+                if ~(isscalar(n) && isfinite(n) && n >= 1)
+                    error("%s must be a scalar >= 1.", char(string(context)));
+                end
+                out = n;
+                return;
+            end
+            out = raw;
+        end
+
         function vec = vector_value(obj, val)
             % Extract numeric vector from Vertices or raw vector.
             if isa(val, 'Vertices')
@@ -417,6 +542,17 @@ classdef ComsolBackend < handle
             else
                 vec = val;
             end
+        end
+
+        function vec = vector_components(~, x, y)
+            % Build a 2-component vector without char-token concatenation.
+            if isnumeric(x) && isnumeric(y)
+                vec = [x, y];
+                return;
+            end
+            vec = strings(1, 2);
+            vec(1) = string(x);
+            vec(2) = string(y);
         end
 
         function vec = length_vector(obj, val, context)
@@ -430,9 +566,9 @@ classdef ComsolBackend < handle
                 end
                 xexpr = string(val.comsol_string_x());
                 yexpr = string(val.comsol_string_y());
-                vec = [ ...
-                    obj.length_component(xexpr(1), string(context) + " x"), ...
-                    obj.length_component(yexpr(1), string(context) + " y")];
+                x = obj.length_component(xexpr(1), string(context) + " x");
+                y = obj.length_component(yexpr(1), string(context) + " y");
+                vec = obj.vector_components(x, y);
                 return;
             else
                 vec = val;
@@ -447,9 +583,9 @@ classdef ComsolBackend < handle
             if numel(tok) ~= 2
                 error("Length vectors must resolve to exactly two components.");
             end
-            vec = [ ...
-                obj.length_component(tok(1), string(context) + " x"), ...
-                obj.length_component(tok(2), string(context) + " y")];
+            x = obj.length_component(tok(1), string(context) + " x");
+            y = obj.length_component(tok(2), string(context) + " y");
+            vec = obj.vector_components(x, y);
         end
 
         function token = parameter_token(obj, p)

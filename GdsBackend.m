@@ -142,6 +142,35 @@ classdef GdsBackend < handle
             region.merge();
         end
 
+        function region = build_Array1D(obj, node)
+            base = obj.region_for(node.target);
+            n = obj.copy_count(node.ncopies, "Array1D ncopies");
+            delta = obj.gds_length_vector(node.delta, "Array1D delta");
+            region = obj.modeler.pya.Region();
+            for i = 0:(n-1)
+                shifted = obj.apply_translate(base, i*delta(1), i*delta(2));
+                region = region + shifted;
+            end
+            region.merge();
+        end
+
+        function region = build_Array2D(obj, node)
+            base = obj.region_for(node.target);
+            nx = obj.copy_count(node.ncopies_x, "Array2D ncopies_x");
+            ny = obj.copy_count(node.ncopies_y, "Array2D ncopies_y");
+            dx = obj.gds_length_vector(node.delta_x, "Array2D delta_x");
+            dy = obj.gds_length_vector(node.delta_y, "Array2D delta_y");
+            region = obj.modeler.pya.Region();
+            for ix = 0:(nx-1)
+                for iy = 0:(ny-1)
+                    shift = ix*dx + iy*dy;
+                    shifted = obj.apply_translate(base, shift(1), shift(2));
+                    region = region + shifted;
+                end
+            end
+            region.merge();
+        end
+
         function region = build_Fillet(obj, node)
             base = obj.region_for(node.target);
             radius = obj.gds_length_scalar(node.radius, "Fillet radius");
@@ -188,6 +217,15 @@ classdef GdsBackend < handle
         function s = gds_length_scalar(obj, val, context)
             s = obj.scalar_value(val);
             s = obj.session.gds_integer(s, context);
+        end
+
+        function n = copy_count(obj, val, context)
+            n = obj.scalar_value(val);
+            n = obj.session.gds_integer(n, context);
+            n = round(double(n));
+            if ~(isscalar(n) && isfinite(n) && n >= 1)
+                error("%s must be a scalar >= 1.", char(string(context)));
+            end
         end
     end
 end

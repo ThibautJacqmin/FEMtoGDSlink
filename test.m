@@ -1,5 +1,5 @@
 ctx = GeometrySession.with_shared_comsol(enable_gds=true, emit_on_create=false, ...
-    snap_mode='strict', snap_grid_nm=1, warn_on_snap=true, reset_model=true);
+    snap_mode='off', snap_grid_nm=1, warn_on_snap=true, reset_model=true);
 
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
     comsol_selection="metal1", comsol_selection_state="all");
@@ -23,6 +23,12 @@ p_trench_h = Parameter(240, "trench_h");
 
 p_fillet_r = Parameter(8, "fillet_r");
 p_fillet_n = DependentParameter(@(x) max(8, round(3*x)), p_fillet_r, "fillet_n", unit="");
+
+% Array parameters.
+p_arr_nx = Parameter(5, "arr_nx", unit="");
+p_arr_ny = Parameter(3, "arr_ny", unit="");
+p_arr_pitch_x = Parameter(70, "arr_pitch_x");
+p_arr_pitch_y = Parameter(70, "arr_pitch_y");
 
 % 1) Build a tower from stacked, shrinking rectangles.
 tower_parts = cell(1, nlevels);
@@ -54,7 +60,17 @@ towers_cut = Difference(towers_in_envelope, {trench}, layer="metal1", output=fal
 
 % 5) Fillet the final shape and export.
 final_shape = Fillet(towers_cut, radius=p_fillet_r, npoints=p_fillet_n, ...
-    points="all", layer="metal1", output=true); 
+    points="all", layer="metal1", output=true);
+
+% 6) Add a small 2D marker array using Array1D/Array2D features.
+array_seed = Rectangle(base="corner", corner=[-320, -160], width=24, height=16, ...
+    angle=15, layer="metal1", output=false);
+array_row = Array1D(array_seed, ncopies=p_arr_nx, ...
+    delta=Vertices([1, 0], p_arr_pitch_x), layer="metal1", output=false);
+array_grid = Array2D(array_seed, ncopies_x=p_arr_nx, ncopies_y=p_arr_ny, ...
+    delta_x=Vertices([1, 0], p_arr_pitch_x), ...
+    delta_y=Vertices([0, 1], p_arr_pitch_y), ...
+    layer="metal1", output=true);
 
 % To debug in COMSOL as you build:
 ctx.build_comsol();

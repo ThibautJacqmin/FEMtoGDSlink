@@ -119,6 +119,40 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             names_after = TestComsolBackend.paramNames(ctx2.comsol.model);
             testCase.verifyFalse(any(startsWith(names_after, "snp")));
         end
+
+        function emitArrayFeatures(testCase)
+            % Verify COMSOL backend emits 1D/2D array features and params.
+            ctx = GeometrySession.with_shared_comsol( ...
+                enable_gds=true, emit_on_create=false, snap_mode="off", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            p_nx = Parameter(4, "arr_nx", unit="");
+            p_ny = Parameter(3, "arr_ny", unit="");
+            p_pitch_x = Parameter(200, "arr_pitch_x");
+            p_pitch_y = Parameter(140, "arr_pitch_y");
+
+            base = Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1", output=false);
+            a1 = Array1D(ctx, base, ncopies=p_nx, delta=Vertices([1, 0], p_pitch_x), ...
+                layer="m1", output=false);
+            a2 = Array2D(ctx, base, ncopies_x=p_nx, ncopies_y=p_ny, ...
+                delta_x=Vertices([1, 0], p_pitch_x), delta_y=Vertices([0, 1], p_pitch_y), ...
+                layer="m1", output=true);
+
+            ctx.build_comsol();
+
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(a1.id)));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(a2.id)));
+            t1 = string(ctx.comsol_backend.feature_tags(int32(a1.id)));
+            t2 = string(ctx.comsol_backend.feature_tags(int32(a2.id)));
+            testCase.verifyTrue(startsWith(t1, "arr"));
+            testCase.verifyTrue(startsWith(t2, "arr"));
+
+            for nm = ["arr_nx", "arr_ny", "arr_pitch_x", "arr_pitch_y"]
+                testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, char(nm)));
+            end
+            testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
+        end
     end
 
     methods (Static, Access=private)

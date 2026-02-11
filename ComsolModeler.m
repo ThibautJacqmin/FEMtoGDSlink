@@ -204,6 +204,20 @@ classdef ComsolModeler < handle
             comsol_shape.set('displ', vertex.comsol_string);
             comsol_shape.selection('input').set(previous_object_name);
         end
+
+        function comsol_shape = make_2D_array(obj, ncopies_x, ncopies_y, vertex_x, vertex_y, initial_comsol_shape)
+            % Build a 2D array by chaining two linear Array features.
+            arguments
+                obj
+                ncopies_x {mustBeA(ncopies_x, {'Variable', 'Parameter', 'DependentParameter'})}
+                ncopies_y {mustBeA(ncopies_y, {'Variable', 'Parameter', 'DependentParameter'})}
+                vertex_x {mustBeA(vertex_x, {'Vertices'})}
+                vertex_y {mustBeA(vertex_y, {'Vertices'})}
+                initial_comsol_shape
+            end
+            row_shape = obj.make_1D_array(ncopies_x, vertex_x, initial_comsol_shape);
+            comsol_shape = obj.make_1D_array(ncopies_y, vertex_y, row_shape);
+        end
     end
     methods (Static)
         function obj = shared(args)

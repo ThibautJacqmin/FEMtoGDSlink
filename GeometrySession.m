@@ -124,7 +124,7 @@ classdef GeometrySession < handle
 
         function node_initialized(obj, feature)
             % Optionally emit COMSOL feature as soon as node is finalized.
-            if obj.emit_on_create && obj.has_comsol()
+            if obj.emit_on_create && obj.has_comsol() && feature.output
                 if isempty(obj.comsol_backend)
                     obj.comsol_backend = ComsolBackend(obj);
                 end

@@ -107,7 +107,9 @@ classdef GeomFeature < handle
                 p = val;
                 return;
             end
-            p = Parameter(val, default_name, unit=args.unit);
+            % Keep auto-coerced numeric values anonymous to avoid accidental
+            % global COMSOL parameter-name collisions across features.
+            p = Parameter(val, "", unit=args.unit);
         end
 
         function v = coerce_vertices(val)

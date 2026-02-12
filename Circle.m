@@ -125,7 +125,7 @@ classdef Circle < GeomFeature
         end
 
         function set.angle(obj, val)
-            p = GeomFeature.coerce_parameter(val, "angle", unit="deg");
+            p = GeomFeature.coerce_parameter(val, "", unit="deg");
             a = p.value;
             if ~(isscalar(a) && isfinite(a) && a > 0)
                 error("Circle angle must be a finite real scalar > 0 degrees.");
@@ -138,7 +138,7 @@ classdef Circle < GeomFeature
         end
 
         function set.rotation(obj, val)
-            obj.set_param("rotation", GeomFeature.coerce_parameter(val, "rotation", unit="deg"));
+            obj.set_param("rotation", GeomFeature.coerce_parameter(val, "", unit="deg"));
         end
 
         function val = get.rotation(obj)

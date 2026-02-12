@@ -132,11 +132,16 @@ classdef Ellipse < GeomFeature
         end
 
         function set.angle(obj, val)
-            obj.set_param("angle", GeomFeature.coerce_parameter(val, "angle", unit=""));
+            p = GeomFeature.coerce_parameter(val, "", unit="deg");
+            a = p.value;
+            if ~(isscalar(a) && isfinite(a))
+                error("Ellipse angle must be a finite real scalar in degrees.");
+            end
+            obj.set_param("angle", p);
         end
 
         function val = get.angle(obj)
-            val = obj.get_param("angle", Parameter(0, "", unit=""));
+            val = obj.get_param("angle", Parameter(0, "", unit="deg"));
         end
 
         function set.npoints(obj, val)

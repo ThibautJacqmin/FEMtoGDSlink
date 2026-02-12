@@ -114,6 +114,115 @@ classdef ComsolBackend < handle
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
+        function emit_Point(obj, node)
+            % Emit one or several COMSOL Point coordinates.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            tag = obj.session.next_comsol_tag("pt");
+            feature = wp.geom.create(tag, 'Point');
+            pts = obj.session.snap_length(node.p_value(), "Point coordinates");
+            feature.set('p', pts);
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_LineSegment(obj, node)
+            % Emit a COMSOL LineSegment using coordinate endpoints.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            tag = obj.session.next_comsol_tag("ls");
+            feature = wp.geom.create(tag, 'LineSegment');
+            feature.set('specify1', 'coord');
+            feature.set('specify2', 'coord');
+            p1 = obj.length_vector(node.p1, "LineSegment p1");
+            p2 = obj.length_vector(node.p2, "LineSegment p2");
+            obj.set_pair(feature, 'coord1', p1(1), p1(2));
+            obj.set_pair(feature, 'coord2', p2(1), p2(2));
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_InterpolationCurve(obj, node)
+            % Emit a COMSOL InterpolationCurve primitive.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            tag = obj.session.next_comsol_tag("ic");
+            feature = wp.geom.create(tag, 'InterpolationCurve');
+            pts = obj.session.snap_length(node.points_value(), "InterpolationCurve table");
+            feature.set('table', pts);
+            feature.set('type', char(node.type));
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_QuadraticBezier(obj, node)
+            % Emit a COMSOL quadratic Bezier as a one-segment BezierPolygon.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            tag = obj.session.next_comsol_tag("bez");
+            feature = wp.geom.create(tag, 'BezierPolygon');
+            ctrl = obj.session.snap_length(node.control_points_value(), ...
+                "QuadraticBezier control points");
+            feature.set('degree', int32(2));
+            feature.set('p', [ctrl(:, 1).'; ctrl(:, 2).']);
+            feature.set('type', char(node.type));
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_CubicBezier(obj, node)
+            % Emit a COMSOL cubic Bezier as a one-segment BezierPolygon.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            tag = obj.session.next_comsol_tag("bez");
+            feature = wp.geom.create(tag, 'BezierPolygon');
+            ctrl = obj.session.snap_length(node.control_points_value(), ...
+                "CubicBezier control points");
+            feature.set('degree', int32(3));
+            feature.set('p', [ctrl(:, 1).'; ctrl(:, 2).']);
+            feature.set('type', char(node.type));
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_CircularArc(obj, node)
+            % Emit a CircularArc as rational quadratic BezierPolygon segments.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            tag = obj.session.next_comsol_tag("bez");
+            feature = wp.geom.create(tag, 'BezierPolygon');
+            [ctrl, degree, weights] = node.bezier_segments();
+            ctrl = obj.session.snap_length(ctrl, "CircularArc control points");
+            feature.set('degree', int32(degree));
+            feature.set('p', [ctrl(:, 1).'; ctrl(:, 2).']);
+            feature.set('w', weights);
+            feature.set('type', char(node.type));
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_ParametricCurve(obj, node)
+            % Emit a COMSOL ParametricCurve primitive.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+
+            tag = obj.session.next_comsol_tag("pc");
+            feature = wp.geom.create(tag, 'ParametricCurve');
+            feature.set('parname', char(node.parname));
+            obj.set_scalar(feature, 'parmin', obj.raw_component(node.parmin));
+            obj.set_scalar(feature, 'parmax', obj.raw_component(node.parmax));
+            coord = node.coord_strings();
+            feature.set('coord', {char(coord(1)), char(coord(2))});
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
         function emit_Polygon(obj, node)
             % Emit a COMSOL Polygon primitive from a Polygon node.
             layer = node.layer;
@@ -334,6 +443,59 @@ classdef ComsolBackend < handle
             obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = char(tag);
         end
+
+        function emit_Thicken(obj, node)
+            % Emit a COMSOL Thicken operation (2D) from a target curve/object.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            input_tag = obj.tag_for(node.target);
+
+            tag = obj.session.next_comsol_tag("thk");
+            try
+                feature = wp.geom.create(tag, 'Thicken2D');
+            catch first_err
+                try
+                    feature = wp.geom.create(tag, 'Thicken');
+                catch second_err
+                    error("Failed to create COMSOL Thicken feature. Thicken2D error: %s. Thicken error: %s.", ...
+                        first_err.message, second_err.message);
+                end
+            end
+
+            obj.set_input_selection(feature, input_tag);
+            feature.set('offset', char(node.offset));
+
+            mode = lower(string(node.offset));
+            if mode == "symmetric"
+                t = obj.length_component(node.totalthick, "Thicken total thickness");
+                obj.set_scalar(feature, 'totalthick', t);
+            else
+                up = obj.length_component(node.upthick, "Thicken upper thickness");
+                down = obj.length_component(node.downthick, "Thicken lower thickness");
+                obj.set_scalar(feature, 'upthick', up);
+                obj.set_scalar(feature, 'downthick', down);
+            end
+
+            try
+                feature.set('ends', char(node.ends));
+            catch
+            end
+            try
+                feature.set('convexcorner', char(node.convexcorner));
+            catch
+            end
+            try
+                feature.set('keep', obj.bool_token(node.keep));
+            catch
+            end
+            try
+                feature.set('propagatesel', obj.bool_token(node.propagatesel));
+            catch
+            end
+
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
     end
     methods (Access=private)
         function token = to_comsol_token(~, val)
@@ -344,6 +506,15 @@ classdef ComsolBackend < handle
                 token = char(val);
             else
                 token = num2str(val);
+            end
+        end
+
+        function token = bool_token(~, val)
+            % Convert logical value to COMSOL on/off token.
+            if logical(val)
+                token = 'on';
+            else
+                token = 'off';
             end
         end
 

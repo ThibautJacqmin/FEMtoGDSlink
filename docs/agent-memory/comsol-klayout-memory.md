@@ -38,6 +38,13 @@ Local searchable text caches:
   - Cache lines: COMSOL `17062-17079`.
 - Circle feature properties include `base`, `pos`, `r`, `rot`, `angle`.
   - Cache lines: COMSOL `12883-12897`.
+- Thicken in 2D API is `Thicken2D` with key properties:
+  - `offset` (`symmetric|asymmetric`),
+  - `totalthick` (symmetric mode),
+  - `upthick`/`downthick` (asymmetric mode),
+  - `ends` (`straight|circular` for symmetric),
+  - `convexcorner` (`fillet|tangent|extend|noconnection`).
+  - Source: COMSOL 6.3 API docs (Geometry `Thicken2D` page).
 - Polygon properties include coordinate vectors `x`, `y`, `z`.
   - Cache lines: COMSOL `16856-16858`.
 - Move/Copy translation uses `displ` (vector or vector list), not documented as `displx/disply`.
@@ -94,6 +101,8 @@ Validated method mapping for current backend:
 - `Layout.create_cell`, `Layout.layer`, `Layout.write`, `Layout.dbu` are available.
 - `Polygon.from_s` and `Polygon.ellipse(Box, n)` are available.
 - `Region.insert`, `Region.merge`, `Region.round_corners`, `Region.transformed` are available.
+- `Path` supports `width`, `bgn_ext`, `end_ext`, `round`, and `polygon()`.
+- `Region` supports `sized`/`size`, `sized_inside`/`sized_outside`, and `minkowski_sum`.
 - Region boolean operations are supported; Python aliases such as `and_` exist for keyword collisions.
 - `Trans` supports point/vector-based translation and constants like `M0`/`M90`.
 - `CplxTrans` supports constructors with `(mag, rot, mirrx, x, y)` and composes operations in the documented order.

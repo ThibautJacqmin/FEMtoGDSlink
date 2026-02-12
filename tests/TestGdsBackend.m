@@ -157,6 +157,83 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(double(reg1.area()), p_nx.value * base_area);
             testCase.verifyEqual(double(reg2.area()), p_nx.value * p_ny.value * base_area);
         end
+
+        function curveAndPointPrimitives(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = TestGdsBackend.newContext();
+
+            pt = Point(ctx, p=[-260, -120], marker_size=6, layer="m1", output=true);
+            ls = LineSegment(ctx, p1=[-220, -100], p2=[-120, -40], width=8, ...
+                layer="m1", output=true);
+            ic = InterpolationCurve(ctx, points=[-110 -20; -80 20; -30 -10; 20 35], ...
+                type="open", width=8, layer="m1", output=true);
+            qb = QuadraticBezier(ctx, p0=[40 -40], p1=[80 70], p2=[130 -20], ...
+                type="open", npoints=80, width=8, layer="m1", output=true);
+            cb = CubicBezier(ctx, p0=[150 -50], p1=[190 80], p2=[250 -70], p3=[290 20], ...
+                type="open", npoints=96, width=8, layer="m1", output=true);
+            ca = CircularArc(ctx, center=[360 0], radius=55, start_angle=30, end_angle=260, ...
+                type="open", npoints=160, width=8, layer="m1", output=true);
+            pc = ParametricCurve(ctx, coord={"40*cos(s)", "40*sin(s)"}, ...
+                parname="s", parmin=0, parmax=2*pi, ...
+                type="closed", npoints=128, layer="m1", output=true);
+
+            outFile = fullfile(tempdir, "test_curves_points.gds");
+            if isfile(outFile)
+                delete(outFile);
+            end
+            ctx.export_gds(outFile);
+            testCase.verifyTrue(isfile(outFile));
+
+            backend = GdsBackend(ctx);
+            nodes = {pt, ls, ic, qb, cb, ca, pc};
+            for i = 1:numel(nodes)
+                reg = backend.region_for(nodes{i});
+                testCase.verifyGreaterThan(double(reg.count()), 0);
+                testCase.verifyGreaterThan(double(reg.area()), 0);
+            end
+        end
+
+        function thickenFeature(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = TestGdsBackend.newContext();
+
+            ls = LineSegment(ctx, p1=[0 0], p2=[200 0], width=1, layer="m1", output=false);
+            th1 = Thicken(ctx, ls, ...
+                offset="symmetric", totalthick=30, ends="circular", convexcorner="fillet", ...
+                layer="m1", output=true);
+
+            ic = InterpolationCurve(ctx, points=[0 0; 60 40; 120 -30; 200 30], ...
+                type="open", width=1, layer="m1", output=false);
+            th2 = Thicken(ctx, ic, ...
+                offset="asymmetric", upthick=22, downthick=8, ...
+                ends="straight", convexcorner="extend", ...
+                layer="m1", output=true);
+
+            r = Rectangle(ctx, center=[320 0], width=120, height=80, layer="m1", output=false);
+            th3 = Thicken(ctx, r, offset="symmetric", totalthick=20, layer="m1", output=true);
+
+            outFile = fullfile(tempdir, "test_thicken.gds");
+            if isfile(outFile)
+                delete(outFile);
+            end
+            ctx.export_gds(outFile);
+            testCase.verifyTrue(isfile(outFile));
+
+            backend = GdsBackend(ctx);
+            reg_ls = backend.region_for(ls);
+            reg_th1 = backend.region_for(th1);
+            reg_th2 = backend.region_for(th2);
+            reg_r = backend.region_for(r);
+            reg_th3 = backend.region_for(th3);
+
+            testCase.verifyGreaterThan(double(reg_th1.area()), double(reg_ls.area()));
+            testCase.verifyGreaterThan(double(reg_th2.area()), 0);
+            testCase.verifyGreaterThan(double(reg_th3.area()), double(reg_r.area()));
+        end
     end
 
     methods (Static, Access=private)

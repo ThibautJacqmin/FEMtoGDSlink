@@ -202,6 +202,61 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             end
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
+
+        function emitCurveAndPointPrimitives(testCase)
+            % Verify COMSOL backend emits point/curve primitives.
+            ctx = GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            p = Point(ctx, p=[-10 -20; 30 40], marker_size=4, layer="m1", output=false);
+            ls = LineSegment(ctx, p1=[-20 0], p2=[20 10], width=6, ...
+                layer="m1", output=false);
+            ic = InterpolationCurve(ctx, points=[0 0; 10 20; 20 0; 30 10], ...
+                type="open", width=6, layer="m1", output=false);
+            qb = QuadraticBezier(ctx, p0=[40 0], p1=[50 30], p2=[70 10], ...
+                npoints=64, width=6, layer="m1", output=false);
+            cb = CubicBezier(ctx, p0=[80 0], p1=[95 35], p2=[120 -20], p3=[140 10], ...
+                npoints=96, width=6, layer="m1", output=false);
+            ca = CircularArc(ctx, center=[180 0], radius=25, ...
+                start_angle=30, end_angle=230, npoints=96, width=6, ...
+                layer="m1", output=false);
+            pc = ParametricCurve(ctx, coord={"20*cos(s)", "20*sin(s)"}, ...
+                parname="s", parmin=0, parmax=2*pi, ...
+                type="closed", npoints=96, layer="m1", output=true);
+
+            ctx.build_comsol();
+
+            nodes = {p, ls, ic, qb, cb, ca, pc};
+            for i = 1:numel(nodes)
+                testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(nodes{i}.id)));
+            end
+            testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
+        end
+
+        function emitThickenFeature(testCase)
+            % Verify COMSOL backend emits Thicken feature.
+            ctx = GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            p_t = Parameter(18, "thk_total");
+            ls = LineSegment(ctx, p1=[0 0], p2=[100 20], width=1, layer="m1", output=false);
+            th = Thicken(ctx, ls, offset="symmetric", totalthick=p_t, ...
+                ends="circular", convexcorner="fillet", keep=true, ...
+                layer="m1", output=true);
+
+            ctx.build_comsol();
+
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(ls.id)));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(th.id)));
+            th_tag = string(ctx.comsol_backend.feature_tags(int32(th.id)));
+            testCase.verifyTrue(startsWith(th_tag, "thk"));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "thk_total"));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
+        end
     end
 
     methods (Static, Access=private)

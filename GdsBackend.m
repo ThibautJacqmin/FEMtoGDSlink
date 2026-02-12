@@ -251,6 +251,71 @@ classdef GdsBackend < handle
                 warning("GDS fillet not supported by this KLayout build; skipping.");
             end
         end
+
+        function region = build_Point(obj, node)
+            pts = obj.session.gds_integer(node.p_value(), "Point coordinates");
+            size_nm = obj.gds_length_scalar(node.marker_size, "Point marker size");
+            size_nm = round(double(size_nm));
+            if size_nm < 1
+                size_nm = 1;
+            end
+
+            region = obj.modeler.pya.Region();
+            for i = 1:size(pts, 1)
+                x = int32(pts(i, 1));
+                y = int32(pts(i, 2));
+                box = obj.modeler.pya.Box(x, y, int32(x + size_nm), int32(y + size_nm));
+                region.insert(box);
+            end
+            region.merge();
+        end
+
+        function region = build_LineSegment(obj, node)
+            pts = obj.session.gds_integer(node.points_value(), "LineSegment points");
+            width = obj.gds_length_scalar(node.width, "LineSegment width");
+            region = obj.curve_region_from_points(pts, "open", width, "LineSegment");
+        end
+
+        function region = build_InterpolationCurve(obj, node)
+            pts = obj.session.gds_integer(node.points_value(), "InterpolationCurve points");
+            width = obj.gds_length_scalar(node.width, "InterpolationCurve width");
+            region = obj.curve_region_from_points(pts, node.type, width, "InterpolationCurve");
+        end
+
+        function region = build_QuadraticBezier(obj, node)
+            pts = obj.session.gds_integer(node.sampled_points(), "QuadraticBezier points");
+            width = obj.gds_length_scalar(node.width, "QuadraticBezier width");
+            region = obj.curve_region_from_points(pts, node.type, width, "QuadraticBezier");
+        end
+
+        function region = build_CubicBezier(obj, node)
+            pts = obj.session.gds_integer(node.sampled_points(), "CubicBezier points");
+            width = obj.gds_length_scalar(node.width, "CubicBezier width");
+            region = obj.curve_region_from_points(pts, node.type, width, "CubicBezier");
+        end
+
+        function region = build_CircularArc(obj, node)
+            pts = obj.session.gds_integer(node.sampled_points(), "CircularArc points");
+            width = obj.gds_length_scalar(node.width, "CircularArc width");
+            region = obj.curve_region_from_points(pts, node.type, width, "CircularArc");
+        end
+
+        function region = build_ParametricCurve(obj, node)
+            pts = obj.session.gds_integer(node.sampled_points(), "ParametricCurve points");
+            width = obj.gds_length_scalar(node.width, "ParametricCurve width");
+            region = obj.curve_region_from_points(pts, node.type, width, "ParametricCurve");
+        end
+
+        function region = build_Thicken(obj, node)
+            [pts, is_curve, context] = obj.curve_points_for_thicken(node.target);
+            if is_curve
+                region = obj.thicken_curve_region(pts, node, context);
+                return;
+            end
+
+            base = obj.region_for(node.target);
+            region = obj.thicken_region_fallback(base, node);
+        end
     end
     methods (Access=private)
         function v = vector_value(~, val)
@@ -304,5 +369,279 @@ classdef GdsBackend < handle
                 error("%s must be a scalar integer >= 8.", char(string(context)));
             end
         end
+
+        function region = curve_region_from_points(obj, pts, type, width, context)
+            % Build region from sampled points based on open/closed/solid mode.
+            if size(pts, 2) ~= 2
+                error("%s points must be an Nx2 array.", char(string(context)));
+            end
+
+            mode = lower(string(type));
+            if mode == "open"
+                region = obj.region_from_polyline(pts, width, context);
+            elseif any(mode == ["closed", "solid"])
+                if size(pts, 1) < 3
+                    error("%s closed/solid mode requires at least 3 points.", ...
+                        char(string(context)));
+                end
+                if any(pts(1, :) ~= pts(end, :))
+                    pts(end+1, :) = pts(1, :);
+                end
+                region = obj.region_from_polygon(pts);
+            else
+                error("%s type must be 'open', 'closed', or 'solid'.", char(string(context)));
+            end
+        end
+
+        function region = region_from_polygon(obj, pts)
+            % Create region from polygon vertices.
+            poly = obj.modeler.pya.Polygon.from_s(Utilities.vertices_to_klayout_string(pts));
+            region = obj.modeler.pya.Region();
+            region.insert(poly);
+            region.merge();
+        end
+
+        function region = region_from_polyline(obj, pts, width, context)
+            % Stroke a polyline with KLayout Path and convert to region polygon.
+            if size(pts, 1) < 2
+                error("%s open mode requires at least 2 points.", char(string(context)));
+            end
+
+            width = round(double(width));
+            if ~(isscalar(width) && isfinite(width) && width >= 1)
+                error("%s width must be a scalar >= 1 nm for open-curve GDS emission.", ...
+                    char(string(context)));
+            end
+
+            py_points = cell(1, size(pts, 1));
+            for i = 1:size(pts, 1)
+                py_points{i} = obj.modeler.pya.Point(int32(pts(i, 1)), int32(pts(i, 2)));
+            end
+            path = obj.modeler.pya.Path(py.list(py_points), int32(width));
+            poly = path.polygon();
+            region = obj.modeler.pya.Region();
+            region.insert(poly);
+            region.merge();
+        end
+
+        function [pts, is_curve, context] = curve_points_for_thicken(obj, target)
+            % Return centerline points when target is an open curve primitive.
+            pts = zeros(0, 2);
+            is_curve = false;
+            context = "Thicken";
+
+            switch class(target)
+                case 'LineSegment'
+                    context = "Thicken(LineSegment)";
+                    pts = obj.session.gds_integer(target.points_value(), context + " points");
+                    is_curve = true;
+                case 'InterpolationCurve'
+                    if lower(string(target.type)) == "open"
+                        context = "Thicken(InterpolationCurve)";
+                        pts = obj.session.gds_integer(target.points_value(), context + " points");
+                        is_curve = true;
+                    end
+                case 'QuadraticBezier'
+                    if lower(string(target.type)) == "open"
+                        context = "Thicken(QuadraticBezier)";
+                        pts = obj.session.gds_integer(target.sampled_points(), context + " points");
+                        is_curve = true;
+                    end
+                case 'CubicBezier'
+                    if lower(string(target.type)) == "open"
+                        context = "Thicken(CubicBezier)";
+                        pts = obj.session.gds_integer(target.sampled_points(), context + " points");
+                        is_curve = true;
+                    end
+                case 'CircularArc'
+                    if lower(string(target.type)) == "open"
+                        context = "Thicken(CircularArc)";
+                        pts = obj.session.gds_integer(target.sampled_points(), context + " points");
+                        is_curve = true;
+                    end
+                case 'ParametricCurve'
+                    if lower(string(target.type)) == "open"
+                        context = "Thicken(ParametricCurve)";
+                        pts = obj.session.gds_integer(target.sampled_points(), context + " points");
+                        is_curve = true;
+                    end
+            end
+        end
+
+        function region = thicken_curve_region(obj, pts, node, context)
+            % Thicken an open centerline curve with path-based stroking.
+            mode = lower(string(node.offset));
+            if mode == "symmetric"
+                total = obj.gds_length_scalar(node.totalthick, context + " total thickness");
+                up = 0.5 * double(total);
+                down = up;
+            else
+                up = double(obj.gds_length_scalar(node.upthick, context + " upper thickness"));
+                down = double(obj.gds_length_scalar(node.downthick, context + " lower thickness"));
+                total = up + down;
+            end
+
+            width = round(double(total));
+            if ~(isscalar(width) && isfinite(width) && width >= 1)
+                error("%s total thickness must be >= 1 nm.", char(context));
+            end
+
+            shift = 0.5 * (up - down);
+            if abs(shift) > 1e-9
+                pts = obj.shift_polyline_by_normal(pts, shift, context);
+            end
+
+            ends = lower(string(node.ends));
+            corner = lower(string(node.convexcorner));
+            if corner == "noconnection" || (ends == "circular" && corner ~= "fillet")
+                region = obj.stroke_polyline_segments(pts, width, ends, context);
+                return;
+            end
+
+            use_round = corner == "fillet";
+            region = obj.path_region_from_points(pts, width, ends, use_round, context);
+        end
+
+        function region = thicken_region_fallback(obj, base, node)
+            % Fallback thickening for non-open-curve targets.
+            mode = lower(string(node.offset));
+            if mode == "symmetric"
+                total = double(obj.gds_length_scalar(node.totalthick, "Thicken total thickness"));
+                grow = round(0.5 * total);
+            else
+                up = double(obj.gds_length_scalar(node.upthick, "Thicken upper thickness"));
+                down = double(obj.gds_length_scalar(node.downthick, "Thicken lower thickness"));
+                grow = round(0.5 * (up + down));
+                if abs(up - down) > 1e-9
+                    warning("GDS Thicken asymmetric offset on non-curve target is approximated as symmetric.");
+                end
+            end
+
+            if grow < 1
+                region = base;
+                return;
+            end
+
+            if py.hasattr(base, "sized")
+                region = base.sized(int32(grow));
+            elseif py.hasattr(base, "size")
+                region = base.dup();
+                region.size(int32(grow));
+            else
+                warning("GDS Thicken fallback unavailable in this KLayout build; passing target through.");
+                region = base;
+            end
+            region.merge();
+        end
+
+        function region = stroke_polyline_segments(obj, pts, width, ends, context)
+            % Stroke each segment independently, then merge the result.
+            if size(pts, 1) < 2
+                error("%s requires at least 2 points.", char(string(context)));
+            end
+
+            region = obj.modeler.pya.Region();
+            for i = 1:(size(pts, 1)-1)
+                if all(pts(i, :) == pts(i+1, :))
+                    continue;
+                end
+                seg = [pts(i, :); pts(i+1, :)];
+                seg_region = obj.path_region_from_points(seg, width, ends, false, context);
+                region = region + seg_region;
+            end
+            region.merge();
+        end
+
+        function region = path_region_from_points(obj, pts, width, ends, use_round, context)
+            % Build region from one polyline using KLayout Path options.
+            if size(pts, 1) < 2
+                error("%s requires at least 2 points.", char(string(context)));
+            end
+
+            width = round(double(width));
+            if ~(isscalar(width) && isfinite(width) && width >= 1)
+                error("%s width must be a scalar >= 1 nm.", char(string(context)));
+            end
+
+            py_points = cell(1, size(pts, 1));
+            for i = 1:size(pts, 1)
+                py_points{i} = obj.modeler.pya.Point(int32(pts(i, 1)), int32(pts(i, 2)));
+            end
+            path = obj.modeler.pya.Path(py.list(py_points), int32(width));
+
+            if ends == "circular"
+                path.round = py.True;
+                ext = int32(round(width / 2));
+                path.bgn_ext = ext;
+                path.end_ext = ext;
+            else
+                if use_round
+                    path.round = py.True;
+                else
+                    path.round = py.False;
+                end
+                path.bgn_ext = int32(0);
+                path.end_ext = int32(0);
+            end
+
+            poly = path.polygon();
+            region = obj.modeler.pya.Region();
+            region.insert(poly);
+            region.merge();
+        end
+
+        function shifted = shift_polyline_by_normal(~, pts, shift, context)
+            % Shift polyline points by signed local normal.
+            if size(pts, 1) < 2
+                error("%s requires at least 2 points to shift.", char(string(context)));
+            end
+
+            p = double(pts);
+            shifted = zeros(size(p));
+            n = size(p, 1);
+            for i = 1:n
+                if i == 1
+                    t = p(2, :) - p(1, :);
+                elseif i == n
+                    t = p(n, :) - p(n-1, :);
+                else
+                    t_prev = p(i, :) - p(i-1, :);
+                    t_next = p(i+1, :) - p(i, :);
+                    t_prev = ThickenNormalizeVector(t_prev);
+                    t_next = ThickenNormalizeVector(t_next);
+                    t = t_prev + t_next;
+                    if norm(t) < 1e-12
+                        t = t_next;
+                    end
+                end
+
+                if norm(t) < 1e-12
+                    t = [1, 0];
+                end
+                t = t ./ norm(t);
+                nrm = [-t(2), t(1)];
+                shifted(i, :) = p(i, :) + shift * nrm;
+            end
+
+            shifted = round(shifted);
+            keep = true(size(shifted, 1), 1);
+            for i = 2:size(shifted, 1)
+                if all(shifted(i, :) == shifted(i-1, :))
+                    keep(i) = false;
+                end
+            end
+            shifted = shifted(keep, :);
+            if size(shifted, 1) < 2
+                error("%s shift collapsed the polyline.", char(string(context)));
+            end
+        end
     end
+end
+
+function v = ThickenNormalizeVector(v)
+% Return normalized 2D vector; leave zero vectors unchanged.
+n = norm(v);
+if n > 0
+    v = v ./ n;
+end
 end

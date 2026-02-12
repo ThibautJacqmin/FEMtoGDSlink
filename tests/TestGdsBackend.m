@@ -3,7 +3,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
     methods (Test)
         function exportRectangle(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
-                "Skipping: KLayout Python module 'lygadgets' not available.");
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = TestGdsBackend.newContext();
 
@@ -24,7 +24,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
 
         function exportBooleanAndTransform(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
-                "Skipping: KLayout Python module 'lygadgets' not available.");
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = TestGdsBackend.newContext();
 
@@ -50,7 +50,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
 
         function exportFilletOnRectangle(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
-                "Skipping: KLayout Python module 'lygadgets' not available.");
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = TestGdsBackend.newContext();
             p_r = Parameter(10, "fillet_r");
@@ -73,7 +73,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
 
         function rectangleCornerAndRotation(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
-                "Skipping: KLayout Python module 'lygadgets' not available.");
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = TestGdsBackend.newContext();
             r = Rectangle(ctx, base="corner", corner=[10 20], ...
@@ -94,7 +94,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
 
         function circleAndEllipsePrimitives(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
-                "Skipping: KLayout Python module 'lygadgets' not available.");
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = TestGdsBackend.newContext();
             c = Circle(ctx, center=[0 0], radius=50, npoints=128, layer="m1", output=false);
@@ -118,7 +118,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
 
         function polygonPrimitive(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
-                "Skipping: KLayout Python module 'lygadgets' not available.");
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = TestGdsBackend.newContext();
             p = Parameter(25, "poly_pitch");
@@ -134,7 +134,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
 
         function array1DAnd2D(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
-                "Skipping: KLayout Python module 'lygadgets' not available.");
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = TestGdsBackend.newContext();
             p_nx = Parameter(4, "arr_nx", unit="");
@@ -179,8 +179,18 @@ classdef TestGdsBackend < matlab.unittest.TestCase
                 catch
                     % Older MATLAB versions may not have pyenv.
                 end
-                py.importlib.import_module('lygadgets');
-                cached = true;
+                try
+                    py.importlib.import_module('pya');
+                    cached = true;
+                catch
+                    try
+                        py.importlib.import_module('klayout.db');
+                        cached = true;
+                    catch
+                        mod = py.importlib.import_module('lygadgets');
+                        cached = logical(py.hasattr(mod, 'pya')) && ~isa(mod.pya, 'py.NoneType');
+                    end
+                end
             catch
                 cached = false;
             end

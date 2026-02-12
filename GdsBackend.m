@@ -252,6 +252,102 @@ classdef GdsBackend < handle
             end
         end
 
+        function region = build_Chamfer(obj, node)
+            base = obj.region_for(node.target);
+            dist = obj.gds_length_scalar(node.dist, "Chamfer distance");
+            dist = round(double(dist));
+            if dist <= 0
+                region = base;
+                return;
+            end
+
+            region = base;
+            if py.hasattr(region, "round_corners")
+                region = region.round_corners(dist, dist, 2);
+            else
+                warning("GDS chamfer not supported by this KLayout build; skipping.");
+            end
+            region.merge();
+        end
+
+        function region = build_Offset(obj, node)
+            base = obj.region_for(node.target);
+            step = double(obj.gds_length_scalar(node.distance, "Offset distance"));
+            if node.reverse
+                step = -step;
+            end
+            step = round(step);
+            if step == 0
+                region = base;
+                return;
+            end
+
+            if py.hasattr(base, "sized")
+                region = base.sized(int32(step));
+            elseif py.hasattr(base, "size")
+                region = base.dup();
+                region.size(int32(step));
+            else
+                warning("GDS offset not supported by this KLayout build; passing target through.");
+                region = base;
+            end
+
+            corner = lower(string(node.convexcorner));
+            if corner == "fillet" && py.hasattr(region, "round_corners")
+                rad = abs(step);
+                if rad > 0
+                    region = region.round_corners(rad, rad, 16);
+                end
+            elseif corner == "noconnection"
+                warning("GDS offset convexcorner='noconnection' is approximated.");
+            end
+            if ~node.trim
+                warning("GDS offset trim='off' is approximated.");
+            end
+
+            region.merge();
+        end
+
+        function region = build_Tangent(obj, node)
+            mode = lower(string(node.type));
+            width = obj.gds_length_scalar(node.width, "Tangent width");
+
+            if mode == "coord"
+                p = obj.gds_length_vector(node.coord, "Tangent coordinate");
+                pts = obj.tangent_points_from_target(node.target, p, node.start, "Tangent");
+            elseif mode == "point"
+                if isempty(node.point_target)
+                    error("Tangent type='point' requires point_target for GDS build.");
+                end
+                idx = round(double(obj.scalar_value(node.point_index)));
+                p = obj.point_coordinate_from_feature(node.point_target, idx, "Tangent point_target");
+                pts = obj.tangent_points_from_target(node.target, p, node.start, "Tangent");
+            elseif mode == "edge"
+                if isempty(node.edge2)
+                    error("Tangent type='edge' requires edge2 for GDS build.");
+                end
+                pts = obj.tangent_points_between_targets(node.target, node.edge2, node.start, ...
+                    "Tangent(edge)");
+            else
+                error("Unsupported Tangent type '%s'.", char(mode));
+            end
+
+            region = obj.region_from_polyline(pts, width, "Tangent");
+        end
+
+        function region = build_Extract(obj, node)
+            if isempty(node.members)
+                region = obj.modeler.pya.Region();
+                return;
+            end
+
+            region = obj.modeler.pya.Region();
+            for i = 1:numel(node.members)
+                region = region + obj.region_for(node.members{i});
+            end
+            region.merge();
+        end
+
         function region = build_Point(obj, node)
             pts = obj.session.gds_integer(node.p_value(), "Point coordinates");
             size_nm = obj.gds_length_scalar(node.marker_size, "Point marker size");
@@ -633,6 +729,162 @@ classdef GdsBackend < handle
             shifted = shifted(keep, :);
             if size(shifted, 1) < 2
                 error("%s shift collapsed the polyline.", char(string(context)));
+            end
+        end
+
+        function p = point_coordinate_from_feature(obj, feature, index, context)
+            % Extract one coordinate from a Point feature for Tangent mode='point'.
+            if ~isa(feature, 'Point')
+                error("%s currently supports only Point features.", char(string(context)));
+            end
+            pts = obj.session.gds_integer(feature.p_value(), context + " coordinates");
+            if ~(isscalar(index) && isfinite(index) && index >= 1 && index <= size(pts, 1))
+                error("%s index must be between 1 and %d.", char(string(context)), size(pts, 1));
+            end
+            p = pts(round(index), :);
+        end
+
+        function pts = tangent_points_from_target(obj, target, external_point, start_guess, context)
+            % Build one tangent segment from target to an external point.
+            [center, radius, is_arc, a0, a1] = obj.circle_like_geometry(target, context);
+            [t1, t2] = obj.circle_tangent_candidates(center, radius, external_point, context);
+
+            candidates = [t1; t2];
+            valid = true(2, 1);
+            if is_arc
+                valid(1) = obj.angle_on_arc(obj.angle_of_point(center, t1), a0, a1);
+                valid(2) = obj.angle_on_arc(obj.angle_of_point(center, t2), a0, a1);
+            end
+
+            if ~any(valid)
+                error("%s found no tangent point on the selected arc.", char(string(context)));
+            end
+            pick = obj.pick_candidate_index(valid, start_guess);
+            tangency = candidates(pick, :);
+            pts = [external_point; tangency];
+        end
+
+        function pts = tangent_points_between_targets(obj, target1, target2, start_guess, context)
+            % Build one common tangent segment between two circle-like targets.
+            [c1, r1, is_arc1, a01, a11] = obj.circle_like_geometry(target1, context + " first");
+            [c2, r2, is_arc2, a02, a12] = obj.circle_like_geometry(target2, context + " second");
+
+            c = c2 - c1;
+            z = dot(c, c);
+            r = r1 - r2;
+            d = z - r * r;
+            if ~(z > 0 && d > 0)
+                error("%s has no valid common tangent for selected targets.", char(string(context)));
+            end
+
+            s = sqrt(d);
+            n1 = (c * r + [-c(2), c(1)] * s) / z;
+            n2 = (c * r - [-c(2), c(1)] * s) / z;
+
+            p11 = c1 + r1 * n1;
+            p21 = c2 + r2 * n1;
+            p12 = c1 + r1 * n2;
+            p22 = c2 + r2 * n2;
+
+            valid = true(2, 1);
+            if is_arc1
+                valid(1) = valid(1) && obj.angle_on_arc(obj.angle_of_point(c1, p11), a01, a11);
+                valid(2) = valid(2) && obj.angle_on_arc(obj.angle_of_point(c1, p12), a01, a11);
+            end
+            if is_arc2
+                valid(1) = valid(1) && obj.angle_on_arc(obj.angle_of_point(c2, p21), a02, a12);
+                valid(2) = valid(2) && obj.angle_on_arc(obj.angle_of_point(c2, p22), a02, a12);
+            end
+            if ~any(valid)
+                error("%s found no valid tangent touching both arcs.", char(string(context)));
+            end
+
+            pick = obj.pick_candidate_index(valid, start_guess);
+            if pick == 1
+                pts = [p11; p21];
+            else
+                pts = [p12; p22];
+            end
+        end
+
+        function [center, radius, is_arc, a0, a1] = circle_like_geometry(obj, target, context)
+            % Extract center/radius for Circle or CircularArc targets.
+            if isa(target, 'Circle')
+                pos = obj.gds_length_vector(target.position, context + " circle position");
+                radius = double(obj.gds_length_scalar(target.radius, context + " circle radius"));
+                base = lower(string(target.base));
+                if base == "center"
+                    center = pos;
+                else
+                    center = pos + [radius, radius];
+                end
+                is_arc = false;
+                a0 = 0;
+                a1 = 360;
+                return;
+            end
+
+            if isa(target, 'CircularArc')
+                center = obj.gds_length_vector(target.center, context + " arc center");
+                radius = double(obj.gds_length_scalar(target.radius, context + " arc radius"));
+                a0 = double(obj.scalar_value(target.start_angle));
+                a1 = double(obj.scalar_value(target.end_angle));
+                is_arc = true;
+                return;
+            end
+
+            error("%s currently supports Circle or CircularArc targets.", char(string(context)));
+        end
+
+        function [t1, t2] = circle_tangent_candidates(~, center, radius, point, context)
+            % Compute two tangency points from external point to a circle.
+            v = point - center;
+            d2 = dot(v, v);
+            d = sqrt(d2);
+            if d <= radius
+                error("%s coordinate must be outside the target circle/arc.", char(string(context)));
+            end
+            coef1 = (radius * radius) / d2;
+            coef2 = radius * sqrt(d2 - radius * radius) / d2;
+            perp = [-v(2), v(1)];
+            t1 = center + coef1 * v + coef2 * perp;
+            t2 = center + coef1 * v - coef2 * perp;
+        end
+
+        function idx = pick_candidate_index(obj, valid, start_guess)
+            % Pick one of two tangent candidates from start_guess in [0,1].
+            guess = obj.scalar_value(start_guess);
+            guess = double(guess);
+            if ~(isscalar(guess) && isfinite(guess))
+                guess = 0.5;
+            end
+            pref = 1;
+            if guess > 0.5
+                pref = 2;
+            end
+            if valid(pref)
+                idx = pref;
+            elseif valid(3 - pref)
+                idx = 3 - pref;
+            else
+                error("No valid tangent candidate available.");
+            end
+        end
+
+        function ang = angle_of_point(~, center, p)
+            % Return point angle around center in degrees in [0,360).
+            ang = atan2d(p(2) - center(2), p(1) - center(1));
+            ang = mod(ang, 360);
+        end
+
+        function tf = angle_on_arc(~, ang, a0, a1)
+            % Return true if angle is on directed sweep a0->a1.
+            delta = a1 - a0;
+            tol = 1e-8;
+            if delta >= 0
+                tf = mod(ang - a0, 360) <= (delta + tol);
+            else
+                tf = mod(a0 - ang, 360) <= (-delta + tol);
             end
         end
     end

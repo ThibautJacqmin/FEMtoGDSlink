@@ -257,6 +257,49 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "thk_total"));
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
+
+        function emitChamferOffsetTangentExtract(testCase)
+            % Verify COMSOL backend emits Chamfer/Offset/Tangent/Extract.
+            ctx = GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            p_dist = Parameter(4, "cha_dist");
+            p_off = Parameter(6, "off_dist");
+
+            r = Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1", output=false);
+            cha = Chamfer(ctx, r, dist=p_dist, points=[1 2 3 4], layer="m1", output=false);
+            off = Offset(ctx, r, distance=p_off, convexcorner="fillet", ...
+                layer="m1", output=false);
+
+            c = Circle(ctx, center=[140 0], radius=20, layer="m1", output=false);
+            tan = Tangent(ctx, c, type="coord", coord=[180 10], edge_index=1, ...
+                layer="m1", output=false);
+
+            ext = Extract(ctx, {cha, off, tan}, inputhandling="keep", ...
+                layer="m1", output=true);
+
+            ctx.build_comsol();
+
+            nodes = {cha, off, tan, ext};
+            for i = 1:numel(nodes)
+                testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(nodes{i}.id)));
+            end
+            cha_tag = string(ctx.comsol_backend.feature_tags(int32(cha.id)));
+            off_tag = string(ctx.comsol_backend.feature_tags(int32(off.id)));
+            tan_tag = string(ctx.comsol_backend.feature_tags(int32(tan.id)));
+            ext_tag = string(ctx.comsol_backend.feature_tags(int32(ext.id)));
+            testCase.verifyTrue(startsWith(cha_tag, "cha"));
+            testCase.verifyTrue(startsWith(off_tag, "off"));
+            testCase.verifyTrue(startsWith(tan_tag, "tan"));
+            testCase.verifyTrue(startsWith(ext_tag, "ext"));
+
+            for nm = ["cha_dist", "off_dist"]
+                testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, char(nm)));
+            end
+            testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
+        end
     end
 
     methods (Static, Access=private)

@@ -234,6 +234,48 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyGreaterThan(double(reg_th2.area()), 0);
             testCase.verifyGreaterThan(double(reg_th3.area()), double(reg_r.area()));
         end
+
+        function chamferOffsetTangentExtract(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = TestGdsBackend.newContext();
+
+            base = Rectangle(ctx, center=[0 0], width=120, height=80, layer="m1", output=false);
+            cha = Chamfer(ctx, base, dist=12, points=[1 2 3 4], layer="m1", output=true);
+            off = Offset(ctx, base, distance=10, reverse=false, convexcorner="fillet", ...
+                trim=true, layer="m1", output=true);
+
+            c = Circle(ctx, center=[220 0], radius=45, npoints=128, layer="m1", output=false);
+            tan = Tangent(ctx, c, type="coord", coord=[320 20], start=0.75, ...
+                width=8, layer="m1", output=true);
+
+            e1 = Rectangle(ctx, center=[-220 20], width=60, height=40, layer="m1", output=false);
+            e2 = Move(ctx, e1, delta=[90 0], layer="m1", output=false);
+            ext = Extract(ctx, {e1, e2}, inputhandling="keep", layer="m1", output=true);
+
+            outFile = fullfile(tempdir, "test_chamfer_offset_tangent_extract.gds");
+            if isfile(outFile)
+                delete(outFile);
+            end
+            ctx.export_gds(outFile);
+            testCase.verifyTrue(isfile(outFile));
+
+            backend = GdsBackend(ctx);
+            reg_base = backend.region_for(base);
+            reg_cha = backend.region_for(cha);
+            reg_off = backend.region_for(off);
+            reg_tan = backend.region_for(tan);
+            reg_e1 = backend.region_for(e1);
+            reg_e2 = backend.region_for(e2);
+            reg_ext = backend.region_for(ext);
+
+            testCase.verifyGreaterThan(double(reg_cha.area()), 0);
+            testCase.verifyLessThanOrEqual(double(reg_cha.area()), double(reg_base.area()));
+            testCase.verifyGreaterThan(double(reg_off.area()), double(reg_base.area()));
+            testCase.verifyGreaterThan(double(reg_tan.area()), 0);
+            testCase.verifyEqual(double(reg_ext.area()), double(reg_e1.area() + reg_e2.area()));
+        end
     end
 
     methods (Static, Access=private)

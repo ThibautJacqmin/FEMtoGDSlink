@@ -444,6 +444,157 @@ classdef ComsolBackend < handle
             obj.feature_tags(int32(node.id)) = char(tag);
         end
 
+        function emit_Chamfer(obj, node)
+            % Emit a COMSOL Chamfer operation with explicit point selection.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            base_tag = obj.tag_for(node.target);
+
+            tag = obj.session.next_comsol_tag("cha");
+            feature = wp.geom.create(tag, 'Chamfer');
+            try
+                feature.selection('input').set(base_tag);
+            catch
+            end
+            obj.set_scalar(feature, 'dist', obj.length_component(node.dist, "Chamfer distance"));
+
+            points = node.points;
+            if isempty(points) && isa(node.target, 'Rectangle')
+                points = 1:4;
+            end
+            if ~isempty(points)
+                if isa(points, 'Parameter')
+                    points = points.value;
+                end
+                if isstring(points) || ischar(points)
+                    mode = lower(string(points));
+                    if mode == "all"
+                        obj.select_all_fillet_points(feature, base_tag, node);
+                    else
+                        error("Unsupported chamfer points mode '%s'. Use numeric indices or 'all'.", ...
+                            char(mode));
+                    end
+                else
+                    points = double(points);
+                    points = points(:).';
+                    points = round(points);
+                    feature.selection('point').set(base_tag, points);
+                end
+            else
+                obj.select_all_fillet_points(feature, base_tag, node);
+            end
+
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_Offset(obj, node)
+            % Emit a COMSOL Offset operation.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            input_tag = obj.tag_for(node.target);
+
+            tag = obj.session.next_comsol_tag("off");
+            try
+                feature = wp.geom.create(tag, 'Offset');
+            catch first_err
+                try
+                    feature = wp.geom.create(tag, 'Offset2D');
+                catch second_err
+                    error("Failed to create COMSOL Offset feature. Offset error: %s. Offset2D error: %s.", ...
+                        first_err.message, second_err.message);
+                end
+            end
+
+            obj.set_input_selection(feature, input_tag);
+            obj.set_scalar(feature, 'distance', obj.length_component(node.distance, "Offset distance"));
+            try
+                feature.set('reverse', obj.bool_token(node.reverse));
+            catch
+            end
+            try
+                feature.set('convexcorner', char(node.convexcorner));
+            catch
+            end
+            try
+                feature.set('trim', obj.bool_token(node.trim));
+            catch
+            end
+            try
+                feature.set('keep', obj.bool_token(node.keep));
+            catch
+            end
+
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_Tangent(obj, node)
+            % Emit a COMSOL Tangent feature.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            edge_tag = obj.tag_for(node.target);
+
+            tag = obj.session.next_comsol_tag("tan");
+            feature = wp.geom.create(tag, 'Tangent');
+            type = lower(string(node.type));
+            feature.set('type', char(type));
+            obj.set_scalar(feature, 'start', obj.raw_component(node.start));
+
+            edge_index = obj.entity_index(node.edge_index, "Tangent edge index");
+            feature.selection('edge').set(edge_tag, edge_index);
+
+            if type == "edge"
+                if isempty(node.edge2)
+                    error("Tangent type='edge' requires edge2.");
+                end
+                edge2_tag = obj.tag_for(node.edge2);
+                edge2_index = obj.entity_index(node.edge2_index, "Tangent edge2 index");
+                feature.selection('edge2').set(edge2_tag, edge2_index);
+                obj.set_scalar(feature, 'start2', obj.raw_component(node.start2));
+            elseif type == "point"
+                if isempty(node.point_target)
+                    error("Tangent type='point' requires point_target.");
+                end
+                point_tag = obj.tag_for(node.point_target);
+                point_index = obj.entity_index(node.point_index, "Tangent point index");
+                feature.selection('point').set(point_tag, point_index);
+            else
+                coord = obj.length_vector(node.coord, "Tangent coordinate");
+                obj.set_pair(feature, 'coord', coord(1), coord(2));
+            end
+
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
+        function emit_Extract(obj, node)
+            % Emit a COMSOL Extract operation.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            tags = obj.collect_tags(node.members);
+
+            tag = obj.session.next_comsol_tag("ext");
+            try
+                feature = wp.geom.create(tag, 'Extract');
+            catch first_err
+                try
+                    feature = wp.geom.create(tag, 'SplitExtract');
+                catch second_err
+                    error("Failed to create COMSOL Extract feature. Extract error: %s. SplitExtract error: %s.", ...
+                        first_err.message, second_err.message);
+                end
+            end
+            obj.set_input_selection(feature, tags);
+            try
+                feature.set('inputhandling', char(node.inputhandling));
+            catch
+            end
+
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = char(tag);
+        end
+
         function emit_Thicken(obj, node)
             % Emit a COMSOL Thicken operation (2D) from a target curve/object.
             layer = node.layer;
@@ -781,6 +932,18 @@ classdef ComsolBackend < handle
                 return;
             end
             out = raw;
+        end
+
+        function idx = entity_index(obj, val, context)
+            % Resolve and validate integer entity index for COMSOL selections.
+            raw = obj.raw_component(val);
+            if ~isnumeric(raw)
+                error("%s must be numeric.", char(string(context)));
+            end
+            idx = round(double(raw));
+            if ~(isscalar(idx) && isfinite(idx) && idx >= 1)
+                error("%s must be a scalar integer >= 1.", char(string(context)));
+            end
         end
 
         function vec = vector_value(~, val)

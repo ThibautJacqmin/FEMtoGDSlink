@@ -28,7 +28,7 @@ classdef LayerSpec < handle
             if strlength(obj.comsol_selection) == 0
                 obj.comsol_selection = obj.name;
             end
-            obj.comsol_selection_state = LayerSpec.normalize_selection_state(args.comsol_selection_state);
+            obj.comsol_selection_state = femtogds.core.LayerSpec.normalize_selection_state(args.comsol_selection_state);
             obj.comsol_enable_selection = args.comsol_enable_selection;
         end
     end

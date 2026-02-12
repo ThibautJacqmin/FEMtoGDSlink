@@ -7,7 +7,7 @@
     end
     methods
         function obj = Rotate(varargin)
-            [ctx, target, args] = Rotate.parse_inputs(varargin{:});
+            [ctx, target, args] = femtogds.ops.Rotate.parse_inputs(varargin{:});
             if isempty(args.layer)
                 layer = target.layer;
             else
@@ -44,7 +44,7 @@
     methods (Static, Access=private)
         function [ctx, target, args] = parse_inputs(varargin)
             [ctx, target, nv] = femtogds.core.GeomFeature.parse_target_context("Rotate", varargin{:});
-            args = Rotate.parse_options(nv{:});
+            args = femtogds.ops.Rotate.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

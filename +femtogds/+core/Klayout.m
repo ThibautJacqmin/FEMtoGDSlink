@@ -5,7 +5,7 @@ classdef Klayout < handle
     methods
         function obj = Klayout
             % Load KLayout Python bindings, preferring direct modules.
-            obj.pya = Klayout.import_pya();
+            obj.pya = femtogds.core.Klayout.import_pya();
         end
     end
     methods (Static, Access=private)

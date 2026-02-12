@@ -28,7 +28,7 @@
                 return;
             end
 
-            [ctx, args] = Polygon.parse_inputs(varargin{:});
+            [ctx, args] = femtogds.primitives.Polygon.parse_inputs(varargin{:});
             if isempty(ctx)
                 % No active session: behave as a lightweight data container.
                 obj.inputs = {};
@@ -97,7 +97,7 @@
                 ctx = femtogds.core.GeometrySession.get_current();
                 nv = varargin;
             end
-            args = Polygon.parse_options(nv{:});
+            args = femtogds.primitives.Polygon.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

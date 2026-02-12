@@ -10,7 +10,7 @@
     methods
         function obj = Array2D(varargin)
             % Build a 2D array from a target feature and two lattice vectors.
-            [ctx, target, args] = Array2D.parse_inputs(varargin{:});
+            [ctx, target, args] = femtogds.ops.Array2D.parse_inputs(varargin{:});
             if isempty(args.layer)
                 layer = target.layer;
             else
@@ -65,7 +65,7 @@
     methods (Static, Access=private)
         function [ctx, target, args] = parse_inputs(varargin)
             [ctx, target, nv] = femtogds.core.GeomFeature.parse_target_context("Array2D", varargin{:});
-            args = Array2D.parse_options(nv{:});
+            args = femtogds.ops.Array2D.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

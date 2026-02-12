@@ -64,7 +64,7 @@
         end
 
         function set.base(obj, val)
-            new_base = Ellipse.normalize_base(val);
+            new_base = femtogds.primitives.Ellipse.normalize_base(val);
             old_base = obj.get_param("base", new_base);
             if old_base == new_base
                 obj.set_param("base", new_base);

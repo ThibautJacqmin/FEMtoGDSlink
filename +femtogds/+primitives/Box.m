@@ -119,9 +119,9 @@
             fillet_points(end+1, :) = p0;
             fillet_points(end+1, :) = p1;
             if obj.comsol_flag
-                fillet_polygon = Polygon(vertices=femtogds.types.Vertices(fillet_points), comsol_modeler=obj.comsol_modeler);
+                fillet_polygon = femtogds.primitives.Polygon(vertices=femtogds.types.Vertices(fillet_points), comsol_modeler=obj.comsol_modeler);
             else
-                fillet_polygon = Polygon(vertices=femtogds.types.Vertices(fillet_points));
+                fillet_polygon = femtogds.primitives.Polygon(vertices=femtogds.types.Vertices(fillet_points));
             end
             fillet_polygons{end+1} = fillet_polygon;
 
@@ -140,7 +140,7 @@
         % Copy function
         function y = copy(obj)      
             % add a copy function for vertices
-            y = Box(vertices=femtogds.types.Vertices(obj.vertices.array, obj.vertices.prefactor), comsol_modeler=obj.comsol_modeler);
+            y = femtogds.primitives.Box(vertices=femtogds.types.Vertices(obj.vertices.array, obj.vertices.prefactor), comsol_modeler=obj.comsol_modeler);
         end
     end
     methods

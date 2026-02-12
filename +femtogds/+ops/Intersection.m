@@ -5,7 +5,7 @@
     end
     methods
         function obj = Intersection(varargin)
-            [ctx, members, args] = Intersection.parse_inputs(varargin{:});
+            [ctx, members, args] = femtogds.ops.Intersection.parse_inputs(varargin{:});
             if isempty(args.layer) && ~isempty(members)
                 layer = members{1}.layer;
             else
@@ -26,7 +26,7 @@
     methods (Static, Access=private)
         function [ctx, members, args] = parse_inputs(varargin)
             [ctx, members, nv] = femtogds.core.GeomFeature.parse_members_context("Intersection", varargin{:});
-            args = Intersection.parse_options(nv{:});
+            args = femtogds.ops.Intersection.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

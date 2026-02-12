@@ -6,7 +6,7 @@
     end
     methods
         function obj = Extract(varargin)
-            [ctx, members, args] = Extract.parse_inputs(varargin{:});
+            [ctx, members, args] = femtogds.ops.Extract.parse_inputs(varargin{:});
             if isempty(args.layer) && ~isempty(members)
                 layer = members{1}.layer;
             else
@@ -26,7 +26,7 @@
         end
 
         function set.inputhandling(obj, val)
-            h = Extract.normalize_inputhandling(val);
+            h = femtogds.ops.Extract.normalize_inputhandling(val);
             obj.set_param("inputhandling", h);
         end
 
@@ -37,7 +37,7 @@
     methods (Static, Access=private)
         function [ctx, members, args] = parse_inputs(varargin)
             [ctx, members, nv] = femtogds.core.GeomFeature.parse_members_context("Extract", varargin{:});
-            args = Extract.parse_options(nv{:});
+            args = femtogds.ops.Extract.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

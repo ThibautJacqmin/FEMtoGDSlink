@@ -88,7 +88,7 @@
         end
 
         function set.type(obj, val)
-            t = CircularArc.normalize_type(val);
+            t = femtogds.primitives.CircularArc.normalize_type(val);
             obj.set_param("type", t);
         end
 

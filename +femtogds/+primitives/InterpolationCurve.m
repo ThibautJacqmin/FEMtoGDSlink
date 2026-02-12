@@ -40,7 +40,7 @@
         end
 
         function set.type(obj, val)
-            t = InterpolationCurve.normalize_type(val);
+            t = femtogds.primitives.InterpolationCurve.normalize_type(val);
             obj.set_param("type", t);
         end
 

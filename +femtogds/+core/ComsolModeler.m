@@ -15,7 +15,7 @@
             % Create a fresh COMSOL model with one component and workplane.
             import com.comsol.model.*
             import com.comsol.model.util.*
-            obj.model_tag = ComsolModeler.next_model_tag();
+            obj.model_tag = femtogds.core.ComsolModeler.next_model_tag();
             % Create new model
             obj.model = ModelUtil.create(char(obj.model_tag));
             % Activate progress bar
@@ -90,7 +90,7 @@
         function add_material(obj, prop)
             % Create and assign a basic isotropic material definition.
             arguments
-                obj ComsolModeler
+                obj femtogds.core.ComsolModeler
                 prop.poisson_ratio double
                 prop.youngs_modulus double
                 prop.density double
@@ -117,7 +117,7 @@
         function add_mesh(obj, meshsize)
             % Create a default 2D free-triangular mesh configuration.
             arguments
-                obj ComsolModeler
+                obj femtogds.core.ComsolModeler
                 meshsize double=4
             end
             % meshsize normal = 5, extremely fine = 1, extremely coarse = 9
@@ -129,7 +129,7 @@
         function add_physics(obj, args)
             % Add shell physics with thickness and initial stress settings.
             arguments
-                obj ComsolModeler
+                obj femtogds.core.ComsolModeler
                 args.thickness double
                 args.stress double
                 args.fixed_boundaries double=[]
@@ -171,7 +171,7 @@
         function save_to_m_file(obj, filename)
             % Export current model to a COMSOL-generated MATLAB script.
             arguments
-                obj ComsolModeler
+                obj femtogds.core.ComsolModeler
                 filename {mustBeTextScalar}='untitled.m'
             end
             obj.model.save(filename, 'm');
@@ -225,26 +225,25 @@
             arguments
                 args.reset logical = true
             end
-            obj = ComsolModeler.shared_store();
+            obj = femtogds.core.ComsolModeler.shared_store();
             if isempty(obj) || ~isvalid(obj)
-                obj = ComsolModeler();
+                obj = femtogds.core.ComsolModeler();
             elseif args.reset
                 obj.reset_workspace();
             end
-            ComsolModeler.shared_store(obj);
+            femtogds.core.ComsolModeler.shared_store(obj);
         end
 
         function clear_shared()
             % Dispose and clear the process-wide shared ComsolModeler.
-            obj = ComsolModeler.shared_store();
+            obj = femtogds.core.ComsolModeler.shared_store();
             if ~isempty(obj) && isvalid(obj)
                 try
-                    import com.comsol.model.util.*
-                    ModelUtil.remove(char(obj.model_tag));
+                    com.comsol.model.util.ModelUtil.remove(char(obj.model_tag));
                 catch
                 end
             end
-            ComsolModeler.shared_store([]);
+            femtogds.core.ComsolModeler.shared_store([]);
         end
 
         function removed = clear_generated_models(args)
@@ -255,8 +254,7 @@
             removed = 0;
             removed_tags = strings(0, 1);
             try
-                import com.comsol.model.util.*
-                tags = string(ModelUtil.tags());
+                tags = string(com.comsol.model.util.ModelUtil.tags());
             catch
                 return;
             end
@@ -265,7 +263,7 @@
                 t = tags(i);
                 if startsWith(t, string(args.prefix))
                     try
-                        ModelUtil.remove(char(t));
+                        com.comsol.model.util.ModelUtil.remove(char(t));
                         removed = removed + 1;
                         removed_tags(end+1, 1) = t; %#ok<AGROW>
                     catch
@@ -273,17 +271,17 @@
                 end
             end
 
-            obj = ComsolModeler.shared_store();
+            obj = femtogds.core.ComsolModeler.shared_store();
             if ~isempty(obj) && isvalid(obj)
                 if any(string(obj.model_tag) == removed_tags)
-                    ComsolModeler.shared_store([]);
+                    femtogds.core.ComsolModeler.shared_store([]);
                 end
             end
         end
 
         function tag = next_model_tag()
             % Generate a unique COMSOL model tag for new sessions.
-            stamp = string(datestr(now, "yyyymmdd_HHMMSSFFF"));
+            stamp = string(datetime("now", Format="yyyyMMdd_HHmmssSSS"));
             suffix = string(randi([0, 9999]));
             tag = "Model_" + stamp + "_" + suffix;
         end

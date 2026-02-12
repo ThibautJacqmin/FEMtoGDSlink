@@ -40,7 +40,7 @@
         end
 
         function set.p0(obj, val)
-            obj.set_param("p0", CubicBezier.coerce_single_vertex(val, "p0"));
+            obj.set_param("p0", femtogds.primitives.CubicBezier.coerce_single_vertex(val, "p0"));
         end
 
         function val = get.p0(obj)
@@ -48,7 +48,7 @@
         end
 
         function set.p1(obj, val)
-            obj.set_param("p1", CubicBezier.coerce_single_vertex(val, "p1"));
+            obj.set_param("p1", femtogds.primitives.CubicBezier.coerce_single_vertex(val, "p1"));
         end
 
         function val = get.p1(obj)
@@ -56,7 +56,7 @@
         end
 
         function set.p2(obj, val)
-            obj.set_param("p2", CubicBezier.coerce_single_vertex(val, "p2"));
+            obj.set_param("p2", femtogds.primitives.CubicBezier.coerce_single_vertex(val, "p2"));
         end
 
         function val = get.p2(obj)
@@ -64,7 +64,7 @@
         end
 
         function set.p3(obj, val)
-            obj.set_param("p3", CubicBezier.coerce_single_vertex(val, "p3"));
+            obj.set_param("p3", femtogds.primitives.CubicBezier.coerce_single_vertex(val, "p3"));
         end
 
         function val = get.p3(obj)
@@ -72,7 +72,7 @@
         end
 
         function set.type(obj, val)
-            t = CubicBezier.normalize_type(val);
+            t = femtogds.primitives.CubicBezier.normalize_type(val);
             obj.set_param("type", t);
         end
 

@@ -108,7 +108,7 @@
         end
 
         function set.type(obj, val)
-            t = ParametricCurve.normalize_type(val);
+            t = femtogds.primitives.ParametricCurve.normalize_type(val);
             obj.set_param("type", t);
         end
 

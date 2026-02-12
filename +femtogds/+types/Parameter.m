@@ -86,7 +86,7 @@
     methods (Access=private)
         function y = apply_operation(obj, rhs, operation)
             % Execute binary arithmetic and propagate dependency records.
-            [rhs_value, rhs_expr, rhs_unit, rhs_records] = Parameter.coerce_operand(rhs);
+            [rhs_value, rhs_expr, rhs_unit, rhs_records] = femtogds.types.Parameter.coerce_operand(rhs);
             lhs_expr = obj.expression_token();
 
             switch operation
@@ -103,15 +103,15 @@
             end
 
             y_expr = "(" + lhs_expr + ")" + operation + "(" + rhs_expr + ")";
-            y_unit = Parameter.combine_units(obj.unit, rhs_unit, operation);
-            y = Parameter(y_value, "", unit=y_unit, expr=y_expr);
-            y.dependency_records = Parameter.merge_dependency_records(obj.dependency_records, rhs_records);
+            y_unit = femtogds.types.Parameter.combine_units(obj.unit, rhs_unit, operation);
+            y = femtogds.types.Parameter(y_value, "", unit=y_unit, expr=y_expr);
+            y.dependency_records = femtogds.types.Parameter.merge_dependency_records(obj.dependency_records, rhs_records);
         end
     end
     methods (Static, Access=private)
         function [value, expr, unit, records] = coerce_operand(rhs)
             % Normalize RHS operand to value/expression/unit/dependencies.
-            if isa(rhs, "Parameter")
+            if isa(rhs, "femtogds.types.Parameter")
                 value = rhs.value;
                 expr = rhs.expression_token();
                 unit = rhs.unit;

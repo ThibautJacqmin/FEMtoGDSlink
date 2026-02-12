@@ -7,7 +7,7 @@
     end
     methods
         function obj = Mirror(varargin)
-            [ctx, target, args] = Mirror.parse_inputs(varargin{:});
+            [ctx, target, args] = femtogds.ops.Mirror.parse_inputs(varargin{:});
             if isempty(args.layer)
                 layer = target.layer;
             else
@@ -44,7 +44,7 @@
     methods (Static, Access=private)
         function [ctx, target, args] = parse_inputs(varargin)
             [ctx, target, nv] = femtogds.core.GeomFeature.parse_target_context("Mirror", varargin{:});
-            args = Mirror.parse_options(nv{:});
+            args = femtogds.ops.Mirror.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

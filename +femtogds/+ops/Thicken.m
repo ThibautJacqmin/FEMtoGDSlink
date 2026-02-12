@@ -13,7 +13,7 @@
     end
     methods
         function obj = Thicken(varargin)
-            [ctx, target, args] = Thicken.parse_inputs(varargin{:});
+            [ctx, target, args] = femtogds.ops.Thicken.parse_inputs(varargin{:});
             if isempty(args.layer)
                 layer = target.layer;
             else
@@ -38,7 +38,7 @@
         end
 
         function set.offset(obj, val)
-            obj.set_param("offset", Thicken.normalize_offset(val));
+            obj.set_param("offset", femtogds.ops.Thicken.normalize_offset(val));
         end
 
         function val = get.offset(obj)
@@ -82,7 +82,7 @@
         end
 
         function set.ends(obj, val)
-            obj.set_param("ends", Thicken.normalize_ends(val));
+            obj.set_param("ends", femtogds.ops.Thicken.normalize_ends(val));
         end
 
         function val = get.ends(obj)
@@ -90,7 +90,7 @@
         end
 
         function set.convexcorner(obj, val)
-            obj.set_param("convexcorner", Thicken.normalize_convexcorner(val));
+            obj.set_param("convexcorner", femtogds.ops.Thicken.normalize_convexcorner(val));
         end
 
         function val = get.convexcorner(obj)
@@ -116,7 +116,7 @@
     methods (Static, Access=private)
         function [ctx, target, args] = parse_inputs(varargin)
             [ctx, target, nv] = femtogds.core.GeomFeature.parse_target_context("Thicken", varargin{:});
-            args = Thicken.parse_options(nv{:});
+            args = femtogds.ops.Thicken.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

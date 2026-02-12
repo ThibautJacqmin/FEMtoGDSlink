@@ -58,14 +58,15 @@
             obj.gds_backend = [];
             obj.node_counter = int32(0);
             obj.emit_on_create = args.emit_on_create;
-            obj.snap_mode = GeometrySession.validate_snap_mode(args.snap_mode);
-            obj.snap_grid_nm = GeometrySession.validate_snap_grid(args.snap_grid_nm);
+            obj.snap_mode = femtogds.core.GeometrySession.validate_snap_mode(args.snap_mode);
+            obj.snap_grid_nm = femtogds.core.GeometrySession.validate_snap_grid(args.snap_grid_nm);
             obj.warn_on_snap = args.warn_on_snap;
             obj.snap_warned = dictionary(string.empty(0,1), false(0,1));
-            obj.snap_stats = dictionary(string.empty(0,1), struct('count', {}, 'max_delta_nm', {}, 'grid_nm', {}));
+            obj.snap_stats = dictionary(string.empty(0,1), ...
+                struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.snap_grid_nm));
 
             if args.set_as_current
-                GeometrySession.set_current(obj);
+                femtogds.core.GeometrySession.set_current(obj);
             end
 
             % Default layer mapping (layer 1 on workplane wp1).
@@ -183,7 +184,7 @@
         function export_gds(obj, filename)
             % Emit graph to GDS backend and write layout to disk.
             arguments
-                obj GeometrySession
+                obj femtogds.core.GeometrySession
                 filename {mustBeTextScalar}
             end
             if ~obj.has_gds()
@@ -199,7 +200,7 @@
         function snapped = snap_length(obj, values, context)
             % Snap lengths to grid when snap_mode is strict.
             arguments
-                obj GeometrySession
+                obj femtogds.core.GeometrySession
                 values
                 context {mustBeTextScalar} = "geometry"
             end
@@ -228,7 +229,7 @@
         function ints = gds_integer(obj, values, context)
             % Snap and round to integer nanometer database units.
             arguments
-                obj GeometrySession
+                obj femtogds.core.GeometrySession
                 values
                 context {mustBeTextScalar} = "gds"
             end
@@ -245,7 +246,7 @@
         function report = snap_report(obj, args)
             % Build tabular report of snap events by context.
             arguments
-                obj GeometrySession
+                obj femtogds.core.GeometrySession
                 args.display logical = true
             end
             keys_list = keys(obj.snap_stats);
@@ -283,7 +284,7 @@
         function report = build_report(obj, args)
             % Return consolidated diagnostic report for session/backends.
             arguments
-                obj GeometrySession
+                obj femtogds.core.GeometrySession
                 args.display logical = true
             end
 
@@ -343,7 +344,7 @@
                 args.reset_model logical = true
             end
             shared_modeler = femtogds.core.ComsolModeler.shared(reset=args.reset_model);
-            ctx = GeometrySession( ...
+            ctx = femtogds.core.GeometrySession( ...
                 enable_comsol=true, ...
                 enable_gds=args.enable_gds, ...
                 emit_on_create=args.emit_on_create, ...
@@ -361,12 +362,12 @@
 
         function set_current(ctx)
             % Set process-global active GeometrySession.
-            GeometrySession.current_context_store(ctx);
+            femtogds.core.GeometrySession.current_context_store(ctx);
         end
 
         function ctx = get_current()
             % Get process-global active GeometrySession if any.
-            current_ctx = GeometrySession.current_context_store();
+            current_ctx = femtogds.core.GeometrySession.current_context_store();
             if isempty(current_ctx)
                 ctx = [];
             else
@@ -376,7 +377,7 @@
 
         function ctx = require_current()
             % Get active GeometrySession or raise an explicit error.
-            ctx = GeometrySession.get_current();
+            ctx = femtogds.core.GeometrySession.get_current();
             if isempty(ctx)
                 error("No active GeometrySession. Create one or call GeometrySession.set_current(ctx).");
             end
@@ -425,12 +426,12 @@
         end
 
         function n = map_count(m)
-            % Return number of keys in a containers.Map.
+            % Return number of keys in a dictionary.
             n = numel(keys(m));
         end
 
         function n = true_value_count(m)
-            % Count true values in a logical-value containers.Map.
+            % Count true values in a logical-value dictionary.
             vals = values(m);
             if isempty(vals)
                 n = 0;
@@ -462,24 +463,24 @@
             % Summarize node counts by type/layer and output flag.
             n = numel(obj.nodes);
             classes = strings(n, 1);
-            layers = strings(n, 1);
+            layer_names = strings(n, 1);
             outputs = false(n, 1);
             for i = 1:n
                 node = obj.nodes{i};
                 classes(i) = string(class(node));
                 outputs(i) = logical(node.output);
                 if isa(node.layer, "femtogds.core.LayerSpec")
-                    layers(i) = string(node.layer.name);
+                    layer_names(i) = string(node.layer.name);
                 else
-                    layers(i) = string(node.layer);
+                    layer_names(i) = string(node.layer);
                 end
             end
 
             report = struct();
             report.total = n;
             report.output = sum(outputs);
-            report.by_type = GeometrySession.count_table(classes, outputs, "Type");
-            report.by_layer = GeometrySession.count_table(layers, outputs, "Layer");
+            report.by_type = femtogds.core.GeometrySession.count_table(classes, outputs, "Type");
+            report.by_layer = femtogds.core.GeometrySession.count_table(layer_names, outputs, "Layer");
         end
 
         function report = gds_report(obj)
@@ -491,8 +492,8 @@
             if ~report.initialized
                 return;
             end
-            report.cached_regions = GeometrySession.map_count(obj.gds_backend.regions);
-            report.emitted_nodes = GeometrySession.true_value_count(obj.gds_backend.emitted);
+            report.cached_regions = femtogds.core.GeometrySession.map_count(obj.gds_backend.regions);
+            report.emitted_nodes = femtogds.core.GeometrySession.true_value_count(obj.gds_backend.emitted);
         end
 
         function report = comsol_report(obj)
@@ -506,10 +507,10 @@
             if ~report.initialized
                 return;
             end
-            report.emitted_features = GeometrySession.map_count(obj.comsol_backend.feature_tags);
-            report.selections = GeometrySession.map_count(obj.comsol_backend.selection_tags);
-            report.snapped_expr_params = GeometrySession.map_count(obj.comsol_backend.snapped_length_tokens);
-            report.defined_params = GeometrySession.map_count(obj.comsol_backend.defined_params);
+            report.emitted_features = femtogds.core.GeometrySession.map_count(obj.comsol_backend.feature_tags);
+            report.selections = femtogds.core.GeometrySession.map_count(obj.comsol_backend.selection_tags);
+            report.snapped_expr_params = femtogds.core.GeometrySession.map_count(obj.comsol_backend.snapped_length_tokens);
+            report.defined_params = femtogds.core.GeometrySession.map_count(obj.comsol_backend.defined_params);
         end
     end
 end

@@ -1034,8 +1034,9 @@
             obj.modeler.model.param.set(token, snap_expr, "");
             obj.snapped_length_tokens(key) = string(token);
             if obj.session.warn_on_snap
-                warning("femtogds.core.GeometrySession:SnapExpr", ...
-                    "Created snapped COMSOL expression '%s' from '%s'.", token, char(string(raw_token)));
+                snap_msg = "Created snapped COMSOL expression '" + string(token) + ...
+                    "' from '" + string(raw_token) + "'.";
+                warning(char(snap_msg));
             end
         end
         function name = class_short_name(~, obj_or_node)

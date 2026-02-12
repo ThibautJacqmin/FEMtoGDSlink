@@ -28,7 +28,7 @@
         end
 
         function set.p1(obj, val)
-            obj.set_param("p1", LineSegment.coerce_single_vertex(val, "p1"));
+            obj.set_param("p1", femtogds.primitives.LineSegment.coerce_single_vertex(val, "p1"));
         end
 
         function val = get.p1(obj)
@@ -36,7 +36,7 @@
         end
 
         function set.p2(obj, val)
-            obj.set_param("p2", LineSegment.coerce_single_vertex(val, "p2"));
+            obj.set_param("p2", femtogds.primitives.LineSegment.coerce_single_vertex(val, "p2"));
         end
 
         function val = get.p2(obj)

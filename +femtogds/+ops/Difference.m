@@ -6,7 +6,7 @@
     end
     methods
         function obj = Difference(varargin)
-            [ctx, base, tools, args] = Difference.parse_inputs(varargin{:});
+            [ctx, base, tools, args] = femtogds.ops.Difference.parse_inputs(varargin{:});
             tool_list = tools;
             if isempty(args.layer)
                 layer = base.layer;
@@ -37,7 +37,7 @@
     methods (Static, Access=private)
         function [ctx, base, tools, args] = parse_inputs(varargin)
             [ctx, base, tools, nv] = femtogds.core.GeomFeature.parse_base_tools_context("Difference", varargin{:});
-            args = Difference.parse_options(nv{:});
+            args = femtogds.ops.Difference.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

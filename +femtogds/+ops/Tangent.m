@@ -15,7 +15,7 @@
     end
     methods
         function obj = Tangent(varargin)
-            [ctx, target, args] = Tangent.parse_inputs(varargin{:});
+            [ctx, target, args] = femtogds.ops.Tangent.parse_inputs(varargin{:});
             if isempty(args.layer)
                 layer = target.layer;
             else
@@ -55,7 +55,7 @@
         end
 
         function set.type(obj, val)
-            t = Tangent.normalize_type(val);
+            t = femtogds.ops.Tangent.normalize_type(val);
             obj.set_param("type", t);
         end
 
@@ -175,7 +175,7 @@
     methods (Static, Access=private)
         function [ctx, target, args] = parse_inputs(varargin)
             [ctx, target, nv] = femtogds.core.GeomFeature.parse_target_context("Tangent", varargin{:});
-            args = Tangent.parse_options(nv{:});
+            args = femtogds.ops.Tangent.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

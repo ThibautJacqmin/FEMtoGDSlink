@@ -10,7 +10,7 @@
     end
     methods
         function obj = Offset(varargin)
-            [ctx, target, args] = Offset.parse_inputs(varargin{:});
+            [ctx, target, args] = femtogds.ops.Offset.parse_inputs(varargin{:});
             if isempty(args.layer)
                 layer = target.layer;
             else
@@ -52,7 +52,7 @@
         end
 
         function set.convexcorner(obj, val)
-            c = Offset.normalize_convexcorner(val);
+            c = femtogds.ops.Offset.normalize_convexcorner(val);
             obj.set_param("convexcorner", c);
         end
 
@@ -79,7 +79,7 @@
     methods (Static, Access=private)
         function [ctx, target, args] = parse_inputs(varargin)
             [ctx, target, nv] = femtogds.core.GeomFeature.parse_target_context("Offset", varargin{:});
-            args = Offset.parse_options(nv{:});
+            args = femtogds.ops.Offset.parse_options(nv{:});
         end
 
         function parsed = parse_options(args)

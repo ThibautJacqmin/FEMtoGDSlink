@@ -1,5 +1,19 @@
-ctx = GeometrySession.with_shared_comsol(enable_gds=true, emit_on_create=false, ...
-    snap_mode='off', snap_grid_nm=1, warn_on_snap=true, reset_model=true);
+import femtogds.core.*
+import femtogds.types.*
+import femtogds.primitives.*
+import femtogds.ops.*
+
+comsol_available = false;
+try
+    ctx = GeometrySession.with_shared_comsol(enable_gds=true, emit_on_create=false, ...
+        snap_mode='off', snap_grid_nm=1, warn_on_snap=true, reset_model=true);
+    comsol_available = true;
+catch err
+    warning("test:ComsolUnavailable", ...
+        "COMSOL API unavailable (%s). Running test.m in GDS-only mode.", err.message);
+    ctx = GeometrySession(enable_comsol=false, enable_gds=true, emit_on_create=false, ...
+        snap_mode='off', snap_grid_nm=1, warn_on_snap=true);
+end
 
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
     comsol_selection="metal1", comsol_selection_state="all");
@@ -29,6 +43,12 @@ p_arr_nx = Parameter(5, "arr_nx", unit="");
 p_arr_ny = Parameter(3, "arr_ny", unit="");
 p_arr_pitch_x = Parameter(70, "arr_pitch_x");
 p_arr_pitch_y = Parameter(70, "arr_pitch_y");
+
+% Dependent parameter examples for geometry dimensions.
+p_line_thk_seed = Parameter(6, "line_thk_seed");
+p_line_thk = DependentParameter(@(x) 2*x + 2, p_line_thk_seed, "line_thk");
+p_off_seed = Parameter(7, "off_seed");
+p_offset_dist = DependentParameter(@(x) x + 3, p_off_seed, "off_dist");
 
 % 1) Build a tower from stacked, shrinking rectangles.
 tower_parts = cell(1, nlevels);
@@ -90,7 +110,7 @@ curve_points = Point(p=[-330, -240; -320, -230], marker_size=6, ...
 
 line_raw = LineSegment(p1=[-300, -210], p2=[-160, -180], ...
     layer="metal1", output=false);
-line_thk = Thicken(line_raw, offset="symmetric", totalthick=14, ...
+line_thk = Thicken(line_raw, offset="symmetric", totalthick=p_line_thk, ...
     ends="circular", convexcorner="fillet", layer="metal1", output=true);
 
 interp_raw = InterpolationCurve(points=[-300 -155; -255 -125; -205 -165; -145 -130], ...
@@ -123,8 +143,34 @@ param_closed = ParametricCurve(coord={"20*cos(s)", "20*sin(s)"}, parname="s", ..
     parmin=0, parmax=2*pi, type="closed", npoints=128, ...
     layer="metal1", output=true);
 
-% To debug in COMSOL as you build:
-ctx.build_comsol();
+% 9) New operation features: Chamfer / Offset / Tangent / Extract.
+chamfer_base = Rectangle(center=[-250, 220], width=90, height=60, ...
+    layer="metal1", output=false);
+chamfered = Chamfer(chamfer_base, dist=10, points=[1 2 3 4], ...
+    layer="metal1", output=true);
+
+offset_base = Rectangle(center=[-120, 220], width=100, height=45, ...
+    layer="metal1", output=false);
+offset_shape = Offset(offset_base, distance=p_offset_dist, reverse=false, ...
+    convexcorner="fillet", trim=true, keep=false, layer="metal1", ...
+    output=true);
+
+tangent_circle = Circle(center=[30, 220], radius=28, npoints=96, ...
+    layer="metal1", output=false);
+tangent_line = Tangent(tangent_circle, type="coord", coord=[95, 250], ...
+    start=0.7, edge_index=1, width=8, layer="metal1", output=true);
+
+extract_a = Rectangle(center=[180, 220], width=52, height=34, ...
+    layer="metal1", output=false);
+extract_b = Move(extract_a, delta=[70, 0], layer="metal1", output=false);
+extracted = Extract({extract_a, extract_b}, inputhandling="keep", ...
+    layer="metal1", output=true);
+
+if comsol_available
+    ctx.build_comsol();
+else
+    fprintf("COMSOL API unavailable: skipped COMSOL build.\n");
+end
 ctx.export_gds("out.gds");
 
 % Consolidated build report (includes snap report).

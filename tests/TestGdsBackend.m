@@ -243,7 +243,9 @@
 
             base = femtogds.primitives.Rectangle(ctx, center=[0 0], width=120, height=80, layer="m1", output=false);
             cha = femtogds.ops.Chamfer(ctx, base, dist=12, points=[1 2 3 4], layer="m1", output=true);
-            off = femtogds.ops.Offset(ctx, base, distance=10, reverse=false, convexcorner="fillet", ...
+            p_off_seed = femtogds.types.Parameter(7, "off_seed");
+            p_off_dist = femtogds.types.Parameter(@(x) x + 3, p_off_seed, "off_dist");
+            off = femtogds.ops.Offset(ctx, base, distance=p_off_dist, reverse=false, convexcorner="fillet", ...
                 trim=true, layer="m1", output=true);
 
             c = femtogds.primitives.Circle(ctx, center=[220 0], radius=45, npoints=128, layer="m1", output=false);
@@ -273,6 +275,8 @@
             testCase.verifyGreaterThan(double(reg_cha.area()), 0);
             testCase.verifyLessThanOrEqual(double(reg_cha.area()), double(reg_base.area()));
             testCase.verifyGreaterThan(double(reg_off.area()), double(reg_base.area()));
+            testCase.verifyEqual(p_off_dist.value, 10);
+            testCase.verifyEqual(string(p_off_dist.expr), "off_seed+3");
             testCase.verifyGreaterThan(double(reg_tan.area()), 0);
             testCase.verifyEqual(double(reg_ext.area()), double(reg_e1.area() + reg_e2.area()));
         end

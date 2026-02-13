@@ -36,7 +36,7 @@ p_trench_w = Parameter(55, "trench_w");
 p_trench_h = Parameter(240, "trench_h");
 
 p_fillet_r = Parameter(8, "fillet_r");
-p_fillet_n = DependentParameter(@(x) max(8, round(3*x)), p_fillet_r, "fillet_n", unit="");
+p_fillet_n = Parameter(@(x) max(8, round(3*x)), p_fillet_r, "fillet_n", unit="");
 
 % Array parameters.
 p_arr_nx = Parameter(5, "arr_nx", unit="");
@@ -46,9 +46,9 @@ p_arr_pitch_y = Parameter(70, "arr_pitch_y");
 
 % Dependent parameter examples for geometry dimensions.
 p_line_thk_seed = Parameter(6, "line_thk_seed");
-p_line_thk = DependentParameter(@(x) 2*x + 2, p_line_thk_seed, "line_thk");
+p_line_thk = Parameter(@(x) x^2 + 2, p_line_thk_seed, "line_thk");
 p_off_seed = Parameter(7, "off_seed");
-p_offset_dist = DependentParameter(@(x) x + 3, p_off_seed, "off_dist");
+p_offset_dist = Parameter(@(x) x + 3, p_off_seed, "off_dist");
 
 % 1) Build a tower from stacked, shrinking rectangles.
 tower_parts = cell(1, nlevels);

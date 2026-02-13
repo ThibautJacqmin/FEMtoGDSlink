@@ -33,7 +33,7 @@
             p_scale = femtogds.types.Parameter(0.95, "tower_scale", unit="");
             p_move = femtogds.types.Parameter(10, "tower_move_unit");
             p_rad = femtogds.types.Parameter(6, "fillet_r");
-            p_n = femtogds.types.DependentParameter(@(x) max(8, round(2*x)), p_rad, "fillet_n", unit="");
+            p_n = femtogds.types.Parameter(@(x) max(8, round(2*x)), p_rad, "fillet_n", unit="");
 
             r1 = femtogds.primitives.Rectangle(ctx, center=femtogds.types.Vertices([0, 0], p_pitch), ...
                 width=p_w0 - p_dw, height=p_h, layer="m1", output=false);

@@ -1,4 +1,4 @@
-﻿classdef Parameter
+classdef Parameter
     % Expression-aware scalar parameter used by geometry features.
     properties
         value double = 0
@@ -8,34 +8,80 @@
         dependency_records struct = struct('name', {}, 'value', {}, 'unit', {}, 'expr', {})
     end
     methods
-        function obj = Parameter(value, name, args)
-            % Construct scalar parameter with optional name/unit/expression.
+        function obj = Parameter(primary, secondary, tertiary, args)
+            % Construct from numeric, Parameter, or function-handle dependencies.
             arguments
-                value = 0
-                name {mustBeTextScalar} = ""
-                args.unit {mustBeTextScalar} = "nm"
+                primary = 0
+                secondary = ""
+                tertiary = ""
+                args.unit {mustBeTextScalar} = "__auto__"
                 args.expr {mustBeTextScalar} = ""
+                args.expression {mustBeTextScalar} = ""
             end
-            obj.value = double(value);
-            obj.name = string(name);
-            obj.unit = string(args.unit);
 
-            if strlength(args.expr) > 0
-                obj.expr = string(args.expr);
+            expr_override = femtogds.types.Parameter.resolve_expr_override(args.expr, args.expression);
+            dep_records = struct('name', {}, 'value', {}, 'unit', {}, 'expr', {});
+
+            if isa(primary, "function_handle")
+                deps = femtogds.types.Parameter.normalize_dependencies(secondary);
+                name = femtogds.types.Parameter.normalize_name(tertiary, ...
+                    "Function-based Parameter requires a name as third positional argument.");
+                [value, inferred_expr, dep_records, inferred_unit] = ...
+                    femtogds.types.Parameter.build_from_function(primary, deps);
+                expr = inferred_expr;
+                unit = femtogds.types.Parameter.resolve_unit(args.unit, inferred_unit);
+            elseif isa(primary, "femtogds.types.Parameter")
+                if ~(isstring(secondary) || ischar(secondary) || isempty(secondary))
+                    error("For Parameter(source, ...), second positional argument must be the new name.");
+                end
+                if strlength(string(tertiary)) > 0
+                    error("For Parameter(source, name), third positional argument is not used.");
+                end
+                source = primary;
+                value = source.value;
+                name = femtogds.types.Parameter.normalize_name(secondary);
+                expr = source.expression_token();
+                unit = femtogds.types.Parameter.resolve_unit(args.unit, source.unit);
+                dep_records = source.dependency_records;
+            elseif isnumeric(primary) && isscalar(primary)
+                value = double(primary);
+                name = femtogds.types.Parameter.normalize_name(secondary);
+                if strlength(string(tertiary)) > 0
+                    error("Numeric Parameter constructor expects at most two positional arguments.");
+                end
+                expr = "";
+                unit = femtogds.types.Parameter.resolve_unit(args.unit, "nm");
+            else
+                error([ ...
+                    "Parameter primary input must be scalar numeric, femtogds.types.Parameter, " ...
+                    "or function handle."]);
+            end
+
+            if strlength(expr_override) > 0
+                expr = expr_override;
+            end
+
+            obj.value = double(value);
+            obj.name = name;
+            obj.unit = unit;
+
+            if strlength(expr) > 0
+                obj.expr = expr;
             elseif strlength(obj.name) > 0
                 obj.expr = obj.name;
             else
                 obj.expr = string(obj.value);
             end
 
+            obj.dependency_records = dep_records;
             if obj.is_named()
-                obj.dependency_records = struct( ...
+                self_rec = struct( ...
                     'name', obj.name, ...
                     'value', obj.value, ...
                     'unit', obj.unit, ...
                     'expr', obj.expr);
-            else
-                obj.dependency_records = struct('name', {}, 'value', {}, 'unit', {}, 'expr', {});
+                obj.dependency_records = femtogds.types.Parameter.merge_dependency_records( ...
+                    obj.dependency_records, self_rec);
             end
         end
 
@@ -109,6 +155,113 @@
         end
     end
     methods (Static, Access=private)
+        function out = normalize_name(raw, err_msg)
+            % Normalize optional name input to string scalar.
+            if nargin < 2
+                err_msg = "Parameter name must be a text scalar.";
+            end
+            if ~(isstring(raw) || ischar(raw) || isempty(raw))
+                error("%s", err_msg);
+            end
+            out = string(raw);
+            if ~isscalar(out)
+                error("%s", err_msg);
+            end
+        end
+
+        function expr = resolve_expr_override(expr_a, expr_b)
+            % Resolve expression override from expr/expression aliases.
+            expr_a = string(expr_a);
+            expr_b = string(expr_b);
+            if strlength(expr_a) > 0 && strlength(expr_b) > 0 && expr_a ~= expr_b
+                error("Conflicting expression overrides provided via 'expr' and 'expression'.");
+            end
+            if strlength(expr_a) > 0
+                expr = expr_a;
+            else
+                expr = expr_b;
+            end
+        end
+
+        function unit = resolve_unit(raw_unit, default_unit)
+            % Resolve unit with auto-default behavior.
+            raw_unit = string(raw_unit);
+            if raw_unit == "__auto__"
+                unit = string(default_unit);
+            else
+                unit = raw_unit;
+            end
+        end
+
+        function deps = normalize_dependencies(dep_input)
+            % Normalize dependencies to a 1xN cell array of Parameter objects.
+            if isa(dep_input, "femtogds.types.Parameter")
+                deps = num2cell(dep_input(:).');
+            elseif iscell(dep_input)
+                deps = dep_input;
+            else
+                error("Function-based Parameter requires dependency Parameter input as second argument.");
+            end
+            if isempty(deps)
+                error("Function-based Parameter requires at least one dependency Parameter.");
+            end
+            for i = 1:numel(deps)
+                if ~isa(deps{i}, "femtogds.types.Parameter")
+                    error("All dependencies must be femtogds.types.Parameter instances.");
+                end
+            end
+        end
+
+        function [value, expr, records, inferred_unit] = build_from_function(fun_handle, deps)
+            % Build value/expression/dependencies from lambda and parents.
+            info = functions(fun_handle);
+            fun_str = string(info.function);
+            toks = regexp(fun_str, '^@\((?<vars>[^\)]*)\)\s*(?<expr>.+)$', 'names', 'once');
+            if isempty(toks)
+                error("Unable to infer expression from anonymous function '%s'.", char(fun_str));
+            end
+
+            vars = strtrim(split(string(toks.vars), ","));
+            vars = vars(strlength(vars) > 0);
+            if numel(vars) ~= numel(deps)
+                error("Anonymous function argument count (%d) does not match dependency count (%d).", ...
+                    numel(vars), numel(deps));
+            end
+
+            expr = string(toks.expr);
+            for i = 1:numel(vars)
+                var_name = char(vars(i));
+                dep_token = char(string(deps{i}.expression_token()));
+                pattern = ['(?<![A-Za-z0-9_])', regexptranslate('escape', var_name), '(?![A-Za-z0-9_])'];
+                expr = string(regexprep(char(expr), pattern, dep_token));
+            end
+
+            arg_values = cell(1, numel(deps));
+            records = struct('name', {}, 'value', {}, 'unit', {}, 'expr', {});
+            for i = 1:numel(deps)
+                arg_values{i} = deps{i}.value;
+                records = femtogds.types.Parameter.merge_dependency_records(records, deps{i}.dependency_records);
+            end
+            value = fun_handle(arg_values{:});
+            if ~(isnumeric(value) && isscalar(value) && isfinite(value))
+                error("Function-based Parameter must evaluate to a finite scalar numeric value.");
+            end
+            inferred_unit = femtogds.types.Parameter.infer_dependency_unit(deps);
+        end
+
+        function unit = infer_dependency_unit(deps)
+            % Infer a conservative default unit from dependency units.
+            units = strings(1, numel(deps));
+            for i = 1:numel(deps)
+                units(i) = string(deps{i}.unit);
+            end
+            if isscalar(unique(units))
+                unit = units(1);
+            else
+                unit = "";
+            end
+        end
+
         function [value, expr, unit, records] = coerce_operand(rhs)
             % Normalize RHS operand to value/expression/unit/dependencies.
             if isa(rhs, "femtogds.types.Parameter")
@@ -174,4 +327,3 @@
         end
     end
 end
-

@@ -1,4 +1,4 @@
-﻿classdef Circle < femtogds.core.GeomFeature
+classdef Circle < femtogds.core.GeomFeature
     % Circle primitive (disk) with optional COMSOL sector angle metadata.
     properties (Dependent)
         position
@@ -23,13 +23,11 @@
                 args.rotation = 0
                 args.npoints = 128
                 args.layer = "default"
-                args.output logical = true
             end
             if isempty(ctx)
                 ctx = femtogds.core.GeometrySession.require_current();
             end
             obj@femtogds.core.GeomFeature(ctx, args.layer);
-            obj.output = args.output;
             obj.radius = args.radius;
             obj.angle = args.angle;
             obj.rotation = args.rotation;

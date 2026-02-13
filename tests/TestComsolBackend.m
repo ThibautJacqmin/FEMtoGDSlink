@@ -1,4 +1,4 @@
-﻿classdef TestComsolBackend < matlab.unittest.TestCase
+classdef TestComsolBackend < matlab.unittest.TestCase
     % Integration tests for COMSOL backend emission and shared model helpers.
     methods (TestMethodSetup)
         function requireComsolApi(testCase)
@@ -36,18 +36,18 @@
             p_n = femtogds.types.Parameter(@(x) max(8, round(2*x)), p_rad, "fillet_n", unit="");
 
             r1 = femtogds.primitives.Rectangle(ctx, center=femtogds.types.Vertices([0, 0], p_pitch), ...
-                width=p_w0 - p_dw, height=p_h, layer="m1", output=false);
+                width=p_w0 - p_dw, height=p_h, layer="m1");
             r2 = femtogds.primitives.Rectangle(ctx, base="corner", corner=[5, -10], ...
-                width=30, height=20, angle=p_rect_rot, layer="m1", output=false);
-            u = femtogds.ops.Union(ctx, {r1, r2}, layer="m1", output=false);
-            d = femtogds.ops.Difference(ctx, u, {r2}, layer="m1", output=false);
-            m = femtogds.ops.Move(ctx, d, delta=femtogds.types.Vertices([1, 0], p_move), output=false);
-            ro = femtogds.ops.Rotate(ctx, m, angle=p_rot, origin=femtogds.types.Vertices([0, 0], p_pitch), output=false);
-            sc = femtogds.ops.Scale(ctx, ro, factor=p_scale, origin=femtogds.types.Vertices([0, 0], p_pitch), output=false);
-            mi = femtogds.ops.Mirror(ctx, sc, point=femtogds.types.Vertices([0, 0], p_pitch), axis=[1, 0], output=false);
-            i = femtogds.ops.Intersection(ctx, {mi, r1}, layer="m1", output=false);
+                width=30, height=20, angle=p_rect_rot, layer="m1");
+            u = femtogds.ops.Union(ctx, {r1, r2}, layer="m1");
+            d = femtogds.ops.Difference(ctx, u, {r2}, layer="m1");
+            m = femtogds.ops.Move(ctx, d, delta=femtogds.types.Vertices([1, 0], p_move));
+            ro = femtogds.ops.Rotate(ctx, m, angle=p_rot, origin=femtogds.types.Vertices([0, 0], p_pitch));
+            sc = femtogds.ops.Scale(ctx, ro, factor=p_scale, origin=femtogds.types.Vertices([0, 0], p_pitch));
+            mi = femtogds.ops.Mirror(ctx, sc, point=femtogds.types.Vertices([0, 0], p_pitch), axis=[1, 0]);
+            i = femtogds.ops.Intersection(ctx, {mi, r1}, layer="m1");
             f = femtogds.ops.Fillet(ctx, i, radius=p_rad, npoints=p_n, points=[1 2 3 4], ...
-                layer="m1", output=true);
+                layer="m1");
 
             ctx.build_comsol();
 
@@ -108,7 +108,7 @@
 
             p_w = femtogds.types.Parameter(120, "w");
             p_h = femtogds.types.Parameter(60, "h");
-            r = femtogds.primitives.Rectangle(ctx1, center=[0 0], width=p_w, height=p_h, layer="m1", output=true); %#ok<NASGU>
+            r = femtogds.primitives.Rectangle(ctx1, center=[0 0], width=p_w, height=p_h, layer="m1"); %#ok<NASGU>
             ctx1.build_comsol();
 
             names_before = TestComsolBackend.paramNames(ctx1.comsol.model);
@@ -132,12 +132,12 @@
             p_pitch_x = femtogds.types.Parameter(200, "arr_pitch_x");
             p_pitch_y = femtogds.types.Parameter(140, "arr_pitch_y");
 
-            base = femtogds.primitives.Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1", output=false);
+            base = femtogds.primitives.Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1");
             a1 = femtogds.ops.Array1D(ctx, base, ncopies=p_nx, delta=femtogds.types.Vertices([1, 0], p_pitch_x), ...
-                layer="m1", output=false);
+                layer="m1");
             a2 = femtogds.ops.Array2D(ctx, base, ncopies_x=p_nx, ncopies_y=p_ny, ...
                 delta_x=femtogds.types.Vertices([1, 0], p_pitch_x), delta_y=femtogds.types.Vertices([0, 1], p_pitch_y), ...
-                layer="m1", output=true);
+                layer="m1");
 
             ctx.build_comsol();
 
@@ -163,7 +163,7 @@
 
             p = femtogds.types.Parameter(30, "poly_pitch");
             poly = femtogds.primitives.Polygon(ctx, vertices=femtogds.types.Vertices([0 0; 4 0; 4 2; 0 2], p), ...
-                layer="m1", output=true);
+                layer="m1");
             ctx.build_comsol();
 
             testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(poly.id)));
@@ -185,9 +185,9 @@
             p_b = femtogds.types.Parameter(18, "ell_b");
             p_rot = femtogds.types.Parameter(30, "ell_rot_deg", unit="");
 
-            c = femtogds.primitives.Circle(ctx, center=[0 0], radius=p_r, layer="m1", output=false);
+            c = femtogds.primitives.Circle(ctx, center=[0 0], radius=p_r, layer="m1");
             e = femtogds.primitives.Ellipse(ctx, center=[80 0], a=p_a, b=p_b, angle=p_rot, ...
-                layer="m1", output=true);
+                layer="m1");
             ctx.build_comsol();
 
             testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(c.id)));
@@ -210,21 +210,21 @@
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
-            p = femtogds.primitives.Point(ctx, p=[-10 -20; 30 40], marker_size=4, layer="m1", output=false);
+            p = femtogds.primitives.Point(ctx, p=[-10 -20; 30 40], marker_size=4, layer="m1");
             ls = femtogds.primitives.LineSegment(ctx, p1=[-20 0], p2=[20 10], width=6, ...
-                layer="m1", output=false);
+                layer="m1");
             ic = femtogds.primitives.InterpolationCurve(ctx, points=[0 0; 10 20; 20 0; 30 10], ...
-                type="open", width=6, layer="m1", output=false);
+                type="open", width=6, layer="m1");
             qb = femtogds.primitives.QuadraticBezier(ctx, p0=[40 0], p1=[50 30], p2=[70 10], ...
-                npoints=64, width=6, layer="m1", output=false);
+                npoints=64, width=6, layer="m1");
             cb = femtogds.primitives.CubicBezier(ctx, p0=[80 0], p1=[95 35], p2=[120 -20], p3=[140 10], ...
-                npoints=96, width=6, layer="m1", output=false);
+                npoints=96, width=6, layer="m1");
             ca = femtogds.primitives.CircularArc(ctx, center=[180 0], radius=25, ...
                 start_angle=30, end_angle=230, npoints=96, width=6, ...
-                layer="m1", output=false);
+                layer="m1");
             pc = femtogds.primitives.ParametricCurve(ctx, coord={"20*cos(s)", "20*sin(s)"}, ...
                 parname="s", parmin=0, parmax=2*pi, ...
-                type="closed", npoints=96, layer="m1", output=true);
+                type="closed", npoints=96, layer="m1");
 
             ctx.build_comsol();
 
@@ -243,10 +243,10 @@
                 comsol_selection="metal1", comsol_selection_state="all");
 
             p_t = femtogds.types.Parameter(18, "thk_total");
-            ls = femtogds.primitives.LineSegment(ctx, p1=[0 0], p2=[100 20], width=1, layer="m1", output=false);
+            ls = femtogds.primitives.LineSegment(ctx, p1=[0 0], p2=[100 20], width=1, layer="m1");
             th = femtogds.ops.Thicken(ctx, ls, offset="symmetric", totalthick=p_t, ...
                 ends="circular", convexcorner="fillet", keep=true, ...
-                layer="m1", output=true);
+                layer="m1");
 
             ctx.build_comsol();
 
@@ -268,16 +268,16 @@
             p_dist = femtogds.types.Parameter(4, "cha_dist");
             p_off = femtogds.types.Parameter(6, "off_dist");
 
-            r = femtogds.primitives.Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1", output=false);
-            cha = femtogds.ops.Chamfer(ctx, r, dist=p_dist, points=[1 2 3 4], layer="m1", output=false);
+            r = femtogds.primitives.Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1");
+            cha = femtogds.ops.Chamfer(ctx, r, dist=p_dist, points=[1 2 3 4], layer="m1");
             off = femtogds.ops.Offset(ctx, r, distance=p_off, convexcorner="fillet", ...
-                layer="m1", output=false);
+                layer="m1");
 
-            c = femtogds.primitives.Circle(ctx, center=[140 0], radius=20, layer="m1", output=false);
+            c = femtogds.primitives.Circle(ctx, center=[140 0], radius=20, layer="m1");
             tan = femtogds.ops.Tangent(ctx, c, type="coord", coord=[180 10], edge_index=1, ...
-                layer="m1", output=false);
+                layer="m1");
 
-            u = femtogds.ops.Union(ctx, {cha, off, tan}, layer="m1", output=true);
+            u = femtogds.ops.Union(ctx, {cha, off, tan}, layer="m1");
 
             ctx.build_comsol();
 

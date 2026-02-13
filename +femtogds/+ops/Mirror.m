@@ -1,4 +1,4 @@
-﻿classdef Mirror < femtogds.core.GeomFeature
+classdef Mirror < femtogds.core.GeomFeature
     % Mirror operation on a feature (limited to horizontal/vertical axes).
     properties (Dependent)
         target
@@ -14,7 +14,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.point = args.point;
             obj.axis = args.axis;
@@ -52,7 +51,6 @@
                 args.point = [0, 0]
                 args.axis = [1, 0]
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

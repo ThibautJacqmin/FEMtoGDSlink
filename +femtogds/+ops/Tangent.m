@@ -1,4 +1,4 @@
-﻿classdef Tangent < femtogds.core.GeomFeature
+classdef Tangent < femtogds.core.GeomFeature
     % Tangent line segment to one or two edges.
     properties (Dependent)
         target
@@ -22,7 +22,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             if ~isempty(args.edge2)
                 if ~isa(args.edge2, 'femtogds.core.GeomFeature')
@@ -191,7 +190,6 @@
                 args.point_index = 1
                 args.width = 1
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

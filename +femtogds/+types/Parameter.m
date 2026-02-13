@@ -52,9 +52,8 @@ classdef Parameter
                 expr = "";
                 unit = femtogds.types.Parameter.resolve_unit(args.unit, "nm");
             else
-                error([ ...
-                    "Parameter primary input must be scalar numeric, femtogds.types.Parameter, " ...
-                    "or function handle."]);
+                error(['Parameter primary input must be scalar numeric, femtogds.types.Parameter, ' ...
+                    'or function handle.']);
             end
 
             if strlength(expr_override) > 0

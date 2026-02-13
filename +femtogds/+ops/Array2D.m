@@ -1,4 +1,4 @@
-﻿classdef Array2D < femtogds.core.GeomFeature
+classdef Array2D < femtogds.core.GeomFeature
     % 2D array of one geometry feature from two displacement directions.
     properties (Dependent)
         target
@@ -17,7 +17,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.ncopies_x = args.ncopies_x;
             obj.ncopies_y = args.ncopies_y;
@@ -75,7 +74,6 @@
                 args.delta_x = [1, 0]
                 args.delta_y = [0, 1]
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

@@ -1,4 +1,4 @@
-﻿classdef Difference < femtogds.core.GeomFeature
+classdef Difference < femtogds.core.GeomFeature
     % Difference boolean operation (base minus tools).
     properties (Dependent)
         base
@@ -14,7 +14,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(base);
             for i = 1:numel(tool_list)
                 obj.add_input(tool_list{i});
@@ -43,7 +42,6 @@
         function parsed = parse_options(args)
             arguments
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

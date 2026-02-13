@@ -1,4 +1,4 @@
-﻿classdef TestGdsBackend < matlab.unittest.TestCase
+classdef TestGdsBackend < matlab.unittest.TestCase
     % Regression tests for GDS emission pipeline.
     methods (Test)
         function exportRectangle(testCase)
@@ -8,7 +8,6 @@
             ctx = TestGdsBackend.newContext();
 
             r = femtogds.primitives.Rectangle(ctx, center=[0 0], width=100, height=50, layer="m1");
-            r.output = true;
 
             outFile = fullfile(tempdir, "test_rect.gds");
             if isfile(outFile)
@@ -30,11 +29,9 @@
 
             r1 = femtogds.primitives.Rectangle(ctx, center=[0 0], width=100, height=50, layer="m1");
             r2 = femtogds.primitives.Rectangle(ctx, center=[20 0], width=30, height=30, layer="m1");
-            r1.output = false;
-            r2.output = false;
 
-            u = femtogds.ops.Union(ctx, {r1, r2}, output=true);
-            m = femtogds.ops.Move(ctx, u, delta=[10 0], output=true);
+            u = femtogds.ops.Union(ctx, {r1, r2});
+            m = femtogds.ops.Move(ctx, u, delta=[10 0]);
 
             outFile = fullfile(tempdir, "test_union_move.gds");
             if isfile(outFile)
@@ -56,8 +53,8 @@
             p_r = femtogds.types.Parameter(10, "fillet_r");
             p_n = femtogds.types.Parameter(8, "fillet_n", unit="");
 
-            r = femtogds.primitives.Rectangle(ctx, center=[0 0], width=140, height=90, layer="m1", output=false);
-            f = femtogds.ops.Fillet(ctx, r, radius=p_r, npoints=p_n, points=[1 2 3 4], layer="m1", output=true);
+            r = femtogds.primitives.Rectangle(ctx, center=[0 0], width=140, height=90, layer="m1");
+            f = femtogds.ops.Fillet(ctx, r, radius=p_r, npoints=p_n, points=[1 2 3 4], layer="m1");
 
             outFile = fullfile(tempdir, "test_fillet.gds");
             if isfile(outFile)
@@ -77,7 +74,7 @@
 
             ctx = TestGdsBackend.newContext();
             r = femtogds.primitives.Rectangle(ctx, base="corner", corner=[10 20], ...
-                width=120, height=60, angle=35, layer="m1", output=true);
+                width=120, height=60, angle=35, layer="m1");
             backend = femtogds.core.GdsBackend(ctx);
             reg = backend.region_for(r);
 
@@ -97,9 +94,9 @@
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = TestGdsBackend.newContext();
-            c = femtogds.primitives.Circle(ctx, center=[0 0], radius=50, npoints=128, layer="m1", output=false);
+            c = femtogds.primitives.Circle(ctx, center=[0 0], radius=50, npoints=128, layer="m1");
             e = femtogds.primitives.Ellipse(ctx, center=[200 0], a=80, b=40, angle=30, npoints=128, ...
-                layer="m1", output=true);
+                layer="m1");
 
             backend = femtogds.core.GdsBackend(ctx);
             reg_c = backend.region_for(c);
@@ -123,7 +120,7 @@
             ctx = TestGdsBackend.newContext();
             p = femtogds.types.Parameter(25, "poly_pitch");
             poly = femtogds.primitives.Polygon(ctx, vertices=femtogds.types.Vertices([0 0; 2 0; 2 1; 0 1], p), ...
-                layer="m1", output=true);
+                layer="m1");
             backend = femtogds.core.GdsBackend(ctx);
             reg = backend.region_for(poly);
 
@@ -142,12 +139,12 @@
             p_pitch_x = femtogds.types.Parameter(220, "arr_pitch_x");
             p_pitch_y = femtogds.types.Parameter(140, "arr_pitch_y");
 
-            base = femtogds.primitives.Rectangle(ctx, center=[0 0], width=100, height=50, layer="m1", output=false);
+            base = femtogds.primitives.Rectangle(ctx, center=[0 0], width=100, height=50, layer="m1");
             arr1 = femtogds.ops.Array1D(ctx, base, ncopies=p_nx, delta=femtogds.types.Vertices([1, 0], p_pitch_x), ...
-                layer="m1", output=false);
+                layer="m1");
             arr2 = femtogds.ops.Array2D(ctx, base, ncopies_x=p_nx, ncopies_y=p_ny, ...
                 delta_x=femtogds.types.Vertices([1, 0], p_pitch_x), delta_y=femtogds.types.Vertices([0, 1], p_pitch_y), ...
-                layer="m1", output=true);
+                layer="m1");
 
             backend = femtogds.core.GdsBackend(ctx);
             reg1 = backend.region_for(arr1);
@@ -164,20 +161,20 @@
 
             ctx = TestGdsBackend.newContext();
 
-            pt = femtogds.primitives.Point(ctx, p=[-260, -120], marker_size=6, layer="m1", output=true);
+            pt = femtogds.primitives.Point(ctx, p=[-260, -120], marker_size=6, layer="m1");
             ls = femtogds.primitives.LineSegment(ctx, p1=[-220, -100], p2=[-120, -40], width=8, ...
-                layer="m1", output=true);
+                layer="m1");
             ic = femtogds.primitives.InterpolationCurve(ctx, points=[-110 -20; -80 20; -30 -10; 20 35], ...
-                type="open", width=8, layer="m1", output=true);
+                type="open", width=8, layer="m1");
             qb = femtogds.primitives.QuadraticBezier(ctx, p0=[40 -40], p1=[80 70], p2=[130 -20], ...
-                type="open", npoints=80, width=8, layer="m1", output=true);
+                type="open", npoints=80, width=8, layer="m1");
             cb = femtogds.primitives.CubicBezier(ctx, p0=[150 -50], p1=[190 80], p2=[250 -70], p3=[290 20], ...
-                type="open", npoints=96, width=8, layer="m1", output=true);
+                type="open", npoints=96, width=8, layer="m1");
             ca = femtogds.primitives.CircularArc(ctx, center=[360 0], radius=55, start_angle=30, end_angle=260, ...
-                type="open", npoints=160, width=8, layer="m1", output=true);
+                type="open", npoints=160, width=8, layer="m1");
             pc = femtogds.primitives.ParametricCurve(ctx, coord={"40*cos(s)", "40*sin(s)"}, ...
                 parname="s", parmin=0, parmax=2*pi, ...
-                type="closed", npoints=128, layer="m1", output=true);
+                type="closed", npoints=128, layer="m1");
 
             outFile = fullfile(tempdir, "test_curves_points.gds");
             if isfile(outFile)
@@ -201,20 +198,20 @@
 
             ctx = TestGdsBackend.newContext();
 
-            ls = femtogds.primitives.LineSegment(ctx, p1=[0 0], p2=[200 0], width=1, layer="m1", output=false);
+            ls = femtogds.primitives.LineSegment(ctx, p1=[0 0], p2=[200 0], width=1, layer="m1");
             th1 = femtogds.ops.Thicken(ctx, ls, ...
                 offset="symmetric", totalthick=30, ends="circular", convexcorner="fillet", ...
-                layer="m1", output=true);
+                layer="m1");
 
             ic = femtogds.primitives.InterpolationCurve(ctx, points=[0 0; 60 40; 120 -30; 200 30], ...
-                type="open", width=1, layer="m1", output=false);
+                type="open", width=1, layer="m1");
             th2 = femtogds.ops.Thicken(ctx, ic, ...
                 offset="asymmetric", upthick=22, downthick=8, ...
                 ends="straight", convexcorner="extend", ...
-                layer="m1", output=true);
+                layer="m1");
 
-            r = femtogds.primitives.Rectangle(ctx, center=[320 0], width=120, height=80, layer="m1", output=false);
-            th3 = femtogds.ops.Thicken(ctx, r, offset="symmetric", totalthick=20, layer="m1", output=true);
+            r = femtogds.primitives.Rectangle(ctx, center=[320 0], width=120, height=80, layer="m1");
+            th3 = femtogds.ops.Thicken(ctx, r, offset="symmetric", totalthick=20, layer="m1");
 
             outFile = fullfile(tempdir, "test_thicken.gds");
             if isfile(outFile)
@@ -241,16 +238,16 @@
 
             ctx = TestGdsBackend.newContext();
 
-            base = femtogds.primitives.Rectangle(ctx, center=[0 0], width=120, height=80, layer="m1", output=false);
-            cha = femtogds.ops.Chamfer(ctx, base, dist=12, points=[1 2 3 4], layer="m1", output=true);
+            base = femtogds.primitives.Rectangle(ctx, center=[0 0], width=120, height=80, layer="m1");
+            cha = femtogds.ops.Chamfer(ctx, base, dist=12, points=[1 2 3 4], layer="m1");
             p_off_seed = femtogds.types.Parameter(7, "off_seed");
             p_off_dist = femtogds.types.Parameter(@(x) x + 3, p_off_seed, "off_dist");
             off = femtogds.ops.Offset(ctx, base, distance=p_off_dist, reverse=false, convexcorner="fillet", ...
-                trim=true, layer="m1", output=true);
+                trim=true, layer="m1");
 
-            c = femtogds.primitives.Circle(ctx, center=[220 0], radius=45, npoints=128, layer="m1", output=false);
+            c = femtogds.primitives.Circle(ctx, center=[220 0], radius=45, npoints=128, layer="m1");
             tan = femtogds.ops.Tangent(ctx, c, type="coord", coord=[320 20], start=0.75, ...
-                width=8, layer="m1", output=true);
+                width=8, layer="m1");
 
             outFile = fullfile(tempdir, "test_chamfer_offset_tangent.gds");
             if isfile(outFile)

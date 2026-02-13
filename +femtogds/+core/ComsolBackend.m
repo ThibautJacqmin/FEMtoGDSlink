@@ -1,4 +1,4 @@
-﻿classdef ComsolBackend < handle
+classdef ComsolBackend < handle
     % COMSOL backend for emitting feature graph into a COMSOL model.
     properties
         session
@@ -22,11 +22,9 @@
         end
 
         function emit_all(obj, nodes)
-            % Emit graph from output nodes only; dependencies emit recursively.
+            % Emit all provided nodes; dependencies emit recursively.
             for i = 1:numel(nodes)
-                if nodes{i}.output
-                    obj.tag_for(nodes{i});
-                end
+                obj.tag_for(nodes{i});
             end
         end
 
@@ -84,10 +82,14 @@
             try
                 geom2d.run();
             catch run_all_err
-                error([ ...
-                    "Failed to build selected COMSOL feature '%s'. run(tag) error: %s. " ...
-                    "runPre(tag) error: %s. run() error: %s."], ...
-                    tag_char, run_tag_err.message, run_pre_err.message, run_all_err.message);
+                msg = sprintf([ ...
+                    'Failed to build selected COMSOL feature ''%s''. run(tag) error: %s. ' ...
+                    'runPre(tag) error: %s. run() error: %s.'], ...
+                    tag_char, ...
+                    char(string(run_tag_err.message)), ...
+                    char(string(run_pre_err.message)), ...
+                    char(string(run_all_err.message)));
+                error("femtogds:ComsolBuildSelectedFailed", "%s", msg);
             end
         end
 
@@ -392,46 +394,49 @@
 
             tag = obj.session.next_comsol_tag("arr");
             feature = wp.geom.create(tag, 'Array');
-            feature.set('type', 'linear');
             obj.enable_keep_input(feature);
-            obj.set_scalar(feature, 'linearsize', obj.copy_count_token(node.ncopies, "Array1D ncopies"));
+            obj.set_scalar(feature, 'size', obj.copy_count_token(node.ncopies, "Array1D ncopies"));
             disp_vec = obj.length_vector(node.delta, "Array1D delta");
-            obj.set_scalar(feature, 'displ', obj.vector_token(disp_vec(1), disp_vec(2)));
-            obj.set_input_selection(feature, input_tag);
-            obj.set_input_selection(feature, input_tag);
+            obj.set_pair(feature, 'displ', disp_vec(1), disp_vec(2));
+            try
+                feature.selection('input').set(char(string(input_tag)));
+            catch
+                obj.set_input_selection(feature, input_tag);
+            end
             obj.apply_layer_selection(layer, feature);
             obj.feature_tags(int32(node.id)) = string(tag);
         end
 
         function emit_Array2D(obj, node)
-            % Emit a COMSOL 2D array by chaining two linear arrays.
+            % Emit a COMSOL 2D rectangular Array operation.
             layer = node.layer;
             wp = obj.session.get_workplane(layer);
             input_tag = obj.tag_for(node.target);
 
-            tag_x = obj.session.next_comsol_tag("arr");
-            feature_x = wp.geom.create(tag_x, 'Array');
-            feature_x.set('type', 'linear');
-            obj.enable_keep_input(feature_x);
-            obj.set_scalar(feature_x, 'linearsize', ...
-                obj.copy_count_token(node.ncopies_x, "Array2D ncopies_x"));
-            disp_x = obj.length_vector(node.delta_x, "Array2D delta_x");
-            obj.set_scalar(feature_x, 'displ', obj.vector_token(disp_x(1), disp_x(2)));
-            obj.set_input_selection(feature_x, input_tag);
-            obj.set_input_selection(feature_x, input_tag);
+            tag = obj.session.next_comsol_tag("arr");
+            feature = wp.geom.create(tag, 'Array');
+            obj.enable_keep_input(feature);
+            nx = obj.copy_count_token(node.ncopies_x, "Array2D ncopies_x");
+            ny = obj.copy_count_token(node.ncopies_y, "Array2D ncopies_y");
+            obj.set_pair(feature, 'size', nx, ny);
 
-            tag_y = obj.session.next_comsol_tag("arr");
-            feature_y = wp.geom.create(tag_y, 'Array');
-            feature_y.set('type', 'linear');
-            obj.enable_keep_input(feature_y);
-            obj.set_scalar(feature_y, 'linearsize', ...
-                obj.copy_count_token(node.ncopies_y, "Array2D ncopies_y"));
+            disp_x = obj.length_vector(node.delta_x, "Array2D delta_x");
             disp_y = obj.length_vector(node.delta_y, "Array2D delta_y");
-            obj.set_scalar(feature_y, 'displ', obj.vector_token(disp_y(1), disp_y(2)));
-            obj.set_input_selection(feature_y, tag_x);
-            obj.set_input_selection(feature_y, tag_x);
-            obj.apply_layer_selection(layer, feature_y);
-            obj.feature_tags(int32(node.id)) = string(tag_y);
+            if isnumeric(disp_x(2)) && abs(double(disp_x(2))) > 1e-12
+                warning("Array2D delta_x y-component is ignored by COMSOL rectangular Array.");
+            end
+            if isnumeric(disp_y(1)) && abs(double(disp_y(1))) > 1e-12
+                warning("Array2D delta_y x-component is ignored by COMSOL rectangular Array.");
+            end
+            % COMSOL rectangular Array displ is [dx, dy] along axis directions.
+            obj.set_pair(feature, 'displ', disp_x(1), disp_y(2));
+            try
+                feature.selection('input').set(char(string(input_tag)));
+            catch
+                obj.set_input_selection(feature, input_tag);
+            end
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = string(tag);
         end
 
         function emit_Fillet(obj, node)
@@ -772,43 +777,62 @@
         end
 
         function set_input_selection(~, feature, tags)
-            % Set input feature selection with robust scalar/list handling.
+            % Set input feature selection and fail loudly if nothing was applied.
             tok = string(tags);
-            if ischar(tags)
-                try
-                    feature.selection('input').set(tags);
-                catch
-                end
-                try
-                    feature.set('input', tags);
-                catch
-                end
+            many = cellstr(tok(:).');
+            ok = false;
+            last_err = [];
+
+            try
+                feature.selection('input').set(many);
+                ok = true;
+            catch ex
+                last_err = ex;
+            end
+            if ok
                 return;
             end
-            if isscalar(tok)
-                one = char(tok);
+
+            try
+                feature.set('input', many);
+                ok = true;
+            catch ex
+                last_err = ex;
+            end
+            if ok
+                return;
+            end
+
+            if isscalar(many)
+                one = many{1};
                 try
                     feature.selection('input').set(one);
-                catch
+                    ok = true;
+                catch ex
+                    last_err = ex;
                 end
+                if ok
+                    return;
+                end
+
                 try
                     feature.set('input', one);
-                catch
-                    try
-                        feature.set('input', {one});
-                    catch
-                    end
+                    ok = true;
+                catch ex
+                    last_err = ex;
                 end
+                if ok
+                    return;
+                end
+            end
+
+            if isempty(last_err)
+                error("femtogds:ComsolInputSelectionFailed", ...
+                    "Could not set COMSOL feature input selection.");
             else
-                many = cellstr(tok(:).');
-                try
-                    feature.selection('input').set(many);
-                catch
-                end
-                try
-                    feature.set('input', many);
-                catch
-                end
+                error("femtogds:ComsolInputSelectionFailed", ...
+                    "Could not set COMSOL feature input selection: %s", ...
+                    char(string(last_err.message)));
             end
         end
 
@@ -1101,11 +1125,5 @@
         end
     end
 end
-
-
-
-
-
-
 
 

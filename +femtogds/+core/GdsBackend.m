@@ -22,9 +22,6 @@
 
         function emit(obj, node)
             region = obj.region_for(node);
-            if ~node.output
-                return;
-            end
             id = int32(node.id);
             if isKey(obj.emitted, id)
                 return;

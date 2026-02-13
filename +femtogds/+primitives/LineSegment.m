@@ -1,4 +1,4 @@
-﻿classdef LineSegment < femtogds.core.GeomFeature
+classdef LineSegment < femtogds.core.GeomFeature
     % Line segment primitive between two coordinates.
     properties (Dependent)
         p1
@@ -14,13 +14,11 @@
                 args.p2 = [1, 0]
                 args.width = 1
                 args.layer = "default"
-                args.output logical = true
             end
             if isempty(ctx)
                 ctx = femtogds.core.GeometrySession.require_current();
             end
             obj@femtogds.core.GeomFeature(ctx, args.layer);
-            obj.output = args.output;
             obj.p1 = args.p1;
             obj.p2 = args.p2;
             obj.width = args.width;

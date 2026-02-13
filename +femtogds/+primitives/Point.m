@@ -1,4 +1,4 @@
-﻿classdef Point < femtogds.core.GeomFeature
+classdef Point < femtogds.core.GeomFeature
     % Point primitive that can represent one or several points.
     properties (Dependent)
         p
@@ -12,13 +12,11 @@
                 args.p = [0, 0]
                 args.marker_size = 1
                 args.layer = "default"
-                args.output logical = true
             end
             if isempty(ctx)
                 ctx = femtogds.core.GeometrySession.require_current();
             end
             obj@femtogds.core.GeomFeature(ctx, args.layer);
-            obj.output = args.output;
             obj.p = args.p;
             obj.marker_size = args.marker_size;
             obj.finalize();

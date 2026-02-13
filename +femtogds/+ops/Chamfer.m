@@ -1,4 +1,4 @@
-﻿classdef Chamfer < femtogds.core.GeomFeature
+classdef Chamfer < femtogds.core.GeomFeature
     % Chamfer operation on 2D corners.
     properties (Dependent)
         target
@@ -14,7 +14,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.dist = args.dist;
             obj.points = args.points;
@@ -56,7 +55,6 @@
                 args.dist = 0
                 args.points = []
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

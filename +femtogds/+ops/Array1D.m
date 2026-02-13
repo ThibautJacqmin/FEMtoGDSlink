@@ -1,4 +1,4 @@
-﻿classdef Array1D < femtogds.core.GeomFeature
+classdef Array1D < femtogds.core.GeomFeature
     % Linear array of one geometry feature.
     properties (Dependent)
         target
@@ -15,7 +15,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.ncopies = args.ncopies;
             obj.delta = args.delta;
@@ -53,7 +52,6 @@
                 args.ncopies = 1
                 args.delta = [1, 0]
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

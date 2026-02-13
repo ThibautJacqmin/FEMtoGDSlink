@@ -1,4 +1,4 @@
-﻿classdef Ellipse < femtogds.core.GeomFeature
+classdef Ellipse < femtogds.core.GeomFeature
     % Ellipse primitive with COMSOL-compatible base/rotation definition.
     properties (Dependent)
         position
@@ -23,13 +23,11 @@
                 args.angle = 0
                 args.npoints = 128
                 args.layer = "default"
-                args.output logical = true
             end
             if isempty(ctx)
                 ctx = femtogds.core.GeometrySession.require_current();
             end
             obj@femtogds.core.GeomFeature(ctx, args.layer);
-            obj.output = args.output;
             obj.a = args.a;
             obj.b = args.b;
             obj.angle = args.angle;

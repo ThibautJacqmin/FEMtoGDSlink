@@ -1,4 +1,4 @@
-﻿classdef Scale < femtogds.core.GeomFeature
+classdef Scale < femtogds.core.GeomFeature
     % Scale operation on a feature.
     properties (Dependent)
         target
@@ -14,7 +14,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.factor = args.factor;
             obj.origin = args.origin;
@@ -52,7 +51,6 @@
                 args.factor = 1
                 args.origin = [0, 0]
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

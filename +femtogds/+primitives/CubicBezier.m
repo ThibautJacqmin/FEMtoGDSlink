@@ -1,4 +1,4 @@
-﻿classdef CubicBezier < femtogds.core.GeomFeature
+classdef CubicBezier < femtogds.core.GeomFeature
     % Single cubic Bezier segment.
     properties (Dependent)
         p0
@@ -22,13 +22,11 @@
                 args.npoints = 128
                 args.width = 1
                 args.layer = "default"
-                args.output logical = true
             end
             if isempty(ctx)
                 ctx = femtogds.core.GeometrySession.require_current();
             end
             obj@femtogds.core.GeomFeature(ctx, args.layer);
-            obj.output = args.output;
             obj.p0 = args.p0;
             obj.p1 = args.p1;
             obj.p2 = args.p2;

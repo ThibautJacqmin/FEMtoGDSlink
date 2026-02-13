@@ -1,4 +1,4 @@
-﻿classdef InterpolationCurve < femtogds.core.GeomFeature
+classdef InterpolationCurve < femtogds.core.GeomFeature
     % Curve through provided points, with open/closed/solid modes.
     properties (Dependent)
         points
@@ -14,13 +14,11 @@
                 args.type {mustBeTextScalar} = "open"
                 args.width = 1
                 args.layer = "default"
-                args.output logical = true
             end
             if isempty(ctx)
                 ctx = femtogds.core.GeometrySession.require_current();
             end
             obj@femtogds.core.GeomFeature(ctx, args.layer);
-            obj.output = args.output;
             obj.points = args.points;
             obj.type = args.type;
             obj.width = args.width;

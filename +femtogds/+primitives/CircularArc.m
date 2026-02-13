@@ -1,4 +1,4 @@
-﻿classdef CircularArc < femtogds.core.GeomFeature
+classdef CircularArc < femtogds.core.GeomFeature
     % Circular arc defined by center, radius and start/end angles.
     properties (Dependent)
         center
@@ -22,13 +22,11 @@
                 args.npoints = 128
                 args.width = 1
                 args.layer = "default"
-                args.output logical = true
             end
             if isempty(ctx)
                 ctx = femtogds.core.GeometrySession.require_current();
             end
             obj@femtogds.core.GeomFeature(ctx, args.layer);
-            obj.output = args.output;
             obj.center = args.center;
             obj.radius = args.radius;
             obj.start_angle = args.start_angle;

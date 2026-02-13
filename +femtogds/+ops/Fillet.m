@@ -1,4 +1,4 @@
-﻿classdef Fillet < femtogds.core.GeomFeature
+classdef Fillet < femtogds.core.GeomFeature
     % Fillet operation on a feature.
     properties (Dependent)
         target
@@ -15,7 +15,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.radius = args.radius;
             obj.npoints = args.npoints;
@@ -63,7 +62,6 @@
                 args.npoints = 8
                 args.points = []
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

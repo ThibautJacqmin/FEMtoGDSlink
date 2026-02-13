@@ -1,4 +1,4 @@
-﻿classdef ParametricCurve < femtogds.core.GeomFeature
+classdef ParametricCurve < femtogds.core.GeomFeature
     % Parametric 2D curve defined by x(parname), y(parname).
     properties (Dependent)
         coord
@@ -24,13 +24,11 @@
                 args.width = 1
                 args.sample_points = []
                 args.layer = "default"
-                args.output logical = true
             end
             if isempty(ctx)
                 ctx = femtogds.core.GeometrySession.require_current();
             end
             obj@femtogds.core.GeomFeature(ctx, args.layer);
-            obj.output = args.output;
             obj.coord = args.coord;
             obj.parname = args.parname;
             obj.parmin = args.parmin;

@@ -1,4 +1,4 @@
-﻿classdef Polygon < femtogds.core.GeomFeature
+classdef Polygon < femtogds.core.GeomFeature
     % Polygon primitive represented by an ordered list of 2D vertices.
     %
     % The class has two modes:
@@ -23,7 +23,6 @@
             if nargin == 0
                 obj.inputs = {};
                 obj.params = struct();
-                obj.output = true;
                 obj.is_initialized = true;
                 return;
             end
@@ -33,7 +32,6 @@
                 % No active session: behave as a lightweight data container.
                 obj.inputs = {};
                 obj.params = struct();
-                obj.output = logical(args.output);
                 obj.layer = string(args.layer);
                 if ~isempty(args.vertices)
                     obj.vertices = args.vertices;
@@ -44,7 +42,6 @@
             end
 
             obj.initialize_feature(ctx, args.layer);
-            obj.output = logical(args.output);
             obj.vertices = args.vertices;
             if isempty(obj.vertices) || obj.vertices.nvertices < 3
                 error("Polygon requires at least 3 vertices.");
@@ -104,7 +101,6 @@
             arguments
                 args.vertices = []
                 args.layer = "default"
-                args.output logical = true
                 % Legacy compatibility: accepted but unused in feature mode.
                 args.comsol_modeler = femtogds.core.ComsolModeler.empty
             end

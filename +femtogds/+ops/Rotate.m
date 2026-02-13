@@ -1,4 +1,4 @@
-﻿classdef Rotate < femtogds.core.GeomFeature
+classdef Rotate < femtogds.core.GeomFeature
     % Rotate operation on a feature.
     properties (Dependent)
         target
@@ -14,7 +14,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.angle = args.angle;
             obj.origin = args.origin;
@@ -52,7 +51,6 @@
                 args.angle = 0
                 args.origin = [0, 0]
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

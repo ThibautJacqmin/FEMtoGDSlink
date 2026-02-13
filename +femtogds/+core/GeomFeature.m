@@ -7,7 +7,6 @@
         id
         inputs
         params
-        output logical = true
         is_initialized logical = false
     end
     properties (Access=protected)

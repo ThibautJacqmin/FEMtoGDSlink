@@ -1,4 +1,4 @@
-﻿classdef Rectangle < femtogds.core.GeomFeature
+classdef Rectangle < femtogds.core.GeomFeature
     % Rectangle primitive with COMSOL-compatible base/angle definition.
     properties (Dependent)
         position
@@ -21,13 +21,11 @@
                 args.height = 1
                 args.angle = 0
                 args.layer = "default"
-                args.output logical = true
             end
             if isempty(ctx)
                 ctx = femtogds.core.GeometrySession.require_current();
             end
             obj@femtogds.core.GeomFeature(ctx, args.layer);
-            obj.output = args.output;
             obj.width = args.width;
             obj.height = args.height;
             obj.angle = args.angle;

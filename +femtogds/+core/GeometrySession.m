@@ -141,7 +141,8 @@
 
         function node_initialized(obj, feature)
             % Optionally emit COMSOL feature as soon as node is finalized.
-            if obj.emit_on_create && obj.has_comsol() && feature.output && feature.layer.comsol_emit
+            % COMSOL emission is layer-driven (comsol_emit).
+            if obj.emit_on_create && obj.has_comsol() && feature.layer.comsol_emit
                 if isempty(obj.comsol_backend)
                     obj.comsol_backend = femtogds.core.ComsolBackend(obj);
                 end
@@ -187,14 +188,14 @@
         end
 
         function build_comsol(obj)
-            % Emit all registered nodes through COMSOL backend.
+            % Emit all nodes on COMSOL-enabled layers through COMSOL backend.
             if ~obj.has_comsol()
                 error("COMSOL backend disabled.");
             end
             if isempty(obj.comsol_backend)
                 obj.comsol_backend = femtogds.core.ComsolBackend(obj);
             end
-            nodes_to_emit = obj.output_nodes();
+            nodes_to_emit = obj.nodes;
             nodes_to_emit = nodes_to_emit(cellfun(@(n) n.layer.comsol_emit, nodes_to_emit));
             obj.comsol_backend.emit_all(nodes_to_emit);
         end
@@ -213,30 +214,6 @@
             end
             obj.gds_backend.emit_all(obj.nodes);
             obj.gds.write(filename);
-        end
-
-        function publish(obj, features)
-            % Mark one or multiple features as exported outputs.
-            feature_nodes = obj.normalize_feature_list(features);
-            for i = 1:numel(feature_nodes)
-                feature_nodes{i}.output = true;
-            end
-        end
-
-        function unpublish(obj, features)
-            % Mark one or multiple features as intermediate (not exported).
-            feature_nodes = obj.normalize_feature_list(features);
-            for i = 1:numel(feature_nodes)
-                feature_nodes{i}.output = false;
-            end
-        end
-
-        function publish_only(obj, features)
-            % Keep only selected features marked as outputs.
-            for i = 1:numel(obj.nodes)
-                obj.nodes{i}.output = false;
-            end
-            obj.publish(features);
         end
 
         function open_comsol_gui(obj)
@@ -358,8 +335,7 @@
                     report.session.comsol_enabled, report.session.gds_enabled, ...
                     report.session.snap_mode, report.session.snap_grid_nm);
 
-                fprintf("Nodes: total=%d, output=%d\n", ...
-                    report.nodes.total, report.nodes.output);
+                fprintf("Nodes: total=%d\n", report.nodes.total);
                 if height(report.nodes.by_type) > 0
                     disp(report.nodes.by_type);
                 end
@@ -483,19 +459,18 @@
             ctx = current_ctx;
         end
 
-        function tbl = count_table(labels, outputs, first_col_name)
-            % Aggregate counts and output counts for categorical labels.
+        function tbl = count_table(labels, first_col_name)
+            % Aggregate counts for categorical labels.
             first_col_name = char(first_col_name);
             if isempty(labels)
-                tbl = table(strings(0, 1), zeros(0, 1), zeros(0, 1), ...
-                    'VariableNames', {first_col_name, 'Count', 'OutputCount'});
+                tbl = table(strings(0, 1), zeros(0, 1), ...
+                    'VariableNames', {first_col_name, 'Count'});
                 return;
             end
             [uniq, ~, idx] = unique(labels);
             count = accumarray(idx, 1);
-            out_count = accumarray(idx, double(outputs));
-            tbl = table(uniq, count, out_count, ...
-                'VariableNames', {first_col_name, 'Count', 'OutputCount'});
+            tbl = table(uniq, count, ...
+                'VariableNames', {first_col_name, 'Count'});
         end
 
         function n = map_count(m)
@@ -514,32 +489,6 @@
         end
     end
     methods (Access=private)
-        function nodes = output_nodes(obj)
-            % Return graph nodes marked as output roots.
-            nodes = {};
-            for i = 1:numel(obj.nodes)
-                if obj.nodes{i}.output
-                    nodes{end+1} = obj.nodes{i}; %#ok<AGROW>
-                end
-            end
-        end
-
-        function nodes = normalize_feature_list(~, features)
-            % Normalize one feature or list of features to a cell array.
-            if isa(features, 'femtogds.core.GeomFeature')
-                nodes = num2cell(features(:).');
-            elseif iscell(features)
-                nodes = features;
-            else
-                error("Expected GeomFeature or cell array of GeomFeature objects.");
-            end
-            for i = 1:numel(nodes)
-                if ~isa(nodes{i}, 'femtogds.core.GeomFeature')
-                    error("All entries must be GeomFeature objects.");
-                end
-            end
-        end
-
         function record_snap(obj, key, delta)
             % Aggregate snap statistics for one context key.
             changed = delta(delta > 1e-12);
@@ -559,15 +508,13 @@
         end
 
         function report = node_report(obj)
-            % Summarize node counts by type/layer and output flag.
+            % Summarize node counts by type and layer.
             n = numel(obj.nodes);
             classes = strings(n, 1);
             layer_names = strings(n, 1);
-            outputs = false(n, 1);
             for i = 1:n
                 node = obj.nodes{i};
                 classes(i) = string(class(node));
-                outputs(i) = logical(node.output);
                 if isa(node.layer, "femtogds.core.LayerSpec")
                     layer_names(i) = string(node.layer.name);
                 else
@@ -577,9 +524,8 @@
 
             report = struct();
             report.total = n;
-            report.output = sum(outputs);
-            report.by_type = femtogds.core.GeometrySession.count_table(classes, outputs, "Type");
-            report.by_layer = femtogds.core.GeometrySession.count_table(layer_names, outputs, "Layer");
+            report.by_type = femtogds.core.GeometrySession.count_table(classes, "Type");
+            report.by_layer = femtogds.core.GeometrySession.count_table(layer_names, "Layer");
         end
 
         function report = gds_report(obj)

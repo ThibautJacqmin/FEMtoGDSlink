@@ -1,4 +1,4 @@
-﻿classdef Offset < femtogds.core.GeomFeature
+classdef Offset < femtogds.core.GeomFeature
     % Offset operation on curve or solid geometry.
     properties (Dependent)
         target
@@ -17,7 +17,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.distance = args.distance;
             obj.reverse = args.reverse;
@@ -90,7 +89,6 @@
                 args.trim logical = true
                 args.keep logical = false
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

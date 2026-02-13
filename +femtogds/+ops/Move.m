@@ -1,4 +1,4 @@
-﻿classdef Move < femtogds.core.GeomFeature
+classdef Move < femtogds.core.GeomFeature
     % Move operation on a feature.
     properties (Dependent)
         target
@@ -13,7 +13,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.delta = args.delta;
             obj.finalize();
@@ -41,7 +40,6 @@
             arguments
                 args.delta = [0, 0]
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

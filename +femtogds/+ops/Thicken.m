@@ -1,4 +1,4 @@
-﻿classdef Thicken < femtogds.core.GeomFeature
+classdef Thicken < femtogds.core.GeomFeature
     % Thicken operation on a curve-like feature.
     properties (Dependent)
         target
@@ -20,7 +20,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             obj.add_input(target);
             obj.offset = args.offset;
             obj.totalthick = args.totalthick;
@@ -130,7 +129,6 @@
                 args.keep logical = false
                 args.propagatesel logical = false
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

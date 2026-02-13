@@ -1,4 +1,4 @@
-﻿classdef Intersection < femtogds.core.GeomFeature
+classdef Intersection < femtogds.core.GeomFeature
     % Intersection boolean operation on multiple features.
     properties (Dependent)
         members
@@ -12,7 +12,6 @@
                 layer = args.layer;
             end
             obj@femtogds.core.GeomFeature(ctx, layer);
-            obj.output = args.output;
             for i = 1:numel(members)
                 obj.add_input(members{i});
             end
@@ -32,7 +31,6 @@
         function parsed = parse_options(args)
             arguments
                 args.layer = []
-                args.output logical = true
             end
             parsed = args;
         end

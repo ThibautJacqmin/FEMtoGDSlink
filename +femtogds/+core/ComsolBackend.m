@@ -47,13 +47,48 @@
                 tag = obj.feature_tags(id);
                 return;
             end
+            if isa(node.layer, 'femtogds.core.LayerSpec') && ~node.layer.comsol_emit
+                error("Layer '%s' is configured with emit_to_comsol=false, cannot emit '%s'.", ...
+                    char(string(node.layer.name)), char(string(class(node))));
+            end
             if isKey(obj.emitting, id)
                 error("Cycle detected while emitting COMSOL feature graph.");
             end
             obj.emitting(id) = true;
             obj.emit(node);
+            tag = obj.feature_tags(id);
+            obj.build_selected(node, tag);
             obj.emitting = remove(obj.emitting, id);
             tag = obj.feature_tags(id);
+        end
+
+        function build_selected(obj, node, tag)
+            % Build one emitted feature immediately (COMSOL "Build Selected").
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            geom2d = wp.geom;
+            tag_char = char(string(tag));
+
+            try
+                geom2d.run(tag_char);
+                return;
+            catch run_tag_err
+            end
+
+            try
+                geom2d.runPre(tag_char);
+                return;
+            catch run_pre_err
+            end
+
+            try
+                geom2d.run();
+            catch run_all_err
+                error([ ...
+                    "Failed to build selected COMSOL feature '%s'. run(tag) error: %s. " ...
+                    "runPre(tag) error: %s. run() error: %s."], ...
+                    tag_char, run_tag_err.message, run_pre_err.message, run_all_err.message);
+            end
         end
 
         function emit_Rectangle(obj, node)
@@ -568,33 +603,6 @@
             obj.feature_tags(int32(node.id)) = string(tag);
         end
 
-        function emit_Extract(obj, node)
-            % Emit a COMSOL Extract operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-            tags = obj.collect_tags(node.members);
-
-            tag = obj.session.next_comsol_tag("ext");
-            try
-                feature = wp.geom.create(tag, 'Extract');
-            catch first_err
-                try
-                    feature = wp.geom.create(tag, 'SplitExtract');
-                catch second_err
-                    error("Failed to create COMSOL Extract feature. Extract error: %s. SplitExtract error: %s.", ...
-                        first_err.message, second_err.message);
-                end
-            end
-            obj.set_input_selection(feature, tags);
-            try
-                feature.set('inputhandling', char(node.inputhandling));
-            catch
-            end
-
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
-        end
-
         function emit_Thicken(obj, node)
             % Emit a COMSOL Thicken operation (2D) from a target curve/object.
             layer = node.layer;
@@ -669,60 +677,16 @@
             end
         end
 
-        function select_all_fillet_points(obj, feature, base_tag, node)
-            % Select all fillet points using explicit indices when possible.
+        function select_all_fillet_points(~, feature, base_tag, node)
+            % Select all fillet points in a COMSOL-native way.
+            % For rectangles we keep stable corner indices. For all other
+            % targets, rely on COMSOL's internal point selection to avoid
+            % mismatches between GDS-derived and COMSOL entity numbering.
             if isa(node.target, 'femtogds.primitives.Rectangle')
                 feature.selection('point').set(base_tag, 1:4);
                 return;
             end
-            indices = obj.infer_fillet_point_indices(node.target);
-            if ~isempty(indices)
-                feature.selection('point').set(base_tag, indices);
-                return;
-            end
-            % Fallback when we cannot infer point indices.
             feature.selection('point').all;
-        end
-
-        function indices = infer_fillet_point_indices(obj, target)
-            % Infer point indices from the GDS region equivalent of target.
-            indices = [];
-            if ~obj.session.has_gds()
-                return;
-            end
-
-            if isempty(obj.session.gds_backend)
-                obj.session.gds_backend = femtogds.core.GdsBackend(obj.session);
-            end
-
-            try
-                reg = obj.session.gds_backend.region_for(target);
-            catch
-                return;
-            end
-
-            try
-                it = reg.each_merged();
-            catch
-                return;
-            end
-
-            total_points = 0;
-            while true
-                try
-                    poly = py.next(it);
-                catch
-                    break;
-                end
-                try
-                    total_points = total_points + double(poly.num_points());
-                catch
-                end
-            end
-
-            if total_points > 0
-                indices = 1:round(total_points);
-            end
         end
 
         function define_parameter(obj, p)

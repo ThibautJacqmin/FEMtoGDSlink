@@ -55,9 +55,8 @@ Local searchable text caches:
   - `start` (and `start2` for edge-edge),
   - `edge2` or `point` or `coord` depending on `type`.
   - Cache lines: COMSOL `17863-18003`.
-- Offset and Extract are available in newer COMSOL API docs (6.4) as geometry features:
+- Offset is available in newer COMSOL API docs (6.4) as a geometry feature:
   - `Offset`: `input`, `distance`, `reverse`, `convexcorner`, `trim`, `keep`.
-  - `Extract`: `input`, `inputhandling` (`keep|remainder|remove`).
   - Sources:
     - `https://doc.comsol.com/6.4/doc/com.comsol.help.comsol/comsol_api_geom.46.075.html`
     - `https://doc.comsol.com/6.4/doc/com.comsol.help.comsol/comsol_api_geom.46.058.html`

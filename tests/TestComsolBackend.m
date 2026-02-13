@@ -258,8 +258,8 @@
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
 
-        function emitChamferOffsetTangentExtract(testCase)
-            % Verify COMSOL backend emits femtogds.ops.Chamfer/femtogds.ops.Offset/femtogds.ops.Tangent/femtogds.ops.Extract.
+        function emitChamferOffsetTangent(testCase)
+            % Verify COMSOL backend emits femtogds.ops.Chamfer/femtogds.ops.Offset/femtogds.ops.Tangent.
             ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
@@ -277,23 +277,22 @@
             tan = femtogds.ops.Tangent(ctx, c, type="coord", coord=[180 10], edge_index=1, ...
                 layer="m1", output=false);
 
-            ext = femtogds.ops.Extract(ctx, {cha, off, tan}, inputhandling="keep", ...
-                layer="m1", output=true);
+            u = femtogds.ops.Union(ctx, {cha, off, tan}, layer="m1", output=true);
 
             ctx.build_comsol();
 
-            nodes = {cha, off, tan, ext};
+            nodes = {cha, off, tan, u};
             for i = 1:numel(nodes)
                 testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(nodes{i}.id)));
             end
             cha_tag = string(ctx.comsol_backend.feature_tags(int32(cha.id)));
             off_tag = string(ctx.comsol_backend.feature_tags(int32(off.id)));
             tan_tag = string(ctx.comsol_backend.feature_tags(int32(tan.id)));
-            ext_tag = string(ctx.comsol_backend.feature_tags(int32(ext.id)));
+            u_tag = string(ctx.comsol_backend.feature_tags(int32(u.id)));
             testCase.verifyTrue(startsWith(cha_tag, "cha"));
             testCase.verifyTrue(startsWith(off_tag, "off"));
             testCase.verifyTrue(startsWith(tan_tag, "tan"));
-            testCase.verifyTrue(startsWith(ext_tag, "ext"));
+            testCase.verifyTrue(startsWith(u_tag, "uni"));
 
             for nm = ["cha_dist", "off_dist"]
                 testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, string(nm)));

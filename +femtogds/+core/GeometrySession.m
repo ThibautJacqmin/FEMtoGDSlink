@@ -23,16 +23,22 @@
             arguments
                 args.enable_comsol logical = true
                 args.enable_gds logical = true
+                args.use_comsol logical = true
+                args.use_gds logical = true
                 args.emit_on_create logical = false
                 args.set_as_current logical = true
                 args.snap_mode {mustBeTextScalar} = "strict"
                 args.snap_grid_nm double = 1
                 args.warn_on_snap logical = true
                 args.reuse_comsol_gui logical = false
+                args.launch_comsol_gui logical = false
                 args.comsol_modeler femtogds.core.ComsolModeler = femtogds.core.ComsolModeler.empty
             end
 
-            if args.enable_comsol
+            enable_comsol = args.enable_comsol && args.use_comsol;
+            enable_gds = args.enable_gds && args.use_gds;
+
+            if enable_comsol
                 if ~isempty(args.comsol_modeler)
                     obj.comsol = args.comsol_modeler;
                 elseif args.reuse_comsol_gui
@@ -44,7 +50,7 @@
                 obj.comsol = [];
             end
 
-            if args.enable_gds
+            if enable_gds
                 obj.gds = femtogds.core.GDSModeler;
             else
                 obj.gds = [];
@@ -75,6 +81,14 @@
             if ~isempty(obj.comsol)
                 obj.comsol_workplanes("wp1") = {obj.comsol.workplane};
             end
+            if args.launch_comsol_gui && ~isempty(obj.comsol)
+                try
+                    obj.comsol.start_gui();
+                catch
+                    warning("GeometrySession:GuiLaunch", ...
+                        "Failed to launch/attach COMSOL Desktop automatically.");
+                end
+            end
         end
 
         function layer = add_layer(obj, name, args)
@@ -88,6 +102,7 @@
                 args.comsol_selection {mustBeTextScalar} = ""
                 args.comsol_selection_state {mustBeTextScalar} = "all"
                 args.comsol_enable_selection logical = true
+                args.emit_to_comsol logical = true
             end
             layer = femtogds.core.LayerSpec(name, ...
                 gds_layer=args.gds_layer, ...
@@ -95,7 +110,8 @@
                 comsol_workplane=args.comsol_workplane, ...
                 comsol_selection=args.comsol_selection, ...
                 comsol_selection_state=args.comsol_selection_state, ...
-                comsol_enable_selection=args.comsol_enable_selection);
+                comsol_enable_selection=args.comsol_enable_selection, ...
+                comsol_emit=args.emit_to_comsol);
             obj.layers(string(layer.name)) = layer;
         end
 
@@ -125,7 +141,7 @@
 
         function node_initialized(obj, feature)
             % Optionally emit COMSOL feature as soon as node is finalized.
-            if obj.emit_on_create && obj.has_comsol() && feature.output
+            if obj.emit_on_create && obj.has_comsol() && feature.output && feature.layer.comsol_emit
                 if isempty(obj.comsol_backend)
                     obj.comsol_backend = femtogds.core.ComsolBackend(obj);
                 end
@@ -178,7 +194,9 @@
             if isempty(obj.comsol_backend)
                 obj.comsol_backend = femtogds.core.ComsolBackend(obj);
             end
-            obj.comsol_backend.emit_all(obj.nodes);
+            nodes_to_emit = obj.output_nodes();
+            nodes_to_emit = nodes_to_emit(cellfun(@(n) n.layer.comsol_emit, nodes_to_emit));
+            obj.comsol_backend.emit_all(nodes_to_emit);
         end
 
         function export_gds(obj, filename)
@@ -195,6 +213,38 @@
             end
             obj.gds_backend.emit_all(obj.nodes);
             obj.gds.write(filename);
+        end
+
+        function publish(obj, features)
+            % Mark one or multiple features as exported outputs.
+            feature_nodes = obj.normalize_feature_list(features);
+            for i = 1:numel(feature_nodes)
+                feature_nodes{i}.output = true;
+            end
+        end
+
+        function unpublish(obj, features)
+            % Mark one or multiple features as intermediate (not exported).
+            feature_nodes = obj.normalize_feature_list(features);
+            for i = 1:numel(feature_nodes)
+                feature_nodes{i}.output = false;
+            end
+        end
+
+        function publish_only(obj, features)
+            % Keep only selected features marked as outputs.
+            for i = 1:numel(obj.nodes)
+                obj.nodes{i}.output = false;
+            end
+            obj.publish(features);
+        end
+
+        function open_comsol_gui(obj)
+            % Launch or attach COMSOL Desktop to the current model.
+            if ~obj.has_comsol()
+                error("COMSOL backend disabled.");
+            end
+            obj.comsol.start_gui();
         end
 
         function snapped = snap_length(obj, values, context)
@@ -336,22 +386,32 @@
             % Create a session using process-wide shared COMSOL modeler.
             arguments
                 args.enable_gds logical = true
+                args.use_comsol logical = true
+                args.use_gds logical = true
                 args.emit_on_create logical = false
                 args.set_as_current logical = true
                 args.snap_mode {mustBeTextScalar} = "strict"
                 args.snap_grid_nm double = 1
                 args.warn_on_snap logical = true
                 args.reset_model logical = true
+                args.launch_comsol_gui logical = false
             end
-            shared_modeler = femtogds.core.ComsolModeler.shared(reset=args.reset_model);
+            if args.use_comsol
+                shared_modeler = femtogds.core.ComsolModeler.shared(reset=args.reset_model);
+            else
+                shared_modeler = femtogds.core.ComsolModeler.empty;
+            end
             ctx = femtogds.core.GeometrySession( ...
-                enable_comsol=true, ...
-                enable_gds=args.enable_gds, ...
+                enable_comsol=args.use_comsol, ...
+                enable_gds=args.enable_gds && args.use_gds, ...
+                use_comsol=args.use_comsol, ...
+                use_gds=args.use_gds, ...
                 emit_on_create=args.emit_on_create, ...
                 set_as_current=args.set_as_current, ...
                 snap_mode=args.snap_mode, ...
                 snap_grid_nm=args.snap_grid_nm, ...
                 warn_on_snap=args.warn_on_snap, ...
+                launch_comsol_gui=args.launch_comsol_gui, ...
                 comsol_modeler=shared_modeler);
         end
 
@@ -441,6 +501,32 @@
         end
     end
     methods (Access=private)
+        function nodes = output_nodes(obj)
+            % Return graph nodes marked as output roots.
+            nodes = {};
+            for i = 1:numel(obj.nodes)
+                if obj.nodes{i}.output
+                    nodes{end+1} = obj.nodes{i}; %#ok<AGROW>
+                end
+            end
+        end
+
+        function nodes = normalize_feature_list(~, features)
+            % Normalize one feature or list of features to a cell array.
+            if isa(features, 'femtogds.core.GeomFeature')
+                nodes = num2cell(features(:).');
+            elseif iscell(features)
+                nodes = features;
+            else
+                error("Expected GeomFeature or cell array of GeomFeature objects.");
+            end
+            for i = 1:numel(nodes)
+                if ~isa(nodes{i}, 'femtogds.core.GeomFeature')
+                    error("All entries must be GeomFeature objects.");
+                end
+            end
+        end
+
         function record_snap(obj, key, delta)
             % Aggregate snap statistics for one context key.
             changed = delta(delta > 1e-12);

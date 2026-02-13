@@ -3,20 +3,11 @@ import femtogds.types.*
 import femtogds.primitives.*
 import femtogds.ops.*
 
-comsol_available = false;
-try
-    ctx = GeometrySession.with_shared_comsol(enable_gds=true, emit_on_create=false, ...
-        snap_mode='off', snap_grid_nm=1, warn_on_snap=true, reset_model=true);
-    comsol_available = true;
-catch err
-    warning("test:ComsolUnavailable", ...
-        "COMSOL API unavailable (%s). Running test.m in GDS-only mode.", err.message);
-    ctx = GeometrySession(enable_comsol=false, enable_gds=true, emit_on_create=false, ...
-        snap_mode='off', snap_grid_nm=1, warn_on_snap=true);
-end
+ctx = GeometrySession.with_shared_comsol(use_comsol=true, use_gds=true, ...
+    snap_mode='off', snap_grid_nm=1, warn_on_snap=true, reset_model=true);
 
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
-    comsol_selection="metal1", comsol_selection_state="all");
+    comsol_selection="metal1", comsol_selection_state="all", emit_to_comsol=true);
 
 % Global design parameters.
 nlevels = 6;
@@ -46,7 +37,7 @@ p_arr_pitch_y = Parameter(70, "arr_pitch_y");
 
 % Dependent parameter examples for geometry dimensions.
 p_line_thk_seed = Parameter(6, "line_thk_seed");
-p_line_thk = Parameter(@(x) x^2 + 2, p_line_thk_seed, "line_thk");
+p_line_thk = Parameter(@(x) x + 2, p_line_thk_seed, "line_thk");
 p_off_seed = Parameter(7, "off_seed");
 p_offset_dist = Parameter(@(x) x + 3, p_off_seed, "off_dist");
 
@@ -143,7 +134,7 @@ param_closed = ParametricCurve(coord={"20*cos(s)", "20*sin(s)"}, parname="s", ..
     parmin=0, parmax=2*pi, type="closed", npoints=128, ...
     layer="metal1", output=true);
 
-% 9) New operation features: Chamfer / Offset / Tangent / Extract.
+% 9) New operation features: Chamfer / Offset / Tangent.
 chamfer_base = Rectangle(center=[-250, 220], width=90, height=60, ...
     layer="metal1", output=false);
 chamfered = Chamfer(chamfer_base, dist=10, points=[1 2 3 4], ...
@@ -159,18 +150,16 @@ tangent_circle = Circle(center=[30, 220], radius=28, npoints=96, ...
     layer="metal1", output=false);
 tangent_line = Tangent(tangent_circle, type="coord", coord=[95, 250], ...
     start=0.7, edge_index=1, width=8, layer="metal1", output=true);
+envelope = Rectangle(base="corner", corner=[-187, -10], ...
+    width=p_env_w, height=p_env_h, layer="metal1", output=false);
 
-extract_a = Rectangle(center=[180, 220], width=52, height=34, ...
-    layer="metal1", output=false);
-extract_b = Move(extract_a, delta=[70, 0], layer="metal1", output=false);
-extracted = Extract({extract_a, extract_b}, inputhandling="keep", ...
-    layer="metal1", output=true);
+% Explicit publish list (preferred over manually setting output flags).
+ctx.publish_only({ ...
+    final_shape, ellipse_cut, circle_corner, ellipse_corner, array_grid, ...
+    curve_points, line_thk, interp_thk, quad_thk, cubic_thk, arc_thk, ...
+    param_thk, param_closed, chamfered, offset_shape, tangent_line});
 
-if comsol_available
-    ctx.build_comsol();
-else
-    fprintf("COMSOL API unavailable: skipped COMSOL build.\n");
-end
+ctx.build_comsol();
 ctx.export_gds("out.gds");
 
 % Consolidated build report (includes snap report).

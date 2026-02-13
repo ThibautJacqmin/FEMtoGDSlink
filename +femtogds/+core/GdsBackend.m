@@ -336,19 +336,6 @@
             region = obj.region_from_polyline(pts, width, "Tangent");
         end
 
-        function region = build_Extract(obj, node)
-            if isempty(node.members)
-                region = obj.modeler.pya.Region();
-                return;
-            end
-
-            region = obj.modeler.pya.Region();
-            for i = 1:numel(node.members)
-                region = region + obj.region_for(node.members{i});
-            end
-            region.merge();
-        end
-
         function region = build_Point(obj, node)
             pts = obj.session.gds_integer(node.p_value(), "Point coordinates");
             size_nm = obj.gds_length_scalar(node.marker_size, "Point marker size");

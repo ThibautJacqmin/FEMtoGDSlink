@@ -395,8 +395,12 @@
                 args.warn_on_snap logical = true
                 args.reset_model logical = true
                 args.launch_comsol_gui logical = false
+                args.clean_on_reset logical = true
             end
             if args.use_comsol
+                if args.reset_model && args.clean_on_reset
+                    femtogds.core.GeometrySession.clean_comsol_server();
+                end
                 shared_modeler = femtogds.core.ComsolModeler.shared(reset=args.reset_model);
             else
                 shared_modeler = femtogds.core.ComsolModeler.empty;
@@ -418,6 +422,15 @@
         function clear_shared_comsol()
             % Dispose and clear shared COMSOL model used by helper API.
             femtogds.core.ComsolModeler.clear_shared();
+        end
+
+        function removed = clean_comsol_server(args)
+            % Remove generated COMSOL models and clear shared COMSOL handle.
+            arguments
+                args.prefix (1,1) string = "Model_"
+            end
+            removed = femtogds.core.ComsolModeler.clear_generated_models(prefix=args.prefix);
+            femtogds.core.GeometrySession.clear_shared_comsol();
         end
 
         function set_current(ctx)

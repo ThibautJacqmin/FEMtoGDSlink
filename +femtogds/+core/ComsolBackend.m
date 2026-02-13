@@ -95,11 +95,7 @@ classdef ComsolBackend < handle
 
         function emit_Rectangle(obj, node)
             % Emit a COMSOL Rectangle primitive from a Rectangle node.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("rect");
-            feature = wp.geom.create(tag, 'Rectangle');
+            [layer, feature, tag] = obj.start_feature(node, "rect", "Rectangle");
             feature.set('base', char(node.base));
             pos = obj.length_vector(node.position, "Rectangle position");
             obj.set_pair(feature, 'pos', pos(1), pos(2));
@@ -112,34 +108,24 @@ classdef ComsolBackend < handle
             catch
                 % Rotation is optional in COMSOL primitive API; ignore if unsupported.
             end
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Circle(obj, node)
             % Emit a COMSOL Circle primitive from a Circle node.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("cir");
-            feature = wp.geom.create(tag, 'Circle');
+            [layer, feature, tag] = obj.start_feature(node, "cir", "Circle");
             feature.set('base', char(node.base));
             pos = obj.length_vector(node.position, "Circle position");
             obj.set_pair(feature, 'pos', pos(1), pos(2));
             obj.set_scalar(feature, 'r', obj.length_component(node.radius, "Circle radius"));
             obj.set_scalar(feature, 'angle', obj.raw_component(node.angle));
             obj.set_scalar(feature, 'rot', obj.raw_component(node.rotation));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Ellipse(obj, node)
             % Emit a COMSOL Ellipse primitive from an Ellipse node.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("ell");
-            feature = wp.geom.create(tag, 'Ellipse');
+            [layer, feature, tag] = obj.start_feature(node, "ell", "Ellipse");
             feature.set('base', char(node.base));
             pos = obj.length_vector(node.position, "Ellipse position");
             obj.set_pair(feature, 'pos', pos(1), pos(2));
@@ -147,274 +133,178 @@ classdef ComsolBackend < handle
             b_val = obj.length_component(node.b, "Ellipse semiaxis b");
             obj.set_pair(feature, 'semiaxes', a_val, b_val);
             obj.set_scalar(feature, 'rot', obj.raw_component(node.angle));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Point(obj, node)
             % Emit one or several COMSOL Point coordinates.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("pt");
-            feature = wp.geom.create(tag, 'Point');
+            [layer, feature, tag] = obj.start_feature(node, "pt", "Point");
             pts = obj.session.snap_length(node.p_value(), "Point coordinates");
             feature.set('p', pts);
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_LineSegment(obj, node)
             % Emit a COMSOL LineSegment using coordinate endpoints.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("ls");
-            feature = wp.geom.create(tag, 'LineSegment');
+            [layer, feature, tag] = obj.start_feature(node, "ls", "LineSegment");
             feature.set('specify1', 'coord');
             feature.set('specify2', 'coord');
             p1 = obj.length_vector(node.p1, "LineSegment p1");
             p2 = obj.length_vector(node.p2, "LineSegment p2");
             obj.set_pair(feature, 'coord1', p1(1), p1(2));
             obj.set_pair(feature, 'coord2', p2(1), p2(2));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_InterpolationCurve(obj, node)
             % Emit a COMSOL InterpolationCurve primitive.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("ic");
-            feature = wp.geom.create(tag, 'InterpolationCurve');
+            [layer, feature, tag] = obj.start_feature(node, "ic", "InterpolationCurve");
             pts = obj.session.snap_length(node.points_value(), "InterpolationCurve table");
             feature.set('table', pts);
             feature.set('type', char(node.type));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_QuadraticBezier(obj, node)
             % Emit a COMSOL quadratic Bezier as a one-segment BezierPolygon.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("bez");
-            feature = wp.geom.create(tag, 'BezierPolygon');
+            [layer, feature, tag] = obj.start_feature(node, "bez", "BezierPolygon");
             ctrl = obj.session.snap_length(node.control_points_value(), ...
                 "QuadraticBezier control points");
             feature.set('degree', int32(2));
             feature.set('p', [ctrl(:, 1).'; ctrl(:, 2).']);
             feature.set('type', char(node.type));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_CubicBezier(obj, node)
             % Emit a COMSOL cubic Bezier as a one-segment BezierPolygon.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("bez");
-            feature = wp.geom.create(tag, 'BezierPolygon');
+            [layer, feature, tag] = obj.start_feature(node, "bez", "BezierPolygon");
             ctrl = obj.session.snap_length(node.control_points_value(), ...
                 "CubicBezier control points");
             feature.set('degree', int32(3));
             feature.set('p', [ctrl(:, 1).'; ctrl(:, 2).']);
             feature.set('type', char(node.type));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_CircularArc(obj, node)
             % Emit a CircularArc as rational quadratic BezierPolygon segments.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("bez");
-            feature = wp.geom.create(tag, 'BezierPolygon');
+            [layer, feature, tag] = obj.start_feature(node, "bez", "BezierPolygon");
             [ctrl, degree, weights] = node.bezier_segments();
             ctrl = obj.session.snap_length(ctrl, "CircularArc control points");
             feature.set('degree', int32(degree));
             feature.set('p', [ctrl(:, 1).'; ctrl(:, 2).']);
             feature.set('w', weights);
             feature.set('type', char(node.type));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_ParametricCurve(obj, node)
             % Emit a COMSOL ParametricCurve primitive.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-
-            tag = obj.session.next_comsol_tag("pc");
-            feature = wp.geom.create(tag, 'ParametricCurve');
+            [layer, feature, tag] = obj.start_feature(node, "pc", "ParametricCurve");
             feature.set('parname', char(node.parname));
             obj.set_scalar(feature, 'parmin', obj.raw_component(node.parmin));
             obj.set_scalar(feature, 'parmax', obj.raw_component(node.parmax));
             coord = node.coord_strings();
             feature.set('coord', {char(coord(1)), char(coord(2))});
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Polygon(obj, node)
             % Emit a COMSOL Polygon primitive from a Polygon node.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
+            [layer, feature, tag] = obj.start_feature(node, "pol", "Polygon");
 
             verts = node.vertices;
             if isempty(verts) || verts.nvertices < 3
                 error("Polygon requires at least 3 vertices.");
             end
 
-            tag = obj.session.next_comsol_tag("pol");
-            feature = wp.geom.create(tag, 'Polygon');
             [xvals, yvals] = obj.polygon_components(verts, "Polygon vertices");
             feature.set('x', xvals);
             feature.set('y', yvals);
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Move(obj, node)
             % Emit a COMSOL Move operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-            input_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("mov");
-            feature = wp.geom.create(tag, 'Move');
-            feature.selection('input').set(input_tag);
+            [layer, feature, tag, ~] = obj.start_unary_feature(node, "mov", "Move");
             delta = obj.length_vector(node.delta, "Move delta");
             obj.set_scalar(feature, 'displx', delta(1));
             obj.set_scalar(feature, 'disply', delta(2));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Rotate(obj, node)
             % Emit a COMSOL Rotate operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-            input_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("rot");
-            feature = wp.geom.create(tag, 'Rotate');
-            feature.selection('input').set(input_tag);
+            [layer, feature, tag, ~] = obj.start_unary_feature(node, "rot", "Rotate");
             obj.set_scalar(feature, 'rot', obj.raw_component(node.angle));
             origin = obj.length_vector(node.origin, "Rotate origin");
             obj.set_pair(feature, 'pos', origin(1), origin(2));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Scale(obj, node)
             % Emit a COMSOL Scale operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-            input_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("sca");
-            feature = wp.geom.create(tag, 'Scale');
-            feature.selection('input').set(input_tag);
+            [layer, feature, tag, ~] = obj.start_unary_feature(node, "sca", "Scale");
             obj.set_scalar(feature, 'factor', obj.raw_component(node.factor));
             origin = obj.length_vector(node.origin, "Scale origin");
             obj.set_pair(feature, 'pos', origin(1), origin(2));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Mirror(obj, node)
             % Emit a COMSOL Mirror operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-            input_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("mir");
-            feature = wp.geom.create(tag, 'Mirror');
-            feature.selection('input').set(input_tag);
+            [layer, feature, tag, ~] = obj.start_unary_feature(node, "mir", "Mirror");
             point = obj.length_vector(node.point, "Mirror point");
             obj.set_pair(feature, 'pos', point(1), point(2));
             feature.set('axis', obj.vector_value(node.axis));
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Union(obj, node)
             % Emit a COMSOL Union operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
+            [layer, feature, tag] = obj.start_feature(node, "uni", "Union");
             tags = obj.collect_tags(node.inputs);
 
-            tag = obj.session.next_comsol_tag("uni");
-            feature = wp.geom.create(tag, 'Union');
             feature.selection('input').set(tags);
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Difference(obj, node)
             % Emit a COMSOL Difference operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
+            [layer, feature, tag] = obj.start_feature(node, "dif", "Difference");
             base_tag = obj.tag_for(node.base);
             tool_tags = obj.collect_tags(node.tools);
 
-            tag = obj.session.next_comsol_tag("dif");
-            feature = wp.geom.create(tag, 'Difference');
             feature.selection('input').set(base_tag);
             if ~isempty(tool_tags)
                 feature.selection('input2').set(tool_tags);
             end
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Intersection(obj, node)
             % Emit a COMSOL Intersection operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
+            [layer, feature, tag] = obj.start_feature(node, "int", "Intersection");
             tags = obj.collect_tags(node.inputs);
 
-            tag = obj.session.next_comsol_tag("int");
-            feature = wp.geom.create(tag, 'Intersection');
             feature.selection('input').set(tags);
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Array1D(obj, node)
             % Emit a COMSOL 1D Array operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-            input_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("arr");
-            feature = wp.geom.create(tag, 'Array');
+            [layer, feature, tag, ~] = obj.start_unary_feature(node, "arr", "Array");
             obj.enable_keep_input(feature);
             obj.set_scalar(feature, 'size', obj.copy_count_token(node.ncopies, "Array1D ncopies"));
             disp_vec = obj.length_vector(node.delta, "Array1D delta");
             obj.set_pair(feature, 'displ', disp_vec(1), disp_vec(2));
-            try
-                feature.selection('input').set(char(string(input_tag)));
-            catch
-                obj.set_input_selection(feature, input_tag);
-            end
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Array2D(obj, node)
             % Emit a COMSOL 2D rectangular Array operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
-            input_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("arr");
-            feature = wp.geom.create(tag, 'Array');
+            [layer, feature, tag, ~] = obj.start_unary_feature(node, "arr", "Array");
             obj.enable_keep_input(feature);
             nx = obj.copy_count_token(node.ncopies_x, "Array2D ncopies_x");
             ny = obj.copy_count_token(node.ncopies_y, "Array2D ncopies_y");
@@ -430,23 +320,13 @@ classdef ComsolBackend < handle
             end
             % COMSOL rectangular Array displ is [dx, dy] along axis directions.
             obj.set_pair(feature, 'displ', disp_x(1), disp_y(2));
-            try
-                feature.selection('input').set(char(string(input_tag)));
-            catch
-                obj.set_input_selection(feature, input_tag);
-            end
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Fillet(obj, node)
             % Emit a COMSOL Fillet operation with explicit point selection.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
             base_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("fil");
-            feature = wp.geom.create(tag, 'Fillet');
+            [layer, feature, tag] = obj.start_feature(node, "fil", "Fillet");
             % Fillet input API differs across COMSOL versions/workplane contexts.
             try
                 feature.selection('input').set(base_tag);
@@ -480,18 +360,13 @@ classdef ComsolBackend < handle
             else
                 obj.select_all_fillet_points(feature, base_tag, node);
             end
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Chamfer(obj, node)
             % Emit a COMSOL Chamfer operation with explicit point selection.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
             base_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("cha");
-            feature = wp.geom.create(tag, 'Chamfer');
+            [layer, feature, tag] = obj.start_feature(node, "cha", "Chamfer");
             try
                 feature.selection('input').set(base_tag);
             catch
@@ -524,27 +399,14 @@ classdef ComsolBackend < handle
                 obj.select_all_fillet_points(feature, base_tag, node);
             end
 
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Offset(obj, node)
             % Emit a COMSOL Offset operation.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
             input_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("off");
-            try
-                feature = wp.geom.create(tag, 'Offset');
-            catch first_err
-                try
-                    feature = wp.geom.create(tag, 'Offset2D');
-                catch second_err
-                    error("Failed to create COMSOL Offset feature. Offset error: %s. Offset2D error: %s.", ...
-                        first_err.message, second_err.message);
-                end
-            end
+            [layer, feature, tag] = obj.start_feature_with_fallback( ...
+                node, "off", ["Offset", "Offset2D"], "Offset");
 
             obj.set_input_selection(feature, input_tag);
             obj.set_scalar(feature, 'distance', obj.length_component(node.distance, "Offset distance"));
@@ -565,18 +427,13 @@ classdef ComsolBackend < handle
             catch
             end
 
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Tangent(obj, node)
             % Emit a COMSOL Tangent feature.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
             edge_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("tan");
-            feature = wp.geom.create(tag, 'Tangent');
+            [layer, feature, tag] = obj.start_feature(node, "tan", "Tangent");
             type = lower(string(node.type));
             feature.set('type', char(type));
             obj.set_scalar(feature, 'start', obj.raw_component(node.start));
@@ -604,27 +461,14 @@ classdef ComsolBackend < handle
                 obj.set_pair(feature, 'coord', coord(1), coord(2));
             end
 
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
 
         function emit_Thicken(obj, node)
             % Emit a COMSOL Thicken operation (2D) from a target curve/object.
-            layer = node.layer;
-            wp = obj.session.get_workplane(layer);
             input_tag = obj.tag_for(node.target);
-
-            tag = obj.session.next_comsol_tag("thk");
-            try
-                feature = wp.geom.create(tag, 'Thicken2D');
-            catch first_err
-                try
-                    feature = wp.geom.create(tag, 'Thicken');
-                catch second_err
-                    error("Failed to create COMSOL Thicken feature. Thicken2D error: %s. Thicken error: %s.", ...
-                        first_err.message, second_err.message);
-                end
-            end
+            [layer, feature, tag] = obj.start_feature_with_fallback( ...
+                node, "thk", ["Thicken2D", "Thicken"], "Thicken");
 
             obj.set_input_selection(feature, input_tag);
             feature.set('offset', char(node.offset));
@@ -657,8 +501,7 @@ classdef ComsolBackend < handle
             catch
             end
 
-            obj.apply_layer_selection(layer, feature);
-            obj.feature_tags(int32(node.id)) = string(tag);
+            obj.finish_feature(node, layer, feature, tag);
         end
     end
     methods (Access=private)
@@ -756,6 +599,48 @@ classdef ComsolBackend < handle
 
             obj.modeler.model.param.set(name, val, "");
             obj.defined_params(key) = true;
+        end
+
+        function [layer, feature, tag] = start_feature(obj, node, prefix, ftype)
+            % Create a COMSOL feature with standard tag/workplane setup.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            tag = obj.session.next_comsol_tag(prefix);
+            feature = wp.geom.create(tag, char(string(ftype)));
+        end
+
+        function [layer, feature, tag] = start_feature_with_fallback(obj, node, prefix, ftypes, context_name)
+            % Create a COMSOL feature, trying multiple feature types in order.
+            layer = node.layer;
+            wp = obj.session.get_workplane(layer);
+            tag = obj.session.next_comsol_tag(prefix);
+
+            msgs = strings(0, 1);
+            for i = 1:numel(ftypes)
+                ftype = string(ftypes(i));
+                try
+                    feature = wp.geom.create(tag, char(ftype));
+                    return;
+                catch ex
+                    msgs(end+1, 1) = ftype + " error: " + string(ex.message); %#ok<AGROW>
+                end
+            end
+
+            error("Failed to create COMSOL %s feature. %s", ...
+                char(string(context_name)), char(strjoin(msgs, ". ")));
+        end
+
+        function [layer, feature, tag, input_tag] = start_unary_feature(obj, node, prefix, ftype)
+            % Create a unary operation feature and bind target input.
+            input_tag = obj.tag_for(node.target);
+            [layer, feature, tag] = obj.start_feature(node, prefix, ftype);
+            obj.set_input_selection(feature, input_tag);
+        end
+
+        function finish_feature(obj, node, layer, feature, tag)
+            % Apply layer selection and register feature tag for node.
+            obj.apply_layer_selection(layer, feature);
+            obj.feature_tags(int32(node.id)) = string(tag);
         end
 
         function set_pair(obj, feature, prop_name, v1, v2)
@@ -1125,5 +1010,3 @@ classdef ComsolBackend < handle
         end
     end
 end
-
-

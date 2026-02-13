@@ -14,18 +14,25 @@ classdef Parameter
                 primary = 0
                 secondary = ""
                 tertiary = ""
+                args.name {mustBeTextScalar} = ""
                 args.unit {mustBeTextScalar} = "__auto__"
                 args.expr {mustBeTextScalar} = ""
                 args.expression {mustBeTextScalar} = ""
+                args.auto_register logical = true
             end
 
             expr_override = femtogds.types.Parameter.resolve_expr_override(args.expr, args.expression);
             dep_records = struct('name', {}, 'value', {}, 'unit', {}, 'expr', {});
+            name_kw = femtogds.types.Parameter.normalize_name(args.name);
 
             if isa(primary, "function_handle")
                 deps = femtogds.types.Parameter.normalize_dependencies(secondary);
-                name = femtogds.types.Parameter.normalize_name(tertiary, ...
-                    "Function-based Parameter requires a name as third positional argument.");
+                name_pos = femtogds.types.Parameter.normalize_name(tertiary, ...
+                    "Function-based Parameter requires a name as third positional argument or name=""..."".");
+                name = femtogds.types.Parameter.resolve_name_inputs(name_pos, name_kw);
+                if strlength(name) == 0
+                    error("Function-based Parameter requires a name as third positional argument or name=""..."".");
+                end
                 [value, inferred_expr, dep_records, inferred_unit] = ...
                     femtogds.types.Parameter.build_from_function(primary, deps);
                 expr = inferred_expr;
@@ -39,13 +46,15 @@ classdef Parameter
                 end
                 source = primary;
                 value = source.value;
-                name = femtogds.types.Parameter.normalize_name(secondary);
+                name_pos = femtogds.types.Parameter.normalize_name(secondary);
+                name = femtogds.types.Parameter.resolve_name_inputs(name_pos, name_kw);
                 expr = source.expression_token();
                 unit = femtogds.types.Parameter.resolve_unit(args.unit, source.unit);
                 dep_records = source.dependency_records;
             elseif isnumeric(primary) && isscalar(primary)
                 value = double(primary);
-                name = femtogds.types.Parameter.normalize_name(secondary);
+                name_pos = femtogds.types.Parameter.normalize_name(secondary);
+                name = femtogds.types.Parameter.resolve_name_inputs(name_pos, name_kw);
                 if strlength(string(tertiary)) > 0
                     error("Numeric Parameter constructor expects at most two positional arguments.");
                 end
@@ -82,6 +91,10 @@ classdef Parameter
                 obj.dependency_records = femtogds.types.Parameter.merge_dependency_records( ...
                     obj.dependency_records, self_rec);
             end
+
+            if args.auto_register
+                femtogds.types.Parameter.try_register_current_context(obj);
+            end
         end
 
         function tf = is_named(obj)
@@ -98,62 +111,151 @@ classdef Parameter
             end
         end
 
-        function y = plus(obj, rhs)
+        function y = plus(lhs, rhs)
             % Overload + preserving expression and dependency metadata.
-            y = obj.apply_operation(rhs, "+");
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "+");
         end
 
-        function y = minus(obj, rhs)
+        function y = minus(lhs, rhs)
             % Overload - preserving expression and dependency metadata.
-            y = obj.apply_operation(rhs, "-");
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "-");
         end
 
-        function y = times(obj, rhs)
+        function y = times(lhs, rhs)
             % Overload .* preserving expression and dependency metadata.
-            y = obj.apply_operation(rhs, "*");
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "*");
         end
 
-        function y = mtimes(obj, rhs)
+        function y = mtimes(lhs, rhs)
             % Overload * preserving expression and dependency metadata.
-            y = obj.apply_operation(rhs, "*");
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "*");
         end
 
-        function y = rdivide(obj, rhs)
+        function y = rdivide(lhs, rhs)
             % Overload ./ preserving expression and dependency metadata.
-            y = obj.apply_operation(rhs, "/");
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "/");
         end
 
-        function y = mrdivide(obj, rhs)
+        function y = mrdivide(lhs, rhs)
             % Overload / preserving expression and dependency metadata.
-            y = obj.apply_operation(rhs, "/");
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "/");
+        end
+
+        function y = ldivide(lhs, rhs)
+            % Overload .\ preserving expression and dependency metadata.
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "\");
+        end
+
+        function y = mldivide(lhs, rhs)
+            % Overload \ preserving expression and dependency metadata.
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "\");
+        end
+
+        function y = power(lhs, rhs)
+            % Overload .^ preserving expression and dependency metadata.
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "^");
+        end
+
+        function y = mpower(lhs, rhs)
+            % Overload ^ preserving expression and dependency metadata.
+            y = femtogds.types.Parameter.apply_binary(lhs, rhs, "^");
+        end
+
+        function y = sin(~)
+            % Disallow direct symbolic math on Parameter; use function-based constructor.
+            y = femtogds.types.Parameter.empty;
+            femtogds.types.Parameter.unsupported_function_error("sin");
+        end
+
+        function y = cos(~)
+            % Disallow direct symbolic math on Parameter; use function-based constructor.
+            y = femtogds.types.Parameter.empty;
+            femtogds.types.Parameter.unsupported_function_error("cos");
+        end
+
+        function y = exp(~)
+            % Disallow direct symbolic math on Parameter; use function-based constructor.
+            y = femtogds.types.Parameter.empty;
+            femtogds.types.Parameter.unsupported_function_error("exp");
         end
     end
-    methods (Access=private)
-        function y = apply_operation(obj, rhs, operation)
+    methods (Static, Access=private)
+        function out = resolve_name_inputs(positional, named)
+            % Resolve optional name from positional input and name= keyword.
+            positional = string(positional);
+            named = string(named);
+            if strlength(named) > 0
+                if strlength(positional) > 0 && positional ~= named
+                    error("Conflicting names provided via positional input and name=""..."" keyword.");
+                end
+                out = named;
+            else
+                out = positional;
+            end
+        end
+
+        function try_register_current_context(p)
+            % Best effort auto-registration of named parameters into current COMSOL session.
+            if ~p.is_named()
+                return;
+            end
+            try
+                ctx = femtogds.core.GeometrySession.get_current();
+            catch
+                return;
+            end
+            if isempty(ctx)
+                return;
+            end
+            try
+                if ~ctx.has_comsol()
+                    return;
+                end
+                ctx.register_parameter(p);
+            catch
+                % Keep constructor side-effect tolerant.
+            end
+        end
+
+        function y = apply_binary(lhs, rhs, operation)
             % Execute binary arithmetic and propagate dependency records.
+            [lhs_value, lhs_expr, lhs_unit, lhs_records] = femtogds.types.Parameter.coerce_operand(lhs);
             [rhs_value, rhs_expr, rhs_unit, rhs_records] = femtogds.types.Parameter.coerce_operand(rhs);
-            lhs_expr = obj.expression_token();
 
             switch operation
                 case "+"
-                    y_value = obj.value + rhs_value;
+                    y_value = lhs_value + rhs_value;
                 case "-"
-                    y_value = obj.value - rhs_value;
+                    y_value = lhs_value - rhs_value;
                 case "*"
-                    y_value = obj.value * rhs_value;
+                    y_value = lhs_value * rhs_value;
                 case "/"
-                    y_value = obj.value / rhs_value;
+                    y_value = lhs_value / rhs_value;
+                case "\"
+                    % For scalar parameters, A\B is equivalent to B/A.
+                    y_value = rhs_value / lhs_value;
+                case "^"
+                    y_value = lhs_value ^ rhs_value;
                 otherwise
                     error("Unsupported operation '%s'.", operation);
             end
 
-            y_expr = "(" + lhs_expr + ")" + operation + "(" + rhs_expr + ")";
-            y_unit = femtogds.types.Parameter.combine_units(obj.unit, rhs_unit, operation);
+            if operation == "\"
+                y_expr = "(" + rhs_expr + ")/(" + lhs_expr + ")";
+            else
+                y_expr = "(" + lhs_expr + ")" + operation + "(" + rhs_expr + ")";
+            end
+            y_unit = femtogds.types.Parameter.combine_units(lhs_unit, rhs_unit, operation);
             y = femtogds.types.Parameter(y_value, "", unit=y_unit, expr=y_expr);
-            y.dependency_records = femtogds.types.Parameter.merge_dependency_records(obj.dependency_records, rhs_records);
+            y.dependency_records = femtogds.types.Parameter.merge_dependency_records(lhs_records, rhs_records);
         end
-    end
-    methods (Static, Access=private)
+
+        function unsupported_function_error(function_name)
+            error("Parameter:UnsupportedFunction", ...
+                "Unsupported direct call '%s(parameter)'. Use function-based Parameter syntax, e.g. Parameter(@(x) %s(x), p, ""name"").", ...
+                char(function_name), char(function_name));
+        end
+
         function out = normalize_name(raw, err_msg)
             % Normalize optional name input to string scalar.
             if nargin < 2
@@ -319,9 +421,11 @@ classdef Parameter
                     else
                         unit = "";
                     end
-                otherwise
+                case {"*", "/", "\", "^"}
                     % Unit algebra is intentionally conservative in this skeleton.
                     unit = "";
+                otherwise
+                    error("Unsupported unit-combination operation '%s'.", operation);
             end
         end
     end

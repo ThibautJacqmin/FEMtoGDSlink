@@ -160,6 +160,41 @@
             tf = ~isempty(obj.gds);
         end
 
+        function p_out = register_parameter(obj, p, args)
+            % Register a standalone parameter expression in COMSOL.
+            arguments
+                obj
+                p
+                args.name {mustBeTextScalar} = ""
+                args.unit {mustBeTextScalar} = "__auto__"
+            end
+
+            if ~obj.has_comsol()
+                error("GeometrySession:ComsolDisabled", ...
+                    "Cannot register parameter: COMSOL backend disabled.");
+            end
+
+            if isa(p, 'femtogds.types.Parameter')
+                param_obj = p;
+                if strlength(string(args.unit)) ~= 0 && string(args.unit) ~= "__auto__"
+                    param_obj = femtogds.types.Parameter(param_obj, param_obj.name, ...
+                        unit=args.unit, expression=param_obj.expr, auto_register=false);
+                end
+            else
+                name = string(args.name);
+                if strlength(name) == 0
+                    error("GeometrySession:MissingParameterName", ...
+                        "register_parameter requires a name when input is not a Parameter object.");
+                end
+                param_obj = femtogds.types.Parameter(p, name, unit=args.unit, auto_register=false);
+            end
+
+            if isempty(obj.comsol_backend)
+                obj.comsol_backend = femtogds.core.ComsolBackend(obj);
+            end
+            p_out = obj.comsol_backend.register_parameter(param_obj, name=args.name);
+        end
+
         function wp = get_workplane(obj, layer)
             % Get or lazily create the COMSOL workplane for one layer.
             wp = [];

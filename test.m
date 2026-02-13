@@ -40,6 +40,7 @@ p_line_thk_seed = Parameter(6, "line_thk_seed");
 p_line_thk = Parameter(@(x) x + 2, p_line_thk_seed, "line_thk");
 p_off_seed = Parameter(7, "off_seed");
 p_offset_dist = Parameter(@(x) x + 3, p_off_seed, "off_dist");
+dummy = Parameter(p_line_thk/p_offset_dist, name="dummy", unit="");
 
 % 1) Build a tower from stacked, shrinking rectangles.
 tower_parts = cell(1, nlevels);

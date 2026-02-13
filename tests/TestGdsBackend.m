@@ -268,6 +268,59 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(string(p_off_dist.expr), "off_seed+3");
             testCase.verifyGreaterThan(double(reg_tan.area()), 0);
         end
+
+        function parameterArithmeticLeftRightDivisionAndPower(testCase)
+            p = femtogds.types.Parameter(5, "p", unit="");
+            q = femtogds.types.Parameter(2, "q", unit="");
+
+            y1 = p * 3;
+            y2 = 3 * p;
+            y3 = p * q;
+            y4 = p / 2;
+            y5 = 10 / p;
+            y6 = p \ 10;
+            y7 = 10 \ p;
+            y8 = p / q;
+            y9 = p \ q;
+            y10 = p ^ 2;
+            y11 = 2 ^ q;
+            y12 = p ^ q;
+
+            vals = [y1.value, y2.value, y3.value, y4.value, y5.value, y6.value, ...
+                y7.value, y8.value, y9.value, y10.value, y11.value, y12.value];
+            expected = [15, 15, 10, 2.5, 2, 2, 0.5, 2.5, 0.4, 25, 4, 25];
+            testCase.verifyEqual(vals, expected, AbsTol=1e-12);
+
+            testCase.verifyEqual(string(y2.expr), "(3)*(p)");
+            testCase.verifyEqual(string(y5.expr), "(10)/(p)");
+            testCase.verifyEqual(string(y6.expr), "(10)/(p)");
+            testCase.verifyEqual(string(y7.expr), "(p)/(10)");
+            testCase.verifyEqual(string(y10.expr), "(p)^(2)");
+            testCase.verifyEqual(string(y11.expr), "(2)^(q)");
+            testCase.verifyEqual(string(y12.expr), "(p)^(q)");
+        end
+
+        function parameterDirectSinShowsHelpfulError(testCase)
+            p = femtogds.types.Parameter(2, "p", unit="");
+            testCase.verifyError(@() sin(p), "Parameter:UnsupportedFunction");
+            try
+                sin(p);
+                testCase.verifyFail("Expected Parameter:UnsupportedFunction.");
+            catch err
+                testCase.verifyEqual(string(err.identifier), "Parameter:UnsupportedFunction");
+                testCase.verifyTrue(contains(string(err.message), "function-based Parameter"));
+            end
+        end
+
+        function parameterConstructorSupportsNameKeyword(testCase)
+            p_num = femtogds.types.Parameter(8, "num", unit="", auto_register=false);
+            p_den = femtogds.types.Parameter(10, "den", unit="", auto_register=false);
+            dummy = femtogds.types.Parameter(p_num / p_den, name="dummy_ratio", unit="", auto_register=false);
+
+            testCase.verifyEqual(string(dummy.name), "dummy_ratio");
+            testCase.verifyEqual(dummy.value, 0.8, AbsTol=1e-12);
+            testCase.verifyEqual(string(dummy.expr), "(num)/(den)");
+        end
     end
 
     methods (Static, Access=private)

@@ -28,6 +28,29 @@ classdef ComsolBackend < handle
             end
         end
 
+        function p_out = register_parameter(obj, p, args)
+            % Register one standalone Parameter in COMSOL parameter table.
+            arguments
+                obj
+                p femtogds.types.Parameter
+                args.name {mustBeTextScalar} = ""
+            end
+
+            name_override = string(args.name);
+            if strlength(name_override) > 0
+                p = femtogds.types.Parameter(p, name_override, ...
+                    unit=p.unit, expression=p.expr, auto_register=false);
+            end
+            if ~p.is_named()
+                error("ComsolBackend:UnnamedParameter", ...
+                    "register_parameter requires a named Parameter or name override.");
+            end
+
+            obj.define_parameter_dependencies(p);
+            obj.define_parameter(p);
+            p_out = p;
+        end
+
         function emit(obj, node)
             % Dispatch emission based on node class name.
             method = "emit_" + obj.class_short_name(node);

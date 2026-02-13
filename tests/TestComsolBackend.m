@@ -299,6 +299,36 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             end
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
+
+        function registerStandaloneParameter(testCase)
+            % Verify standalone Parameter expressions can be registered without ctx.comsol calls.
+            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+
+            p_num = femtogds.types.Parameter(8, "line_thk");
+            p_den = femtogds.types.Parameter(10, "off_dist");
+            dummy = ctx.register_parameter(p_num / p_den, name="dummy_ratio", unit="");
+
+            testCase.verifyEqual(string(dummy.name), "dummy_ratio");
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "line_thk"));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "off_dist"));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "dummy_ratio"));
+        end
+
+        function constructorNamedParameterAutoRegisters(testCase)
+            % Verify named Parameter(source, name=...) auto-registers in current COMSOL session.
+            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+
+            p_num = femtogds.types.Parameter(8, "line_thk");
+            p_den = femtogds.types.Parameter(10, "off_dist");
+            dummy = femtogds.types.Parameter(p_num / p_den, name="dummy_ratio", unit="");
+
+            testCase.verifyEqual(string(dummy.name), "dummy_ratio");
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "line_thk"));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "off_dist"));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "dummy_ratio"));
+        end
     end
 
     methods (Static, Access=private)

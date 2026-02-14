@@ -51,7 +51,34 @@ classdef GdsBackend < handle
         end
 
         function region = build_Rectangle(obj, node)
-            verts = obj.session.gds_integer(node.vertices(), "Rectangle vertices");
+            pos = obj.gds_length_vector(node.position, "Rectangle position");
+            w = double(obj.gds_length_scalar(node.width, "Rectangle width"));
+            h = double(obj.gds_length_scalar(node.height, "Rectangle height"));
+            base = lower(string(node.base));
+
+            if base == "center"
+                pivot = pos;
+                origin_corner = pos - [w / 2, h / 2];
+            else
+                pivot = pos;
+                origin_corner = pos;
+            end
+
+            l = origin_corner(1);
+            r = origin_corner(1) + w;
+            b = origin_corner(2);
+            t = origin_corner(2) + h;
+            verts = [l, b; l, t; r, t; r, b];
+
+            angle = double(obj.scalar_value(node.angle));
+            if abs(angle) > 1e-12
+                c = cosd(angle);
+                s = sind(angle);
+                rot = [c, -s; s, c];
+                verts = (verts - pivot) * rot.' + pivot;
+            end
+
+            verts = round(verts);
             poly = obj.modeler.pya.Polygon.from_s(core.KlayoutCodec.vertices_to_klayout_string(verts));
             region = obj.modeler.pya.Region();
             region.insert(poly);
@@ -117,7 +144,7 @@ classdef GdsBackend < handle
         end
 
         function region = build_Polygon(obj, node)
-            verts = obj.session.gds_integer(node.vertices_value(), "Polygon vertices");
+            verts = obj.gds_length_points(node.vertices, "Polygon vertices");
             if size(verts, 1) < 3
                 error("Polygon requires at least 3 vertices.");
             end
@@ -334,7 +361,7 @@ classdef GdsBackend < handle
         end
 
         function region = build_Point(obj, node)
-            pts = obj.session.gds_integer(node.p_value(), "Point coordinates");
+            pts = obj.gds_length_points(node.p, "Point coordinates");
             size_nm = obj.gds_length_scalar(node.marker_size, "Point marker size");
             size_nm = round(double(size_nm));
             if size_nm < 1
@@ -352,31 +379,47 @@ classdef GdsBackend < handle
         end
 
         function region = build_LineSegment(obj, node)
-            pts = obj.session.gds_integer(node.points_value(), "LineSegment points");
+            p1 = obj.gds_length_vector(node.p1, "LineSegment p1");
+            p2 = obj.gds_length_vector(node.p2, "LineSegment p2");
+            pts = [p1; p2];
             width = obj.gds_length_scalar(node.width, "LineSegment width");
             region = obj.curve_region_from_points(pts, "open", width, "LineSegment");
         end
 
         function region = build_InterpolationCurve(obj, node)
-            pts = obj.session.gds_integer(node.points_value(), "InterpolationCurve points");
+            pts = obj.gds_length_points(node.points, "InterpolationCurve points");
             width = obj.gds_length_scalar(node.width, "InterpolationCurve width");
             region = obj.curve_region_from_points(pts, node.type, width, "InterpolationCurve");
         end
 
         function region = build_QuadraticBezier(obj, node)
-            pts = obj.session.gds_integer(node.sampled_points(), "QuadraticBezier points");
+            p0 = double(obj.gds_length_vector(node.p0, "QuadraticBezier p0"));
+            p1 = double(obj.gds_length_vector(node.p1, "QuadraticBezier p1"));
+            p2 = double(obj.gds_length_vector(node.p2, "QuadraticBezier p2"));
+            n = obj.point_count(node.npoints, "QuadraticBezier npoints");
+            pts = obj.sample_quadratic_bezier_points(p0, p1, p2, n);
             width = obj.gds_length_scalar(node.width, "QuadraticBezier width");
             region = obj.curve_region_from_points(pts, node.type, width, "QuadraticBezier");
         end
 
         function region = build_CubicBezier(obj, node)
-            pts = obj.session.gds_integer(node.sampled_points(), "CubicBezier points");
+            p0 = double(obj.gds_length_vector(node.p0, "CubicBezier p0"));
+            p1 = double(obj.gds_length_vector(node.p1, "CubicBezier p1"));
+            p2 = double(obj.gds_length_vector(node.p2, "CubicBezier p2"));
+            p3 = double(obj.gds_length_vector(node.p3, "CubicBezier p3"));
+            n = obj.point_count(node.npoints, "CubicBezier npoints");
+            pts = obj.sample_cubic_bezier_points(p0, p1, p2, p3, n);
             width = obj.gds_length_scalar(node.width, "CubicBezier width");
             region = obj.curve_region_from_points(pts, node.type, width, "CubicBezier");
         end
 
         function region = build_CircularArc(obj, node)
-            pts = obj.session.gds_integer(node.sampled_points(), "CircularArc points");
+            center = double(obj.gds_length_vector(node.center, "CircularArc center"));
+            radius = double(obj.gds_length_scalar(node.radius, "CircularArc radius"));
+            n = obj.point_count(node.npoints, "CircularArc npoints");
+            a0 = double(obj.scalar_value(node.start_angle));
+            a1 = double(obj.scalar_value(node.end_angle));
+            pts = obj.sample_circular_arc_points(center, radius, a0, a1, n);
             width = obj.gds_length_scalar(node.width, "CircularArc width");
             region = obj.curve_region_from_points(pts, node.type, width, "CircularArc");
         end
@@ -429,19 +472,61 @@ classdef GdsBackend < handle
             region = region.transformed(t);
         end
 
+        function value_nm = parameter_length_nm(~, p, context)
+            % Resolve one types.Parameter length value into nm.
+            [scale_nm, is_length] = core.GeometrySession.unit_scale_to_nm(string(p.unit));
+            if ~is_length
+                error("%s expects a length parameter; unsupported unit '%s'.", ...
+                    char(string(context)), char(string(p.unit)));
+            end
+            value_nm = double(p.value) * scale_nm;
+            if ~(isscalar(value_nm) && isfinite(value_nm))
+                error("%s must resolve to a finite scalar length.", char(string(context)));
+            end
+        end
+
+        function vec_nm = length_points_nm(obj, val, context)
+            % Resolve Nx2 points into nm using Vertices prefactor unit when available.
+            if isa(val, 'types.Vertices')
+                scale_nm = obj.parameter_length_nm(val.prefactor, string(context) + " prefactor");
+                vec_nm = double(val.array) .* scale_nm;
+            else
+                vec_nm = double(val);
+            end
+            if size(vec_nm, 2) ~= 2
+                error("%s points must be an Nx2 array.", char(string(context)));
+            end
+        end
+
+        function pts = gds_length_points(obj, val, context)
+            pts = obj.length_points_nm(val, context);
+            pts = obj.session.gds_integer(pts, context);
+        end
+
         function vec = gds_length_vector(obj, val, context)
-            vec = obj.vector_value(val);
-            vec = obj.session.gds_integer(vec, context);
+            if isa(val, 'types.Vertices')
+                if val.nvertices ~= 1
+                    error("%s must resolve to a single [x y] coordinate.", char(string(context)));
+                end
+                vec_nm = obj.length_points_nm(val, context);
+                vec_nm = vec_nm(1, :);
+            else
+                vec_nm = obj.vector_value(val);
+            end
+            vec = obj.session.gds_integer(vec_nm, context);
         end
 
         function s = gds_length_scalar(obj, val, context)
-            s = obj.scalar_value(val);
-            s = obj.session.gds_integer(s, context);
+            if isa(val, 'types.Parameter')
+                s_nm = obj.parameter_length_nm(val, context);
+            else
+                s_nm = obj.scalar_value(val);
+            end
+            s = obj.session.gds_integer(s_nm, context);
         end
 
         function n = copy_count(obj, val, context)
             n = obj.scalar_value(val);
-            n = obj.session.gds_integer(n, context);
             n = round(double(n));
             if ~(isscalar(n) && isfinite(n) && n >= 1)
                 error("%s must be a scalar >= 1.", char(string(context)));
@@ -454,6 +539,31 @@ classdef GdsBackend < handle
             if ~(isscalar(n) && isfinite(n) && n >= 8)
                 error("%s must be a scalar integer >= 8.", char(string(context)));
             end
+        end
+
+        function pts = sample_quadratic_bezier_points(~, p0, p1, p2, n)
+            t = linspace(0, 1, n).';
+            omt = 1 - t;
+            pts = (omt.^2) .* p0 + ...
+                (2 .* omt .* t) .* p1 + ...
+                (t.^2) .* p2;
+            pts = round(pts);
+        end
+
+        function pts = sample_cubic_bezier_points(~, p0, p1, p2, p3, n)
+            t = linspace(0, 1, n).';
+            omt = 1 - t;
+            pts = (omt.^3) .* p0 + ...
+                (3 .* omt.^2 .* t) .* p1 + ...
+                (3 .* omt .* t.^2) .* p2 + ...
+                (t.^3) .* p3;
+            pts = round(pts);
+        end
+
+        function pts = sample_circular_arc_points(~, center, radius, a0, a1, n)
+            theta = linspace(a0, a1, n).';
+            pts = [center(1) + radius .* cosd(theta), center(2) + radius .* sind(theta)];
+            pts = round(pts);
         end
 
         function region = curve_region_from_points(obj, pts, type, width, context)
@@ -519,30 +629,46 @@ classdef GdsBackend < handle
             switch class(target)
                 case 'primitives.LineSegment'
                     context = "Thicken(LineSegment)";
-                    pts = obj.session.gds_integer(target.points_value(), context + " points");
+                    p1 = obj.gds_length_vector(target.p1, context + " p1");
+                    p2 = obj.gds_length_vector(target.p2, context + " p2");
+                    pts = [p1; p2];
                     is_curve = true;
                 case 'primitives.InterpolationCurve'
                     if lower(string(target.type)) == "open"
                         context = "Thicken(InterpolationCurve)";
-                        pts = obj.session.gds_integer(target.points_value(), context + " points");
+                        pts = obj.gds_length_points(target.points, context + " points");
                         is_curve = true;
                     end
                 case 'primitives.QuadraticBezier'
                     if lower(string(target.type)) == "open"
                         context = "Thicken(QuadraticBezier)";
-                        pts = obj.session.gds_integer(target.sampled_points(), context + " points");
+                        p0 = double(obj.gds_length_vector(target.p0, context + " p0"));
+                        p1 = double(obj.gds_length_vector(target.p1, context + " p1"));
+                        p2 = double(obj.gds_length_vector(target.p2, context + " p2"));
+                        n = obj.point_count(target.npoints, context + " npoints");
+                        pts = obj.sample_quadratic_bezier_points(p0, p1, p2, n);
                         is_curve = true;
                     end
                 case 'primitives.CubicBezier'
                     if lower(string(target.type)) == "open"
                         context = "Thicken(CubicBezier)";
-                        pts = obj.session.gds_integer(target.sampled_points(), context + " points");
+                        p0 = double(obj.gds_length_vector(target.p0, context + " p0"));
+                        p1 = double(obj.gds_length_vector(target.p1, context + " p1"));
+                        p2 = double(obj.gds_length_vector(target.p2, context + " p2"));
+                        p3 = double(obj.gds_length_vector(target.p3, context + " p3"));
+                        n = obj.point_count(target.npoints, context + " npoints");
+                        pts = obj.sample_cubic_bezier_points(p0, p1, p2, p3, n);
                         is_curve = true;
                     end
                 case 'primitives.CircularArc'
                     if lower(string(target.type)) == "open"
                         context = "Thicken(CircularArc)";
-                        pts = obj.session.gds_integer(target.sampled_points(), context + " points");
+                        center = double(obj.gds_length_vector(target.center, context + " center"));
+                        radius = double(obj.gds_length_scalar(target.radius, context + " radius"));
+                        n = obj.point_count(target.npoints, context + " npoints");
+                        a0 = double(obj.scalar_value(target.start_angle));
+                        a1 = double(obj.scalar_value(target.end_angle));
+                        pts = obj.sample_circular_arc_points(center, radius, a0, a1, n);
                         is_curve = true;
                     end
                 case 'primitives.ParametricCurve'
@@ -727,7 +853,7 @@ classdef GdsBackend < handle
             if ~isa(feature, 'primitives.Point')
                 error("%s currently supports only Point features.", char(string(context)));
             end
-            pts = obj.session.gds_integer(feature.p_value(), context + " coordinates");
+            pts = obj.gds_length_points(feature.p, context + " coordinates");
             if ~(isscalar(index) && isfinite(index) && index >= 1 && index <= size(pts, 1))
                 error("%s index must be between 1 and %d.", char(string(context)), size(pts, 1));
             end

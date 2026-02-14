@@ -451,6 +451,36 @@ classdef GeometrySession < handle
         end
     end
     methods (Static)
+        function [scale_nm, is_length] = unit_scale_to_nm(unit_token)
+            % Convert supported length-unit token to an nm scale factor.
+            u = lower(strtrim(string(unit_token)));
+            u = replace(u, "µ", "u");
+            u = replace(u, "μ", "u");
+
+            is_length = true;
+            switch u
+                case {"", "nm", "nanometer", "nanometers"}
+                    scale_nm = 1;
+                case {"um", "micrometer", "micrometers"}
+                    scale_nm = 1e3;
+                case {"mm", "millimeter", "millimeters"}
+                    scale_nm = 1e6;
+                case {"cm", "centimeter", "centimeters"}
+                    scale_nm = 1e7;
+                case {"m", "meter", "meters"}
+                    scale_nm = 1e9;
+                case {"pm", "picometer", "picometers"}
+                    scale_nm = 1e-3;
+                case {"fm", "femtometer", "femtometers"}
+                    scale_nm = 1e-6;
+                case {"a", "angstrom", "angstroms"}
+                    scale_nm = 1e-1;
+                otherwise
+                    scale_nm = NaN;
+                    is_length = false;
+            end
+        end
+
         function ctx = with_shared_comsol(args)
             % Create a session using process-wide shared COMSOL modeler.
             arguments

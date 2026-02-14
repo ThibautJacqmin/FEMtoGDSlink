@@ -1,3 +1,5 @@
 *.asv
 *.gds
 .codex_cache/
+docs/agent-memory/
+AGENTS.md

@@ -155,6 +155,42 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(double(reg2.area()), p_nx.value * p_ny.value * base_area);
         end
 
+        function arrayCopyCountNotQuantizedByResolution(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
+                snap_mode="off", gds_resolution_nm=2);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+
+            base = primitives.Rectangle(ctx, center=[0 0], width=40, height=20, layer="m1");
+            arr = ops.Array1D(ctx, base, ncopies=types.Parameter(5, "n_arr", unit=""), ...
+                delta=[100 0], layer="m1");
+
+            backend = core.GdsBackend(ctx);
+            reg_base = backend.region_for(base);
+            reg_arr = backend.region_for(arr);
+            testCase.verifyEqual(double(reg_arr.area()), 5 * double(reg_base.area()));
+        end
+
+        function gdsLengthUnitsConvertedToNm(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = TestGdsBackend.newContext();
+            p_um = types.Parameter(1, "u_len", unit="um", auto_register=false);
+            w_um = types.Parameter(36, "w_um", unit="um", auto_register=false);
+            h_um = types.Parameter(12, "h_um", unit="um", auto_register=false);
+
+            r = primitives.Rectangle(ctx, center=types.Vertices([0, 0], p_um), ...
+                width=w_um, height=h_um, layer="m1");
+            backend = core.GdsBackend(ctx);
+            reg = backend.region_for(r);
+
+            expected_area_dbu = 36000 * 12000; % 36 um x 12 um at 1 nm dbu
+            testCase.verifyEqual(double(reg.area()), expected_area_dbu);
+        end
+
         function curveAndPointPrimitives(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");

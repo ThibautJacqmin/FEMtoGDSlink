@@ -610,13 +610,13 @@ classdef ComsolBackend < handle
         function select_all_fillet_points(~, feature, base_tag, node)
             % Select all fillet points in a COMSOL-native way.
             % For rectangles we keep stable corner indices. For all other
-            % targets, rely on COMSOL's internal point selection to avoid
-            % mismatches between GDS-derived and COMSOL entity numbering.
+            % targets, leave point selection unset and rely on COMSOL's
+            % default "all eligible points" behavior. Explicit
+            % selection('point').all can emit version-specific combo-box
+            % warnings (point_selectionset).
             if isa(node.target, 'primitives.Rectangle')
                 feature.selection('point').set(base_tag, 1:4);
-                return;
             end
-            feature.selection('point').all;
         end
 
         function define_parameter(obj, p)
@@ -1004,14 +1004,14 @@ classdef ComsolBackend < handle
 
         function token = snapped_length_token(obj, raw_token)
             % Create/reuse a named snapped expression parameter (snp*).
-            key = string(raw_token) + "|" + string(obj.session.snap_grid_nm);
+            key = string(raw_token) + "|" + string(obj.session.gds_resolution_nm);
             if isKey(obj.snapped_length_tokens, key)
                 token = obj.snapped_length_tokens(key);
                 return;
             end
 
             token = char(obj.session.next_comsol_tag("snp"));
-            grid_expr = string(obj.session.snap_grid_nm) + "[nm]";
+            grid_expr = string(obj.session.gds_resolution_nm) + "[nm]";
             snap_expr = "round((" + string(raw_token) + ")/(" + grid_expr + "))*(" + grid_expr + ")";
             obj.modeler.model.param.set(token, snap_expr, "");
             obj.snapped_length_tokens(key) = string(token);

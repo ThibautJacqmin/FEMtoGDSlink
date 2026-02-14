@@ -12,6 +12,7 @@ classdef GeometrySession < handle
         node_counter
         emit_on_create
         snap_mode
+        gds_resolution_nm
         snap_grid_nm
         warn_on_snap
         snap_warned
@@ -28,7 +29,8 @@ classdef GeometrySession < handle
                 args.emit_on_create logical = false
                 args.set_as_current logical = true
                 args.snap_mode {mustBeTextScalar} = "strict"
-                args.snap_grid_nm double = 1
+                args.gds_resolution_nm double = NaN
+                args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
                 args.reuse_comsol_gui logical = false
                 args.launch_comsol_gui logical = false
@@ -37,6 +39,8 @@ classdef GeometrySession < handle
 
             enable_comsol = args.enable_comsol && args.use_comsol;
             enable_gds = args.enable_gds && args.use_gds;
+            resolved_gds_nm = core.GeometrySession.resolve_gds_resolution( ...
+                args.gds_resolution_nm, args.snap_grid_nm);
 
             if enable_comsol
                 if ~isempty(args.comsol_modeler)
@@ -51,7 +55,7 @@ classdef GeometrySession < handle
             end
 
             if enable_gds
-                obj.gds = core.GDSModeler;
+                obj.gds = core.GDSModeler(dbu_nm=resolved_gds_nm);
             else
                 obj.gds = [];
             end
@@ -65,11 +69,13 @@ classdef GeometrySession < handle
             obj.node_counter = int32(0);
             obj.emit_on_create = args.emit_on_create;
             obj.snap_mode = core.GeometrySession.validate_snap_mode(args.snap_mode);
-            obj.snap_grid_nm = core.GeometrySession.validate_snap_grid(args.snap_grid_nm);
+            obj.gds_resolution_nm = resolved_gds_nm;
+            % Backward-compatible alias: keep snap_grid_nm tied to GDS DBU resolution.
+            obj.snap_grid_nm = resolved_gds_nm;
             obj.warn_on_snap = args.warn_on_snap;
             obj.snap_warned = dictionary(string.empty(0,1), false(0,1));
             obj.snap_stats = dictionary(string.empty(0,1), ...
-                struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.snap_grid_nm));
+                struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.gds_resolution_nm));
 
             if args.set_as_current
                 core.GeometrySession.set_current(obj);
@@ -271,7 +277,7 @@ classdef GeometrySession < handle
                 return;
             end
 
-            grid = obj.snap_grid_nm;
+            grid = obj.gds_resolution_nm;
             snapped = round(values ./ grid) .* grid;
             if obj.warn_on_snap
                 delta = abs(snapped - values);
@@ -289,14 +295,14 @@ classdef GeometrySession < handle
         end
 
         function ints = gds_integer(obj, values, context)
-            % Snap and round to integer nanometer database units.
+            % Snap and convert nm values into integer GDS database units.
             arguments
                 obj core.GeometrySession
                 values
                 context {mustBeTextScalar} = "gds"
             end
             snapped = obj.snap_length(values, context);
-            ints = round(snapped);
+            ints = round(snapped ./ obj.gds_resolution_nm);
         end
 
         function clear_snap_report(obj)
@@ -356,6 +362,7 @@ classdef GeometrySession < handle
                 "comsol_enabled", obj.has_comsol(), ...
                 "gds_enabled", obj.has_gds(), ...
                 "snap_mode", string(obj.snap_mode), ...
+                "gds_resolution_nm", obj.gds_resolution_nm, ...
                 "snap_grid_nm", obj.snap_grid_nm, ...
                 "warn_on_snap", obj.warn_on_snap);
 
@@ -366,9 +373,9 @@ classdef GeometrySession < handle
 
             if args.display
                 fprintf("Build Report (%s)\n", string(report.timestamp));
-                fprintf("Session: COMSOL=%d, GDS=%d, snap_mode=%s, snap_grid_nm=%g\n", ...
+                fprintf("Session: COMSOL=%d, GDS=%d, snap_mode=%s, gds_resolution_nm=%g\n", ...
                     report.session.comsol_enabled, report.session.gds_enabled, ...
-                    report.session.snap_mode, report.session.snap_grid_nm);
+                    report.session.snap_mode, report.session.gds_resolution_nm);
 
                 fprintf("Nodes: total=%d\n", report.nodes.total);
                 if height(report.nodes.by_type) > 0
@@ -402,7 +409,8 @@ classdef GeometrySession < handle
                 args.emit_on_create logical = false
                 args.set_as_current logical = true
                 args.snap_mode {mustBeTextScalar} = "strict"
-                args.snap_grid_nm double = 1
+                args.gds_resolution_nm double = NaN
+                args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
                 args.reset_model logical = true
                 args.launch_comsol_gui logical = false
@@ -424,6 +432,7 @@ classdef GeometrySession < handle
                 emit_on_create=args.emit_on_create, ...
                 set_as_current=args.set_as_current, ...
                 snap_mode=args.snap_mode, ...
+                gds_resolution_nm=args.gds_resolution_nm, ...
                 snap_grid_nm=args.snap_grid_nm, ...
                 warn_on_snap=args.warn_on_snap, ...
                 launch_comsol_gui=args.launch_comsol_gui, ...
@@ -476,13 +485,42 @@ classdef GeometrySession < handle
             end
         end
 
-        function grid = validate_snap_grid(raw_grid)
-            % Validate snapping grid as positive integer nanometers.
+        function grid = validate_length_grid(raw_grid, arg_name)
+            % Validate a length grid/resolution scalar expressed in nm.
             grid = double(raw_grid);
-            if ~(isscalar(grid) && isfinite(grid) && grid >= 1 && abs(grid-round(grid)) < 1e-12)
-                error("snap_grid_nm must be a positive integer >= 1.");
+            if ~(isscalar(grid) && isfinite(grid) && grid > 0)
+                error("%s must be a finite positive scalar in nm.", string(arg_name));
             end
-            grid = round(grid);
+        end
+
+        function grid = resolve_gds_resolution(raw_resolution, raw_snap_grid)
+            % Resolve resolution argument from new/legacy aliases.
+            has_resolution = isscalar(raw_resolution) && isfinite(raw_resolution);
+            has_snap_grid = isscalar(raw_snap_grid) && isfinite(raw_snap_grid);
+
+            if has_resolution && has_snap_grid
+                resolution = core.GeometrySession.validate_length_grid(raw_resolution, "gds_resolution_nm");
+                snap_grid = core.GeometrySession.validate_length_grid(raw_snap_grid, "snap_grid_nm");
+                if abs(resolution - snap_grid) > 1e-12
+                    warning("GeometrySession:GridAliasConflict", ...
+                        "Both gds_resolution_nm (%.12g) and snap_grid_nm (%.12g) set; using gds_resolution_nm.", ...
+                        resolution, snap_grid);
+                end
+                grid = resolution;
+                return;
+            end
+
+            if has_resolution
+                grid = core.GeometrySession.validate_length_grid(raw_resolution, "gds_resolution_nm");
+                return;
+            end
+
+            if has_snap_grid
+                grid = core.GeometrySession.validate_length_grid(raw_snap_grid, "snap_grid_nm");
+                return;
+            end
+
+            grid = 1;
         end
 
         function ctx = current_context_store(varargin)
@@ -534,7 +572,7 @@ classdef GeometrySession < handle
             if isKey(obj.snap_stats, key)
                 stats = obj.snap_stats(key);
             else
-                stats = struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.snap_grid_nm);
+                stats = struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.gds_resolution_nm);
             end
 
             stats.count = stats.count + numel(changed);

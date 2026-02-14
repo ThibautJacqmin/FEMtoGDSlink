@@ -20,17 +20,7 @@ classdef Klayout < handle
                 end
             end
 
-            % Backward-compatibility path: lygadgets exposes `.pya`.
-            try
-                mod = py.importlib.import_module('lygadgets');
-                if logical(py.hasattr(mod, 'pya')) && ~isa(mod.pya, 'py.NoneType')
-                    pya_mod = mod.pya;
-                    return;
-                end
-            catch
-            end
-
-            error("KLayout Python bindings not found. Expected one of: pya, klayout.db, or lygadgets with a valid pya handle.");
+            error("KLayout Python bindings not found. A valid pya handle is expected.");
         end
     end
 end

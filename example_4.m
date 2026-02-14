@@ -5,27 +5,40 @@ import ops.*
 
 % Example 4: Chamfer, Offset, Tangent and dependent parameter usage.
 ctx = GeometrySession.with_shared_comsol(use_comsol=true, use_gds=true, ...
-    snap_mode='off', snap_grid_nm=1, warn_on_snap=true, reset_model=true);
+    snap_mode='off', gds_resolution_nm=1, warn_on_snap=true, reset_model=true);
 
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
     comsol_selection="metal1", comsol_selection_state="all", emit_to_comsol=true);
 
-p_off_seed = Parameter(7, "off_seed");
-p_offset_dist = Parameter(@(x) x + 3, p_off_seed, "off_dist");
-p_line_thk_seed = Parameter(6, "line_thk_seed");
-p_line_thk = Parameter(@(x) x + 2, p_line_thk_seed, "line_thk");
+% Base unit helper (all geometry lengths in um).
+p_um = Parameter(1, "u_ex4", unit="um");
+
+p_off_seed = Parameter(0.35, "off_seed", unit="um");
+p_offset_dist = Parameter(@(x) x + 0.15, p_off_seed, "off_dist");
+p_line_thk_seed = Parameter(0.25, "line_thk_seed", unit="um");
+p_line_thk = Parameter(@(x) x + 0.1, p_line_thk_seed, "line_thk");
 Parameter(p_line_thk / p_offset_dist, name="dummy", unit="");
 
-chamfer_base = Rectangle(center=[-250, 220], width=90, height=60, layer="metal1");
-Chamfer(chamfer_base, dist=10, points=[1 2 3 4], layer="metal1");
+p_chamfer_w = Parameter(90, "chamfer_w", unit="um");
+p_chamfer_h = Parameter(60, "chamfer_h", unit="um");
+p_chamfer_d = Parameter(0.2, "chamfer_d", unit="um");
+chamfer_base = Rectangle(center=Vertices([-250, 220], p_um), ...
+    width=p_chamfer_w, height=p_chamfer_h, layer="metal1");
+Chamfer(chamfer_base, dist=p_chamfer_d, points=[1 2 3 4], layer="metal1");
 
-offset_base = Rectangle(center=[-120, 220], width=100, height=45, layer="metal1");
+p_offset_w = Parameter(100, "offset_w", unit="um");
+p_offset_h = Parameter(45, "offset_h", unit="um");
+offset_base = Rectangle(center=Vertices([-120, 220], p_um), ...
+    width=p_offset_w, height=p_offset_h, layer="metal1");
 Offset(offset_base, distance=p_offset_dist, reverse=false, ...
     convexcorner="fillet", trim=true, keep=false, layer="metal1");
 
-tangent_circle = Circle(center=[30, 220], radius=28, npoints=96, layer="metal1");
-Tangent(tangent_circle, type="coord", coord=[95, 250], ...
-    start=0.7, edge_index=1, width=8, layer="metal1");
+p_tangent_r = Parameter(28, "tan_r", unit="um");
+p_tangent_w = Parameter(0.2, "tan_w", unit="um");
+tangent_circle = Circle(center=Vertices([30, 220], p_um), ...
+    radius=p_tangent_r, npoints=96, layer="metal1");
+Tangent(tangent_circle, type="coord", coord=Vertices([95, 250], p_um), ...
+    start=0.7, edge_index=1, width=p_tangent_w, layer="metal1");
 
 ctx.build_comsol();
 ctx.export_gds("example_4.gds");

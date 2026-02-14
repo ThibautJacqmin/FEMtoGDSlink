@@ -321,6 +321,22 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(dummy.value, 0.8, AbsTol=1e-12);
             testCase.verifyEqual(string(dummy.expr), "(num)/(den)");
         end
+
+        function gdsResolutionControlsLayoutDbu(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
+                snap_mode="off", gds_resolution_nm=5);
+            testCase.verifyEqual(double(ctx.gds.pylayout.dbu), 0.005, AbsTol=1e-12);
+        end
+
+        function gdsIntegerUsesResolutionWhenSnapOff(testCase)
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, ...
+                snap_mode="off", gds_resolution_nm=2);
+            ints = ctx.gds_integer([1, 3, 5], "resolution-test");
+            testCase.verifyEqual(ints, [1, 2, 3]);
+        end
     end
 
     methods (Static, Access=private)

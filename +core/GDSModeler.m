@@ -1,18 +1,27 @@
-classdef GDSModeler < core.Klayout
+﻿classdef GDSModeler < core.Klayout
     properties
         pylayout
         pycell
         shapes
-    end
-    properties (Constant)
-        % Set unit length (1 is 1 µm, and default is 1 nm)
-        pydbu = 0.001 % 1 nm
+        dbu_nm
     end
     methods
-        function obj = GDSModeler
+        function obj = GDSModeler(args)
+            arguments
+                args.dbu_nm double = 1
+            end
+            dbu_nm = double(args.dbu_nm);
+            if ~(isscalar(dbu_nm) && isfinite(dbu_nm) && dbu_nm > 0)
+                error("GDSModeler:InvalidDbuNm", ...
+                    "dbu_nm must be a finite positive scalar in nm.");
+            end
+            obj.dbu_nm = dbu_nm;
+
             % Create layout
             obj.pylayout = obj.pya.Layout();
-            obj.pylayout.dbu = obj.pydbu;
+            % KLayout dbu is in um.
+            obj.pylayout.dbu = obj.dbu_nm * 1e-3;
+
             % Create cell
             obj.pycell = obj.pylayout.create_cell("Main");
             obj.shapes = {};
@@ -68,7 +77,7 @@ classdef GDSModeler < core.Klayout
             two_inch_wafer.pgon_py.insert(obj.pya.Polygon.from_s(core.KlayoutCodec.vertices_to_klayout_string(data.wafer_edge*1e3)));
             two_inch_wafer.vertices = types.Vertices(core.KlayoutCodec.get_vertices_from_klayout(two_inch_wafer.pgon_py));
         end
-        
+
 
     end
     methods (Static)
@@ -79,6 +88,3 @@ classdef GDSModeler < core.Klayout
         end
     end
 end
-
-
-

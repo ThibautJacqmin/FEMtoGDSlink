@@ -94,6 +94,30 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             testCase.verifyTrue(startsWith(fil_tag, "fil"));
         end
 
+        function keepInputObjectsSemanticsBuilds(testCase)
+            % Verify keep_input_objects=false/true options both emit and build on branched graphs.
+            ctx = core.GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            r = primitives.Rectangle(ctx, center=[0 0], width=120, height=70, layer="m1");
+            m_consume = ops.Move(ctx, r, delta=[30 0], keep_input_objects=false, layer="m1");
+            u_consume = ops.Union(ctx, {r, m_consume}, keep_input_objects=false, layer="m1");
+
+            r2 = primitives.Rectangle(ctx, center=[220 0], width=100, height=60, layer="m1");
+            m_keep = ops.Move(ctx, r2, delta=[20 0], keep_input_objects=true, layer="m1");
+            u_keep = ops.Union(ctx, {r2, m_keep}, keep_input_objects=true, layer="m1");
+
+            out = ops.Union(ctx, {u_consume, u_keep}, keep_input_objects=false, layer="m1");
+            ctx.build_comsol();
+
+            nodes = {r, m_consume, u_consume, r2, m_keep, u_keep, out};
+            for i = 1:numel(nodes)
+                testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(nodes{i}.id)));
+            end
+        end
+
         function sharedModelerIsReusedAcrossSessions(testCase)
             % Verify with_shared_comsol reuses the same COMSOL model instance.
             core.GeometrySession.clear_shared_comsol();
@@ -269,7 +293,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             p_t = types.Parameter(18, "thk_total");
             ls = primitives.LineSegment(ctx, p1=[0 0], p2=[100 20], width=1, layer="m1");
             th = ops.Thicken(ctx, ls, offset="symmetric", totalthick=p_t, ...
-                ends="circular", convexcorner="fillet", keep=true, ...
+                ends="circular", convexcorner="fillet", keep_input_objects=true, ...
                 layer="m1");
 
             ctx.build_comsol();

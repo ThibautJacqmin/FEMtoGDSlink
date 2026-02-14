@@ -4,6 +4,7 @@ classdef Chamfer < core.GeomFeature
         target
         dist
         points
+        keep_input_objects
     end
     methods
         function obj = Chamfer(varargin)
@@ -17,6 +18,7 @@ classdef Chamfer < core.GeomFeature
             obj.add_input(target);
             obj.dist = args.dist;
             obj.points = args.points;
+            obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.finalize();
         end
 
@@ -40,6 +42,14 @@ classdef Chamfer < core.GeomFeature
             val = obj.get_param("points", []);
         end
 
+        function set.keep_input_objects(obj, val)
+            obj.set_param("keep_input_objects", logical(val));
+        end
+
+        function val = get.keep_input_objects(obj)
+            val = obj.get_param("keep_input_objects", false);
+        end
+
         function val = get.target(obj)
             val = obj.inputs{1};
         end
@@ -54,6 +64,8 @@ classdef Chamfer < core.GeomFeature
             arguments
                 args.dist = 0
                 args.points = []
+                args.keep_input_objects logical = false
+                args.keep logical = false
                 args.layer = []
             end
             parsed = args;

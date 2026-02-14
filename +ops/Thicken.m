@@ -8,7 +8,7 @@ classdef Thicken < core.GeomFeature
         downthick
         ends
         convexcorner
-        keep
+        keep_input_objects
         propagatesel
     end
     methods
@@ -27,7 +27,7 @@ classdef Thicken < core.GeomFeature
             obj.downthick = args.downthick;
             obj.ends = args.ends;
             obj.convexcorner = args.convexcorner;
-            obj.keep = args.keep;
+            obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.propagatesel = args.propagatesel;
             obj.finalize();
         end
@@ -96,12 +96,12 @@ classdef Thicken < core.GeomFeature
             val = obj.get_param("convexcorner", "fillet");
         end
 
-        function set.keep(obj, val)
-            obj.set_param("keep", logical(val));
+        function set.keep_input_objects(obj, val)
+            obj.set_param("keep_input_objects", logical(val));
         end
 
-        function val = get.keep(obj)
-            val = obj.get_param("keep", false);
+        function val = get.keep_input_objects(obj)
+            val = obj.get_param("keep_input_objects", false);
         end
 
         function set.propagatesel(obj, val)
@@ -126,6 +126,7 @@ classdef Thicken < core.GeomFeature
                 args.downthick = 0.5
                 args.ends {mustBeTextScalar} = "straight"
                 args.convexcorner {mustBeTextScalar} = "fillet"
+                args.keep_input_objects logical = false
                 args.keep logical = false
                 args.propagatesel logical = false
                 args.layer = []

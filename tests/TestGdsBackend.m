@@ -337,6 +337,36 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             ints = ctx.gds_integer([1, 3, 5], "resolution-test");
             testCase.verifyEqual(ints, [1, 2, 3]);
         end
+
+        function gdsNodesForExportUsesTerminalNodesByDefault(testCase)
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+
+            r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
+            m = ops.Move(ctx, r, delta=[20 0], layer="m1");
+            c = primitives.Circle(ctx, center=[250 0], radius=40, layer="m1");
+
+            default_nodes = ctx.gds_nodes_for_export();
+            all_nodes = ctx.gds_nodes_for_export(scope="all");
+
+            default_ids = cellfun(@(n) int32(n.id), default_nodes);
+            all_ids = cellfun(@(n) int32(n.id), all_nodes);
+
+            testCase.verifyEqual(sort(default_ids), sort(int32([m.id, c.id])));
+            testCase.verifyEqual(sort(all_ids), sort(int32([r.id, m.id, c.id])));
+        end
+
+        function gdsNodesForExportRespectsKeepInputObjects(testCase)
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+
+            r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
+            m = ops.Move(ctx, r, delta=[20 0], keep_input_objects=true, layer="m1");
+
+            default_nodes = ctx.gds_nodes_for_export();
+            default_ids = cellfun(@(n) int32(n.id), default_nodes);
+            testCase.verifyEqual(sort(default_ids), sort(int32([r.id, m.id])));
+        end
     end
 
     methods (Static, Access=private)

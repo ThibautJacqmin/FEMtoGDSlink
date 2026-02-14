@@ -6,7 +6,7 @@ classdef Offset < core.GeomFeature
         reverse
         convexcorner
         trim
-        keep
+        keep_input_objects
     end
     methods
         function obj = Offset(varargin)
@@ -22,7 +22,7 @@ classdef Offset < core.GeomFeature
             obj.reverse = args.reverse;
             obj.convexcorner = args.convexcorner;
             obj.trim = args.trim;
-            obj.keep = args.keep;
+            obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.finalize();
         end
 
@@ -67,12 +67,12 @@ classdef Offset < core.GeomFeature
             val = obj.get_param("trim", true);
         end
 
-        function set.keep(obj, val)
-            obj.set_param("keep", logical(val));
+        function set.keep_input_objects(obj, val)
+            obj.set_param("keep_input_objects", logical(val));
         end
 
-        function val = get.keep(obj)
-            val = obj.get_param("keep", false);
+        function val = get.keep_input_objects(obj)
+            val = obj.get_param("keep_input_objects", false);
         end
     end
     methods (Static, Access=private)
@@ -87,6 +87,7 @@ classdef Offset < core.GeomFeature
                 args.reverse logical = false
                 args.convexcorner {mustBeTextScalar} = "tangent"
                 args.trim logical = true
+                args.keep_input_objects logical = false
                 args.keep logical = false
                 args.layer = []
             end

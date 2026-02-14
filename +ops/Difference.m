@@ -3,6 +3,7 @@ classdef Difference < core.GeomFeature
     properties (Dependent)
         base
         tools
+        keep_input_objects
     end
     methods
         function obj = Difference(varargin)
@@ -18,6 +19,7 @@ classdef Difference < core.GeomFeature
             for i = 1:numel(tool_list)
                 obj.add_input(tool_list{i});
             end
+            obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.finalize();
         end
 
@@ -32,6 +34,14 @@ classdef Difference < core.GeomFeature
                 val = obj.inputs(2:end);
             end
         end
+
+        function set.keep_input_objects(obj, val)
+            obj.set_param("keep_input_objects", logical(val));
+        end
+
+        function val = get.keep_input_objects(obj)
+            val = obj.get_param("keep_input_objects", false);
+        end
     end
     methods (Static, Access=private)
         function [ctx, base, tools, args] = parse_inputs(varargin)
@@ -41,6 +51,8 @@ classdef Difference < core.GeomFeature
 
         function parsed = parse_options(args)
             arguments
+                args.keep_input_objects logical = false
+                args.keep logical = false
                 args.layer = []
             end
             parsed = args;

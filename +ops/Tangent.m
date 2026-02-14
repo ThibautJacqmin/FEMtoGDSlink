@@ -12,6 +12,7 @@ classdef Tangent < core.GeomFeature
         edge2_index
         point_index
         width
+        keep_input_objects
     end
     methods
         function obj = Tangent(varargin)
@@ -46,6 +47,7 @@ classdef Tangent < core.GeomFeature
             obj.edge2_index = args.edge2_index;
             obj.point_index = args.point_index;
             obj.width = args.width;
+            obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.finalize();
         end
 
@@ -170,6 +172,14 @@ classdef Tangent < core.GeomFeature
         function val = get.width(obj)
             val = obj.get_param("width", types.Parameter(1, "", unit=""));
         end
+
+        function set.keep_input_objects(obj, val)
+            obj.set_param("keep_input_objects", logical(val));
+        end
+
+        function val = get.keep_input_objects(obj)
+            val = obj.get_param("keep_input_objects", false);
+        end
     end
     methods (Static, Access=private)
         function [ctx, target, args] = parse_inputs(varargin)
@@ -189,6 +199,8 @@ classdef Tangent < core.GeomFeature
                 args.edge2_index = 1
                 args.point_index = 1
                 args.width = 1
+                args.keep_input_objects logical = false
+                args.keep logical = false
                 args.layer = []
             end
             parsed = args;

@@ -4,6 +4,7 @@ classdef Rotate < core.GeomFeature
         target
         angle
         origin
+        keep_input_objects
     end
     methods
         function obj = Rotate(varargin)
@@ -17,6 +18,7 @@ classdef Rotate < core.GeomFeature
             obj.add_input(target);
             obj.angle = args.angle;
             obj.origin = args.origin;
+            obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.finalize();
         end
 
@@ -36,6 +38,14 @@ classdef Rotate < core.GeomFeature
             val = obj.get_param("origin");
         end
 
+        function set.keep_input_objects(obj, val)
+            obj.set_param("keep_input_objects", logical(val));
+        end
+
+        function val = get.keep_input_objects(obj)
+            val = obj.get_param("keep_input_objects", false);
+        end
+
         function val = get.target(obj)
             val = obj.inputs{1};
         end
@@ -50,6 +60,8 @@ classdef Rotate < core.GeomFeature
             arguments
                 args.angle = 0
                 args.origin = [0, 0]
+                args.keep_input_objects logical = false
+                args.keep logical = false
                 args.layer = []
             end
             parsed = args;

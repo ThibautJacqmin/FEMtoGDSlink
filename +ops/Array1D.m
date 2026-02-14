@@ -4,6 +4,7 @@ classdef Array1D < core.GeomFeature
         target
         ncopies
         delta
+        keep_input_objects
     end
     methods
         function obj = Array1D(varargin)
@@ -18,6 +19,7 @@ classdef Array1D < core.GeomFeature
             obj.add_input(target);
             obj.ncopies = args.ncopies;
             obj.delta = args.delta;
+            obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.finalize();
         end
 
@@ -37,6 +39,14 @@ classdef Array1D < core.GeomFeature
             val = obj.get_param("delta");
         end
 
+        function set.keep_input_objects(obj, val)
+            obj.set_param("keep_input_objects", logical(val));
+        end
+
+        function val = get.keep_input_objects(obj)
+            val = obj.get_param("keep_input_objects", false);
+        end
+
         function val = get.target(obj)
             val = obj.inputs{1};
         end
@@ -51,6 +61,8 @@ classdef Array1D < core.GeomFeature
             arguments
                 args.ncopies = 1
                 args.delta = [1, 0]
+                args.keep_input_objects logical = false
+                args.keep logical = false
                 args.layer = []
             end
             parsed = args;

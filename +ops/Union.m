@@ -2,6 +2,7 @@ classdef Union < core.GeomFeature
     % Union boolean operation on multiple features.
     properties (Dependent)
         members
+        keep_input_objects
     end
     methods
         function obj = Union(varargin)
@@ -15,11 +16,20 @@ classdef Union < core.GeomFeature
             for i = 1:numel(members)
                 obj.add_input(members{i});
             end
+            obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.finalize();
         end
 
         function val = get.members(obj)
             val = obj.inputs;
+        end
+
+        function set.keep_input_objects(obj, val)
+            obj.set_param("keep_input_objects", logical(val));
+        end
+
+        function val = get.keep_input_objects(obj)
+            val = obj.get_param("keep_input_objects", false);
         end
     end
     methods (Static, Access=private)
@@ -30,6 +40,8 @@ classdef Union < core.GeomFeature
 
         function parsed = parse_options(args)
             arguments
+                args.keep_input_objects logical = false
+                args.keep logical = false
                 args.layer = []
             end
             parsed = args;

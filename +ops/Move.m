@@ -3,6 +3,7 @@ classdef Move < core.GeomFeature
     properties (Dependent)
         target
         delta
+        keep_input_objects
     end
     methods
         function obj = Move(varargin)
@@ -15,6 +16,7 @@ classdef Move < core.GeomFeature
             obj@core.GeomFeature(ctx, layer);
             obj.add_input(target);
             obj.delta = args.delta;
+            obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.finalize();
         end
 
@@ -24,6 +26,14 @@ classdef Move < core.GeomFeature
 
         function val = get.delta(obj)
             val = obj.get_param("delta");
+        end
+
+        function set.keep_input_objects(obj, val)
+            obj.set_param("keep_input_objects", logical(val));
+        end
+
+        function val = get.keep_input_objects(obj)
+            val = obj.get_param("keep_input_objects", false);
         end
 
         function val = get.target(obj)
@@ -39,6 +49,8 @@ classdef Move < core.GeomFeature
         function parsed = parse_options(args)
             arguments
                 args.delta = [0, 0]
+                args.keep_input_objects logical = false
+                args.keep logical = false
                 args.layer = []
             end
             parsed = args;

@@ -241,11 +241,13 @@ classdef GeometrySession < handle
             obj.comsol_backend.emit_all(nodes_to_emit);
         end
 
-        function export_gds(obj, filename)
+        function export_gds(obj, filename, args)
             % Emit graph to GDS backend and write layout to disk.
+            % By default, only terminal (final) nodes are exported.
             arguments
                 obj core.GeometrySession
                 filename {mustBeTextScalar}
+                args.scope {mustBeTextScalar} = "final"
             end
             if ~obj.has_gds()
                 error("GDS backend disabled.");
@@ -253,8 +255,57 @@ classdef GeometrySession < handle
             if isempty(obj.gds_backend)
                 obj.gds_backend = core.GdsBackend(obj);
             end
-            obj.gds_backend.emit_all(obj.nodes);
+            nodes_to_emit = obj.gds_nodes_for_export(scope=args.scope);
+            obj.gds_backend.emit_all(nodes_to_emit);
             obj.gds.write(filename);
+        end
+
+        function nodes = gds_nodes_for_export(obj, args)
+            % Select which nodes are emitted in GDS export.
+            arguments
+                obj core.GeometrySession
+                args.scope {mustBeTextScalar} = "final"
+            end
+            scope = lower(string(args.scope));
+            if scope == "all"
+                nodes = obj.nodes;
+                return;
+            end
+            if any(scope == ["final", "terminal", "sinks", "leaf"])
+                nodes = obj.terminal_nodes();
+                return;
+            end
+            error("GeometrySession:InvalidGdsScope", ...
+                "Invalid GDS export scope '%s'. Use 'final' or 'all'.", char(scope));
+        end
+
+        function nodes = terminal_nodes(obj)
+            % Return graph sink nodes (nodes not used as input by others).
+            if isempty(obj.nodes)
+                nodes = {};
+                return;
+            end
+
+            used = dictionary(int32.empty(0,1), false(0,1));
+            for i = 1:numel(obj.nodes)
+                node = obj.nodes{i};
+                keeps_inputs = core.GeometrySession.node_keeps_inputs(node);
+                for j = 1:numel(node.inputs)
+                    in = node.inputs{j};
+                    if keeps_inputs
+                        continue;
+                    end
+                    if isa(in, 'core.GeomFeature') && ~isempty(in.id)
+                        used(int32(in.id)) = true;
+                    end
+                end
+            end
+
+            keep = false(1, numel(obj.nodes));
+            for i = 1:numel(obj.nodes)
+                keep(i) = ~isKey(used, int32(obj.nodes{i}.id));
+            end
+            nodes = obj.nodes(keep);
         end
 
         function open_comsol_gui(obj)
@@ -559,6 +610,31 @@ classdef GeometrySession < handle
                 return;
             end
             n = sum(vals);
+        end
+
+        function tf = node_keeps_inputs(node)
+            % Return true when node declares keep-input behavior.
+            tf = false;
+            if isprop(node, "keep_input_objects")
+                try
+                    v = node.keep_input_objects;
+                    if isscalar(v)
+                        tf = logical(v);
+                        return;
+                    end
+                catch
+                end
+            end
+            % Backward compatibility for legacy keep flag.
+            if isprop(node, "keep")
+                try
+                    v = node.keep;
+                    if isscalar(v)
+                        tf = logical(v);
+                    end
+                catch
+                end
+            end
         end
     end
     methods (Access=private)

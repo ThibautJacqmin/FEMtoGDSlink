@@ -363,8 +363,7 @@ classdef ComsolBackend < handle
             layer = node.layer;
             keep_input = obj.node_keep_flag(node);
             source_tag = string(obj.tag_for(node.target));
-            source_input_tag = obj.resolve_array_input_tag(node, source_tag);
-            input_tag = obj.resolve_input_tag_from_source(layer, source_input_tag, int32(node.target.id), keep_input);
+            input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
             [~, feature, tag] = obj.start_feature(node, "arr", "Array");
             obj.set_input_selection(feature, input_tag);
             obj.set_keep_input(feature, keep_input);
@@ -372,7 +371,6 @@ classdef ComsolBackend < handle
             disp_vec = obj.length_vector(node.delta, "Array1D delta");
             obj.set_pair(feature, 'displ', disp_vec(1), disp_vec(2));
             obj.finish_feature(node, layer, feature, tag);
-            obj.register_array_seed_tag(source_tag, string(tag) + "(1)");
         end
 
         function emit_Array2D(obj, node)
@@ -380,8 +378,7 @@ classdef ComsolBackend < handle
             layer = node.layer;
             keep_input = obj.node_keep_flag(node);
             source_tag = string(obj.tag_for(node.target));
-            source_input_tag = obj.resolve_array_input_tag(node, source_tag);
-            input_tag = obj.resolve_input_tag_from_source(layer, source_input_tag, int32(node.target.id), keep_input);
+            input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
             [~, feature, tag] = obj.start_feature(node, "arr", "Array");
             obj.set_input_selection(feature, input_tag);
             obj.set_keep_input(feature, keep_input);
@@ -400,7 +397,6 @@ classdef ComsolBackend < handle
             % COMSOL rectangular Array displ is [dx, dy] along axis directions.
             obj.set_pair(feature, 'displ', disp_x(1), disp_y(2));
             obj.finish_feature(node, layer, feature, tag);
-            obj.register_array_seed_tag(source_tag, string(tag) + "(1,1)");
         end
 
         function emit_Fillet(obj, node)
@@ -1217,30 +1213,14 @@ classdef ComsolBackend < handle
             end
         end
 
-        function input_tag = resolve_array_input_tag(obj, node, source_tag)
-            % Resolve robust Array input tag, preferring previous array seed elements.
-            key = string(source_tag);
-            if isKey(obj.array_seed_tags, key)
-                input_tag = obj.array_seed_tags(key);
-                return;
-            end
-
-            if isa(node.target, 'ops.Array1D')
-                input_tag = key + "(1)";
-            elseif isa(node.target, 'ops.Array2D')
-                input_tag = key + "(1,1)";
-            else
-                input_tag = key;
-            end
+        function input_tag = resolve_array_input_tag(~, ~, source_tag)
+            % Array inputs should use feature tags; object tags like arr1(1,1)
+            % are not accepted consistently as Array 'input' selections.
+            input_tag = string(source_tag);
         end
 
-        function register_array_seed_tag(obj, source_tag, seed_tag)
-            % Record latest available element tag for repeated arraying from one source.
-            key = string(source_tag);
-            if strlength(key) == 0
-                return;
-            end
-            obj.array_seed_tags(key) = string(seed_tag);
+        function register_array_seed_tag(~, ~, ~)
+            % Legacy no-op kept for compatibility with older code paths.
         end
 
         function apply_layer_selection(obj, layer, feature)

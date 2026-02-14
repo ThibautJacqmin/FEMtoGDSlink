@@ -217,12 +217,14 @@ classdef Lattice < handle
             %
             % Hexagonal usage:
             %   [f, lat] = Lattice.createLattice(lattice="Hexagonal", a=..., nw=..., nh=..., ...
-            %       seed=myFeature, ctx=ctx, a_parameter=a_param, layer="metal1");
+            %       seed=myFeature, a_parameter=a_param, layer="metal1");
             %
             % Honeycomb usage with two site types:
             %   [f, lat] = Lattice.createLattice(lattice="HoneyComb", a=..., nw=..., nh=..., ...
-            %       seedA=featureA, seedB=featureB, sublattice="AB", ctx=ctx, ...
+            %       seedA=featureA, seedB=featureB, sublattice="AB", ...
             %       a_parameter=a_param, layer="metal1");
+            %
+            % 'ctx' is optional: if omitted, context is inferred from seed feature(s).
             arguments
                 args.lattice {mustBeTextScalar}
                 args.a {mustBeNumeric, mustBeReal, mustBeFinite, mustBePositive}

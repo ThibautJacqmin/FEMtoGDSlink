@@ -70,6 +70,30 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             testCase.verifyEqual(p_n.value, max(8, round(2*p_rad.value)));
         end
 
+        function emitFilletAllPointsOnComposite(testCase)
+            % Verify fillet points="all" works on non-rectangle composite input.
+            ctx = core.GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            p_rad = types.Parameter(4, "fil_all_r");
+            p_n = types.Parameter(12, "fil_all_n", unit="");
+
+            r1 = primitives.Rectangle(ctx, center=[0 0], width=120, height=70, layer="m1");
+            r2 = primitives.Rectangle(ctx, center=[35 0], width=120, height=70, layer="m1");
+            composite = ops.Union(ctx, {r1, r2}, layer="m1");
+            fil = ops.Fillet(ctx, composite, radius=p_rad, npoints=p_n, points="all", ...
+                layer="m1");
+
+            ctx.build_comsol();
+
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(composite.id)));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(fil.id)));
+            fil_tag = string(ctx.comsol_backend.feature_tags(int32(fil.id)));
+            testCase.verifyTrue(startsWith(fil_tag, "fil"));
+        end
+
         function sharedModelerIsReusedAcrossSessions(testCase)
             % Verify with_shared_comsol reuses the same COMSOL model instance.
             core.GeometrySession.clear_shared_comsol();

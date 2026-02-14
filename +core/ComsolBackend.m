@@ -608,15 +608,47 @@ classdef ComsolBackend < handle
         end
 
         function select_all_fillet_points(~, feature, base_tag, node)
-            % Select all fillet points in a COMSOL-native way.
-            % For rectangles we keep stable corner indices. For all other
-            % targets, leave point selection unset and rely on COMSOL's
-            % default "all eligible points" behavior. Explicit
-            % selection('point').all can emit version-specific combo-box
-            % warnings (point_selectionset).
-            if isa(node.target, 'primitives.Rectangle')
-                feature.selection('point').set(base_tag, 1:4);
+            % Select all fillet/chamfer points with version-tolerant fallbacks.
+            % Some COMSOL versions accept selection('point').set(objectTag),
+            % others require selection('point').all(), and some accept a
+            % property token for "all". For rectangles, explicit 1:4 remains
+            % the most deterministic fallback.
+            base = char(string(base_tag));
+            tried = strings(0, 1);
+
+            try
+                feature.selection('point').set(base);
+                return;
+            catch ex
+                tried(end+1, 1) = "selection('point').set(base): " + string(ex.message);
             end
+
+            try
+                feature.selection('point').all();
+                return;
+            catch ex
+                tried(end+1, 1) = "selection('point').all(): " + string(ex.message);
+            end
+
+            try
+                feature.set('point', 'all');
+                return;
+            catch ex
+                tried(end+1, 1) = "feature.set('point','all'): " + string(ex.message);
+            end
+
+            if isa(node.target, 'primitives.Rectangle')
+                try
+                    feature.selection('point').set(base, 1:4);
+                    return;
+                catch ex
+                    tried(end+1, 1) = "selection('point').set(base,1:4): " + string(ex.message);
+                end
+            end
+
+            msg = "Could not select fillet/chamfer points='all' for input '" + string(base) + "'. " + ...
+                strjoin(tried, " | ");
+            error("femtogds:ComsolPointSelectionFailed", char(msg));
         end
 
         function define_parameter(obj, p)

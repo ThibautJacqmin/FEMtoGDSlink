@@ -74,11 +74,11 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify with_shared_comsol reuses the same COMSOL model instance.
             femtogds.core.GeometrySession.clear_shared_comsol();
             ctx1 = femtogds.core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
-                reset_model=true);
+                reset_model=true, clean_on_reset=false);
             tag1 = string(ctx1.comsol.model_tag);
 
             ctx2 = femtogds.core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
-                reset_model=true);
+                reset_model=true, clean_on_reset=false);
             tag2 = string(ctx2.comsol.model_tag);
 
             testCase.verifyEqual(tag2, tag1);

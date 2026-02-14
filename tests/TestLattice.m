@@ -14,7 +14,7 @@ classdef TestLattice < matlab.unittest.TestCase
             a = 10;
             nw = 4;
             nh = 3;
-            lat = HexagonalLattice(a, nw, nh);
+            lat = lattices.HexagonalLattice(a, nw, nh);
 
             testCase.verifySize(lat.nodes, [nw + 1, nh + 1, 2]);
 
@@ -32,7 +32,7 @@ classdef TestLattice < matlab.unittest.TestCase
 
         function reciprocalAndContourProperties(testCase)
             a = 12.5;
-            lat = HexagonalLattice(a, 2, 2);
+            lat = lattices.HexagonalLattice(a, 2, 2);
 
             testCase.verifyEqual(lat.a1, a * [1, 0], AbsTol=1e-12);
             testCase.verifyEqual(lat.a2, a * [1/2, sqrt(3)/2], AbsTol=1e-12);
@@ -54,7 +54,7 @@ classdef TestLattice < matlab.unittest.TestCase
 
         function honeycombSublatticeOffsets(testCase)
             a = 9;
-            lat = HoneyCombLattice(a, 3, 2);
+            lat = lattices.HoneyCombLattice(a, 3, 2);
 
             A = lat.nodes.sublatticeA;
             B = lat.nodes.sublatticeB;
@@ -74,7 +74,7 @@ classdef TestLattice < matlab.unittest.TestCase
 
         function honeycombSiteCoordinates(testCase)
             a = 7;
-            lat = HoneyCombLattice(a, 2, 2);
+            lat = lattices.HoneyCombLattice(a, 2, 2);
 
             expected_siteA = (lat.a1 + lat.a2) / 3;
             expected_delta = (lat.a1 + lat.a2) / 3;
@@ -84,11 +84,11 @@ classdef TestLattice < matlab.unittest.TestCase
         end
 
         function computeGeometryDispatch(testCase)
-            h1 = HexagonalLattice(8, 2, 1);
+            h1 = lattices.HexagonalLattice(8, 2, 1);
             nodes1 = h1.computeGeometry("Hexagonal");
             testCase.verifyEqual(nodes1, h1.nodes, AbsTol=1e-12);
 
-            h2 = HoneyCombLattice(8, 2, 1);
+            h2 = lattices.HoneyCombLattice(8, 2, 1);
             nodes2 = h2.computeGeometry("Honeycomb");
             testCase.verifyEqual(nodes2.sublatticeA, h2.nodes.sublatticeA, AbsTol=1e-12);
             testCase.verifyEqual(nodes2.sublatticeB, h2.nodes.sublatticeB, AbsTol=1e-12);
@@ -100,13 +100,13 @@ classdef TestLattice < matlab.unittest.TestCase
         end
 
         function getSitesApiReturnsFlatAndGridCoordinates(testCase)
-            hex = HexagonalLattice(10, 2, 3);
+            hex = lattices.HexagonalLattice(10, 2, 3);
             flat = hex.get_sites();
             grid = hex.get_sites(as_grid=true);
             testCase.verifySize(flat, [(hex.nw + 1) * (hex.nh + 1), 2]);
             testCase.verifyEqual(grid, hex.nodes, AbsTol=1e-12);
 
-            hon = HoneyCombLattice(10, 2, 3);
+            hon = lattices.HoneyCombLattice(10, 2, 3);
             A = hon.get_sites(which="A");
             B = hon.get_sites(which="B");
             C = hon.get_sites(which="centers");
@@ -128,7 +128,7 @@ classdef TestLattice < matlab.unittest.TestCase
         function constructorValidatesPositiveInputs(testCase)
             did_throw = false;
             try
-                HexagonalLattice(0, 2, 2);
+                lattices.HexagonalLattice(0, 2, 2);
             catch
                 did_throw = true;
             end
@@ -136,7 +136,7 @@ classdef TestLattice < matlab.unittest.TestCase
 
             did_throw = false;
             try
-                HexagonalLattice(5, 0, 2);
+                lattices.HexagonalLattice(5, 0, 2);
             catch
                 did_throw = true;
             end
@@ -144,7 +144,7 @@ classdef TestLattice < matlab.unittest.TestCase
 
             did_throw = false;
             try
-                HoneyCombLattice(5, 2, -1);
+                lattices.HoneyCombLattice(5, 2, -1);
             catch
                 did_throw = true;
             end
@@ -152,20 +152,21 @@ classdef TestLattice < matlab.unittest.TestCase
         end
 
         function hexagonalCircleArrayBuildsParameterizedArrays(testCase)
-            ctx = femtogds.core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
-            a_param = femtogds.types.Parameter(20, "a_lat", unit="nm", auto_register=false);
-            lat = HexagonalLattice(20, 4, 3);
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            a_param = types.Parameter(20, "a_lat", unit="nm", auto_register=false);
+            lat = lattices.HexagonalLattice(20, 4, 3);
 
-            feat = lat.circleArray(ctx=ctx, radius=3, npoints=64, layer="default", a_parameter=a_param);
+            seed = primitives.Circle(ctx, center=[0, 0], radius=3, npoints=64, layer="default");
+            feat = lat.latticeFromFeature(seed=seed, ctx=ctx, layer="default", a_parameter=a_param);
 
-            testCase.verifyTrue(isa(feat, "femtogds.ops.Union"));
+            testCase.verifyTrue(isa(feat, "ops.Union"));
             members = feat.members;
             testCase.verifyNumElements(members, 2);
             array_count = 0;
             for i = 1:numel(members)
                 testCase.verifyTrue(TestLattice.featureTreeContainsClass( ...
-                    members{i}, "femtogds.primitives.Circle"));
-                arr = TestLattice.firstFeatureOfClass(members{i}, "femtogds.ops.Array2D");
+                    members{i}, "primitives.Circle"));
+                arr = TestLattice.firstFeatureOfClass(members{i}, "ops.Array2D");
                 testCase.verifyFalse(isempty(arr));
                 array_count = array_count + 1;
                 testCase.verifyEqual(arr.ncopies_x.value, 5);
@@ -178,50 +179,55 @@ classdef TestLattice < matlab.unittest.TestCase
         end
 
         function honeycombCircleArraySupportsSublatticeSelection(testCase)
-            ctx = femtogds.core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
-            a_param = femtogds.types.Parameter(12, "a_hc", unit="nm", auto_register=false);
-            lat = HoneyCombLattice(12, 3, 2);
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            a_param = types.Parameter(12, "a_hc", unit="nm", auto_register=false);
+            lat = lattices.HoneyCombLattice(12, 3, 2);
 
-            fA = lat.circleArray(ctx=ctx, radius=2, layer="default", a_parameter=a_param, sublattice="A");
-            fB = lat.circleArray(ctx=ctx, radius=2, layer="default", a_parameter=a_param, sublattice="B");
-            fAB = lat.circleArray(ctx=ctx, radius=2, layer="default", a_parameter=a_param, sublattice="AB");
-            fC = lat.circleArray(ctx=ctx, radius=2, layer="default", a_parameter=a_param, sublattice="centers");
+            seed = primitives.Circle(ctx, center=[0, 0], radius=2, npoints=64, layer="default");
+            fA = lat.latticeFromFeature(ctx=ctx, seed=seed, layer="default", ...
+                a_parameter=a_param, sublattice="A");
+            fB = lat.latticeFromFeature(ctx=ctx, seed=seed, layer="default", ...
+                a_parameter=a_param, sublattice="B");
+            fAB = lat.latticeFromFeature(ctx=ctx, seed=seed, layer="default", ...
+                a_parameter=a_param, sublattice="AB");
+            fC = lat.latticeFromFeature(ctx=ctx, seed=seed, layer="default", ...
+                a_parameter=a_param, sublattice="centers");
 
-            testCase.verifyTrue(isa(fA, "femtogds.core.GeomFeature"));
-            testCase.verifyTrue(isa(fB, "femtogds.core.GeomFeature"));
-            testCase.verifyTrue(isa(fC, "femtogds.core.GeomFeature"));
-            testCase.verifyTrue(isa(fAB, "femtogds.ops.Union"));
+            testCase.verifyTrue(isa(fA, "core.GeomFeature"));
+            testCase.verifyTrue(isa(fB, "core.GeomFeature"));
+            testCase.verifyTrue(isa(fC, "core.GeomFeature"));
+            testCase.verifyTrue(isa(fAB, "ops.Union"));
             testCase.verifyNumElements(fAB.members, 2);
         end
 
         function latticeCreateArrayDispatchesHexagonalFromName(testCase)
-            ctx = femtogds.core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
-            a_param = femtogds.types.Parameter(18, "a_lat_dispatch", unit="nm", auto_register=false);
-            seed = femtogds.primitives.Circle(ctx, center=[0, 0], radius=2.5, npoints=48, layer="default");
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            a_param = types.Parameter(18, "a_lat_dispatch", unit="nm", auto_register=false);
+            seed = primitives.Circle(ctx, center=[0, 0], radius=2.5, npoints=48, layer="default");
 
-            [feat, lat] = Lattice.createArray(lattice="Hexagonal", a=18, nw=3, nh=2, ...
+            [feat, lat] = lattices.Lattice.createLattice(lattice="Hexagonal", a=18, nw=3, nh=2, ...
                 seed=seed, ctx=ctx, layer="default", a_parameter=a_param);
 
-            testCase.verifyTrue(isa(lat, "HexagonalLattice"));
-            testCase.verifyTrue(isa(feat, "femtogds.core.GeomFeature"));
-            testCase.verifyTrue(TestLattice.featureTreeContainsClass(feat, "femtogds.primitives.Circle"));
+            testCase.verifyTrue(isa(lat, "lattices.HexagonalLattice"));
+            testCase.verifyTrue(isa(feat, "core.GeomFeature"));
+            testCase.verifyTrue(TestLattice.featureTreeContainsClass(feat, "primitives.Circle"));
         end
 
         function latticeCreateArraySupportsHoneycombDifferentABSeeds(testCase)
-            ctx = femtogds.core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
-            a_param = femtogds.types.Parameter(14, "a_lat_hc_dispatch", unit="nm", auto_register=false);
-            seed_A = femtogds.primitives.Circle(ctx, center=[0, 0], radius=2, npoints=40, layer="default");
-            seed_B = femtogds.primitives.Rectangle(ctx, center=[0, 0], width=3.5, height=2.5, ...
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            a_param = types.Parameter(14, "a_lat_hc_dispatch", unit="nm", auto_register=false);
+            seed_A = primitives.Circle(ctx, center=[0, 0], radius=2, npoints=40, layer="default");
+            seed_B = primitives.Rectangle(ctx, center=[0, 0], width=3.5, height=2.5, ...
                 layer="default");
 
-            [feat, lat] = Lattice.createArray(lattice="HoneyComb", a=14, nw=2, nh=2, ...
+            [feat, lat] = lattices.Lattice.createLattice(lattice="HoneyComb", a=14, nw=2, nh=2, ...
                 seedA=seed_A, seedB=seed_B, sublattice="AB", ctx=ctx, ...
                 layer="default", a_parameter=a_param);
 
-            testCase.verifyTrue(isa(lat, "HoneyCombLattice"));
-            testCase.verifyTrue(isa(feat, "femtogds.ops.Union"));
-            testCase.verifyTrue(TestLattice.featureTreeContainsClass(feat, "femtogds.primitives.Circle"));
-            testCase.verifyTrue(TestLattice.featureTreeContainsClass(feat, "femtogds.primitives.Rectangle"));
+            testCase.verifyTrue(isa(lat, "lattices.HoneyCombLattice"));
+            testCase.verifyTrue(isa(feat, "ops.Union"));
+            testCase.verifyTrue(TestLattice.featureTreeContainsClass(feat, "primitives.Circle"));
+            testCase.verifyTrue(TestLattice.featureTreeContainsClass(feat, "primitives.Rectangle"));
         end
     end
 
@@ -236,7 +242,7 @@ classdef TestLattice < matlab.unittest.TestCase
                 tf = true;
                 return;
             end
-            if ~isa(feature, "femtogds.core.GeomFeature")
+            if ~isa(feature, "core.GeomFeature")
                 return;
             end
 
@@ -275,7 +281,7 @@ classdef TestLattice < matlab.unittest.TestCase
                 out = feature;
                 return;
             end
-            if ~isa(feature, "femtogds.core.GeomFeature")
+            if ~isa(feature, "core.GeomFeature")
                 return;
             end
 

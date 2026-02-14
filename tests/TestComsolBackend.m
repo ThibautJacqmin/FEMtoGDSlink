@@ -11,42 +11,42 @@ classdef TestComsolBackend < matlab.unittest.TestCase
     methods (TestMethodTeardown)
         function cleanupSharedComsol(~)
             % Ensure shared COMSOL state does not leak across tests.
-            femtogds.core.GeometrySession.clear_shared_comsol();
-            femtogds.core.GeometrySession.set_current([]);
+            core.GeometrySession.clear_shared_comsol();
+            core.GeometrySession.set_current([]);
         end
     end
 
     methods (Test)
         function emitGeometryGraphRegistersParametersAndSelections(testCase)
             % Verify emitted features, named parameters, and layer selections.
-            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+            ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
-            p_pitch = femtogds.types.Parameter(40, "pitch_y");
-            p_w0 = femtogds.types.Parameter(120, "tower_w0");
-            p_dw = femtogds.types.Parameter(20, "tower_dw");
-            p_h = femtogds.types.Parameter(60, "tower_h");
-            p_rot = femtogds.types.Parameter(7, "tower_rot_deg", unit="");
-            p_rect_rot = femtogds.types.Parameter(18, "rect_rot_deg", unit="");
-            p_scale = femtogds.types.Parameter(0.95, "tower_scale", unit="");
-            p_move = femtogds.types.Parameter(10, "tower_move_unit");
-            p_rad = femtogds.types.Parameter(6, "fillet_r");
-            p_n = femtogds.types.Parameter(@(x) max(8, round(2*x)), p_rad, "fillet_n", unit="");
+            p_pitch = types.Parameter(40, "pitch_y");
+            p_w0 = types.Parameter(120, "tower_w0");
+            p_dw = types.Parameter(20, "tower_dw");
+            p_h = types.Parameter(60, "tower_h");
+            p_rot = types.Parameter(7, "tower_rot_deg", unit="");
+            p_rect_rot = types.Parameter(18, "rect_rot_deg", unit="");
+            p_scale = types.Parameter(0.95, "tower_scale", unit="");
+            p_move = types.Parameter(10, "tower_move_unit");
+            p_rad = types.Parameter(6, "fillet_r");
+            p_n = types.Parameter(@(x) max(8, round(2*x)), p_rad, "fillet_n", unit="");
 
-            r1 = femtogds.primitives.Rectangle(ctx, center=femtogds.types.Vertices([0, 0], p_pitch), ...
+            r1 = primitives.Rectangle(ctx, center=types.Vertices([0, 0], p_pitch), ...
                 width=p_w0 - p_dw, height=p_h, layer="m1");
-            r2 = femtogds.primitives.Rectangle(ctx, base="corner", corner=[5, -10], ...
+            r2 = primitives.Rectangle(ctx, base="corner", corner=[5, -10], ...
                 width=30, height=20, angle=p_rect_rot, layer="m1");
-            u = femtogds.ops.Union(ctx, {r1, r2}, layer="m1");
-            d = femtogds.ops.Difference(ctx, u, {r2}, layer="m1");
-            m = femtogds.ops.Move(ctx, d, delta=femtogds.types.Vertices([1, 0], p_move));
-            ro = femtogds.ops.Rotate(ctx, m, angle=p_rot, origin=femtogds.types.Vertices([0, 0], p_pitch));
-            sc = femtogds.ops.Scale(ctx, ro, factor=p_scale, origin=femtogds.types.Vertices([0, 0], p_pitch));
-            mi = femtogds.ops.Mirror(ctx, sc, point=femtogds.types.Vertices([0, 0], p_pitch), axis=[1, 0]);
-            i = femtogds.ops.Intersection(ctx, {mi, r1}, layer="m1");
-            f = femtogds.ops.Fillet(ctx, i, radius=p_rad, npoints=p_n, points=[1 2 3 4], ...
+            u = ops.Union(ctx, {r1, r2}, layer="m1");
+            d = ops.Difference(ctx, u, {r2}, layer="m1");
+            m = ops.Move(ctx, d, delta=types.Vertices([1, 0], p_move));
+            ro = ops.Rotate(ctx, m, angle=p_rot, origin=types.Vertices([0, 0], p_pitch));
+            sc = ops.Scale(ctx, ro, factor=p_scale, origin=types.Vertices([0, 0], p_pitch));
+            mi = ops.Mirror(ctx, sc, point=types.Vertices([0, 0], p_pitch), axis=[1, 0]);
+            i = ops.Intersection(ctx, {mi, r1}, layer="m1");
+            f = ops.Fillet(ctx, i, radius=p_rad, npoints=p_n, points=[1 2 3 4], ...
                 layer="m1");
 
             ctx.build_comsol();
@@ -72,12 +72,12 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
         function sharedModelerIsReusedAcrossSessions(testCase)
             % Verify with_shared_comsol reuses the same COMSOL model instance.
-            femtogds.core.GeometrySession.clear_shared_comsol();
-            ctx1 = femtogds.core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
+            core.GeometrySession.clear_shared_comsol();
+            ctx1 = core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
                 reset_model=true, clean_on_reset=false);
             tag1 = string(ctx1.comsol.model_tag);
 
-            ctx2 = femtogds.core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
+            ctx2 = core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
                 reset_model=true, clean_on_reset=false);
             tag2 = string(ctx2.comsol.model_tag);
 
@@ -87,13 +87,13 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
         function clearSharedCreatesNewModel(testCase)
             % Verify clearing shared COMSOL forces creation of a new model tag.
-            femtogds.core.GeometrySession.clear_shared_comsol();
-            ctx1 = femtogds.core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
+            core.GeometrySession.clear_shared_comsol();
+            ctx1 = core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
                 reset_model=true);
             tag1 = string(ctx1.comsol.model_tag);
 
-            femtogds.core.GeometrySession.clear_shared_comsol();
-            ctx2 = femtogds.core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
+            core.GeometrySession.clear_shared_comsol();
+            ctx2 = core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
                 reset_model=true);
             tag2 = string(ctx2.comsol.model_tag);
 
@@ -102,19 +102,19 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
         function resetWorkspaceClearsSnappedParameters(testCase)
             % Verify shared reset clears old snp* parameters.
-            ctx1 = femtogds.core.GeometrySession.with_shared_comsol(enable_gds=true, snap_mode="strict", ...
+            ctx1 = core.GeometrySession.with_shared_comsol(enable_gds=true, snap_mode="strict", ...
                 emit_on_create=false, reset_model=true);
             ctx1.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
-            p_w = femtogds.types.Parameter(120, "w");
-            p_h = femtogds.types.Parameter(60, "h");
-            r = femtogds.primitives.Rectangle(ctx1, center=[0 0], width=p_w, height=p_h, layer="m1"); %#ok<NASGU>
+            p_w = types.Parameter(120, "w");
+            p_h = types.Parameter(60, "h");
+            r = primitives.Rectangle(ctx1, center=[0 0], width=p_w, height=p_h, layer="m1"); %#ok<NASGU>
             ctx1.build_comsol();
 
             names_before = TestComsolBackend.paramNames(ctx1.comsol.model);
             testCase.verifyTrue(any(startsWith(names_before, "snp")));
 
-            ctx2 = femtogds.core.GeometrySession.with_shared_comsol(enable_gds=true, snap_mode="off", ...
+            ctx2 = core.GeometrySession.with_shared_comsol(enable_gds=true, snap_mode="off", ...
                 emit_on_create=false, reset_model=true);
             names_after = TestComsolBackend.paramNames(ctx2.comsol.model);
             testCase.verifyFalse(any(startsWith(names_after, "snp")));
@@ -122,21 +122,21 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
         function emitArrayFeatures(testCase)
             % Verify COMSOL backend emits 1D/2D array features and params.
-            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+            ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=true, emit_on_create=false, snap_mode="off", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
-            p_nx = femtogds.types.Parameter(4, "arr_nx", unit="");
-            p_ny = femtogds.types.Parameter(3, "arr_ny", unit="");
-            p_pitch_x = femtogds.types.Parameter(200, "arr_pitch_x");
-            p_pitch_y = femtogds.types.Parameter(140, "arr_pitch_y");
+            p_nx = types.Parameter(4, "arr_nx", unit="");
+            p_ny = types.Parameter(3, "arr_ny", unit="");
+            p_pitch_x = types.Parameter(200, "arr_pitch_x");
+            p_pitch_y = types.Parameter(140, "arr_pitch_y");
 
-            base = femtogds.primitives.Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1");
-            a1 = femtogds.ops.Array1D(ctx, base, ncopies=p_nx, delta=femtogds.types.Vertices([1, 0], p_pitch_x), ...
+            base = primitives.Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1");
+            a1 = ops.Array1D(ctx, base, ncopies=p_nx, delta=types.Vertices([1, 0], p_pitch_x), ...
                 layer="m1");
-            a2 = femtogds.ops.Array2D(ctx, base, ncopies_x=p_nx, ncopies_y=p_ny, ...
-                delta_x=femtogds.types.Vertices([1, 0], p_pitch_x), delta_y=femtogds.types.Vertices([0, 1], p_pitch_y), ...
+            a2 = ops.Array2D(ctx, base, ncopies_x=p_nx, ncopies_y=p_ny, ...
+                delta_x=types.Vertices([1, 0], p_pitch_x), delta_y=types.Vertices([0, 1], p_pitch_y), ...
                 layer="m1");
 
             ctx.build_comsol();
@@ -155,14 +155,14 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         end
 
         function emitPolygonPrimitive(testCase)
-            % Verify COMSOL backend emits femtogds.primitives.Polygon primitive and dependencies.
-            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+            % Verify COMSOL backend emits primitives.Polygon primitive and dependencies.
+            ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
-            p = femtogds.types.Parameter(30, "poly_pitch");
-            poly = femtogds.primitives.Polygon(ctx, vertices=femtogds.types.Vertices([0 0; 4 0; 4 2; 0 2], p), ...
+            p = types.Parameter(30, "poly_pitch");
+            poly = primitives.Polygon(ctx, vertices=types.Vertices([0 0; 4 0; 4 2; 0 2], p), ...
                 layer="m1");
             ctx.build_comsol();
 
@@ -174,19 +174,19 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         end
 
         function emitCircleAndEllipsePrimitives(testCase)
-            % Verify COMSOL backend emits femtogds.primitives.Circle/femtogds.primitives.Ellipse primitives.
-            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+            % Verify COMSOL backend emits primitives.Circle/primitives.Ellipse primitives.
+            ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
-            p_r = femtogds.types.Parameter(25, "circ_r");
-            p_a = femtogds.types.Parameter(40, "ell_a");
-            p_b = femtogds.types.Parameter(18, "ell_b");
-            p_rot = femtogds.types.Parameter(30, "ell_rot_deg", unit="");
+            p_r = types.Parameter(25, "circ_r");
+            p_a = types.Parameter(40, "ell_a");
+            p_b = types.Parameter(18, "ell_b");
+            p_rot = types.Parameter(30, "ell_rot_deg", unit="");
 
-            c = femtogds.primitives.Circle(ctx, center=[0 0], radius=p_r, layer="m1");
-            e = femtogds.primitives.Ellipse(ctx, center=[80 0], a=p_a, b=p_b, angle=p_rot, ...
+            c = primitives.Circle(ctx, center=[0 0], radius=p_r, layer="m1");
+            e = primitives.Ellipse(ctx, center=[80 0], a=p_a, b=p_b, angle=p_rot, ...
                 layer="m1");
             ctx.build_comsol();
 
@@ -205,24 +205,24 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
         function emitCurveAndPointPrimitives(testCase)
             % Verify COMSOL backend emits point/curve primitives.
-            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+            ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
-            p = femtogds.primitives.Point(ctx, p=[-10 -20; 30 40], marker_size=4, layer="m1");
-            ls = femtogds.primitives.LineSegment(ctx, p1=[-20 0], p2=[20 10], width=6, ...
+            p = primitives.Point(ctx, p=[-10 -20; 30 40], marker_size=4, layer="m1");
+            ls = primitives.LineSegment(ctx, p1=[-20 0], p2=[20 10], width=6, ...
                 layer="m1");
-            ic = femtogds.primitives.InterpolationCurve(ctx, points=[0 0; 10 20; 20 0; 30 10], ...
+            ic = primitives.InterpolationCurve(ctx, points=[0 0; 10 20; 20 0; 30 10], ...
                 type="open", width=6, layer="m1");
-            qb = femtogds.primitives.QuadraticBezier(ctx, p0=[40 0], p1=[50 30], p2=[70 10], ...
+            qb = primitives.QuadraticBezier(ctx, p0=[40 0], p1=[50 30], p2=[70 10], ...
                 npoints=64, width=6, layer="m1");
-            cb = femtogds.primitives.CubicBezier(ctx, p0=[80 0], p1=[95 35], p2=[120 -20], p3=[140 10], ...
+            cb = primitives.CubicBezier(ctx, p0=[80 0], p1=[95 35], p2=[120 -20], p3=[140 10], ...
                 npoints=96, width=6, layer="m1");
-            ca = femtogds.primitives.CircularArc(ctx, center=[180 0], radius=25, ...
+            ca = primitives.CircularArc(ctx, center=[180 0], radius=25, ...
                 start_angle=30, end_angle=230, npoints=96, width=6, ...
                 layer="m1");
-            pc = femtogds.primitives.ParametricCurve(ctx, coord={"20*cos(s)", "20*sin(s)"}, ...
+            pc = primitives.ParametricCurve(ctx, coord={"20*cos(s)", "20*sin(s)"}, ...
                 parname="s", parmin=0, parmax=2*pi, ...
                 type="closed", npoints=96, layer="m1");
 
@@ -236,15 +236,15 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         end
 
         function emitThickenFeature(testCase)
-            % Verify COMSOL backend emits femtogds.ops.Thicken feature.
-            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+            % Verify COMSOL backend emits ops.Thicken feature.
+            ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
-            p_t = femtogds.types.Parameter(18, "thk_total");
-            ls = femtogds.primitives.LineSegment(ctx, p1=[0 0], p2=[100 20], width=1, layer="m1");
-            th = femtogds.ops.Thicken(ctx, ls, offset="symmetric", totalthick=p_t, ...
+            p_t = types.Parameter(18, "thk_total");
+            ls = primitives.LineSegment(ctx, p1=[0 0], p2=[100 20], width=1, layer="m1");
+            th = ops.Thicken(ctx, ls, offset="symmetric", totalthick=p_t, ...
                 ends="circular", convexcorner="fillet", keep=true, ...
                 layer="m1");
 
@@ -259,25 +259,25 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         end
 
         function emitChamferOffsetTangent(testCase)
-            % Verify COMSOL backend emits femtogds.ops.Chamfer/femtogds.ops.Offset/femtogds.ops.Tangent.
-            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+            % Verify COMSOL backend emits ops.Chamfer/ops.Offset/ops.Tangent.
+            ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
-            p_dist = femtogds.types.Parameter(4, "cha_dist");
-            p_off = femtogds.types.Parameter(6, "off_dist");
+            p_dist = types.Parameter(4, "cha_dist");
+            p_off = types.Parameter(6, "off_dist");
 
-            r = femtogds.primitives.Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1");
-            cha = femtogds.ops.Chamfer(ctx, r, dist=p_dist, points=[1 2 3 4], layer="m1");
-            off = femtogds.ops.Offset(ctx, r, distance=p_off, convexcorner="fillet", ...
+            r = primitives.Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1");
+            cha = ops.Chamfer(ctx, r, dist=p_dist, points=[1 2 3 4], layer="m1");
+            off = ops.Offset(ctx, r, distance=p_off, convexcorner="fillet", ...
                 layer="m1");
 
-            c = femtogds.primitives.Circle(ctx, center=[140 0], radius=20, layer="m1");
-            tan = femtogds.ops.Tangent(ctx, c, type="coord", coord=[180 10], edge_index=1, ...
+            c = primitives.Circle(ctx, center=[140 0], radius=20, layer="m1");
+            tan = ops.Tangent(ctx, c, type="coord", coord=[180 10], edge_index=1, ...
                 layer="m1");
 
-            u = femtogds.ops.Union(ctx, {cha, off, tan}, layer="m1");
+            u = ops.Union(ctx, {cha, off, tan}, layer="m1");
 
             ctx.build_comsol();
 
@@ -302,11 +302,11 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
         function registerStandaloneParameter(testCase)
             % Verify standalone Parameter expressions can be registered without ctx.comsol calls.
-            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+            ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
 
-            p_num = femtogds.types.Parameter(8, "line_thk");
-            p_den = femtogds.types.Parameter(10, "off_dist");
+            p_num = types.Parameter(8, "line_thk");
+            p_den = types.Parameter(10, "off_dist");
             dummy = ctx.register_parameter(p_num / p_den, name="dummy_ratio", unit="");
 
             testCase.verifyEqual(string(dummy.name), "dummy_ratio");
@@ -317,12 +317,12 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
         function constructorNamedParameterAutoRegisters(testCase)
             % Verify named Parameter(source, name=...) auto-registers in current COMSOL session.
-            ctx = femtogds.core.GeometrySession.with_shared_comsol( ...
+            ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
 
-            p_num = femtogds.types.Parameter(8, "line_thk");
-            p_den = femtogds.types.Parameter(10, "off_dist");
-            dummy = femtogds.types.Parameter(p_num / p_den, name="dummy_ratio", unit="");
+            p_num = types.Parameter(8, "line_thk");
+            p_den = types.Parameter(10, "off_dist");
+            dummy = types.Parameter(p_num / p_den, name="dummy_ratio", unit="");
 
             testCase.verifyEqual(string(dummy.name), "dummy_ratio");
             testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "line_thk"));
@@ -333,7 +333,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
     methods (Static, Access=private)
         function tf = hasComsolApi()
-            % Return true when femtogds.core.ComsolModeler can be instantiated.
+            % Return true when core.ComsolModeler can be instantiated.
             persistent cached
             if ~isempty(cached)
                 tf = cached;
@@ -341,9 +341,9 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             end
 
             try
-                m = femtogds.core.ComsolModeler.shared(reset=true);
+                m = core.ComsolModeler.shared(reset=true);
                 cached = ~isempty(m) && isvalid(m);
-                femtogds.core.ComsolModeler.clear_shared();
+                core.ComsolModeler.clear_shared();
             catch
                 cached = false;
             end

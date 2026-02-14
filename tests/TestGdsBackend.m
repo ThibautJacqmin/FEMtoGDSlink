@@ -358,6 +358,37 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(string(dummy.expr), "(num)/(den)");
         end
 
+        function verticesScaleByLengthParameterLeftAndRight(testCase)
+            p_um = types.Parameter(1, "u", unit="um", auto_register=false);
+            v_ref = types.Vertices([1, 0], p_um);
+            v_right = types.Vertices([1, 0]) * p_um;
+            v_left = p_um * types.Vertices([1, 0]);
+
+            testCase.verifyEqual(v_right.value, v_ref.value, AbsTol=1e-12);
+            testCase.verifyEqual(v_left.value, v_ref.value, AbsTol=1e-12);
+            testCase.verifyEqual(string(v_right.prefactor.unit), "um");
+            testCase.verifyEqual(string(v_left.prefactor.unit), "um");
+        end
+
+        function verticesScaleByDimensionlessParameterKeepsBaseUnit(testCase)
+            p_nm = types.Parameter(20, "p_nm", unit="nm", auto_register=false);
+            p_scale = types.Parameter(2, "s", unit="", auto_register=false);
+            v = types.Vertices([1, 0], p_nm) * p_scale;
+            testCase.verifyEqual(v.value, [40, 0], AbsTol=1e-12);
+            testCase.verifyEqual(string(v.prefactor.unit), "nm");
+        end
+
+        function verticesScaleByNumericLeftAndRight(testCase)
+            v0 = types.Vertices([2, -3]);
+            vr = v0 * 4;
+            vl = 4 * v0;
+
+            testCase.verifyEqual(vr.value, [8, -12], AbsTol=1e-12);
+            testCase.verifyEqual(vl.value, [8, -12], AbsTol=1e-12);
+            testCase.verifyEqual(string(vr.prefactor.unit), string(v0.prefactor.unit));
+            testCase.verifyEqual(string(vl.prefactor.unit), string(v0.prefactor.unit));
+        end
+
         function gdsResolutionControlsLayoutDbu(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");

@@ -123,11 +123,19 @@ classdef Parameter
 
         function y = times(lhs, rhs)
             % Overload .* preserving expression and dependency metadata.
+            if isa(rhs, "types.Vertices")
+                y = rhs .* lhs;
+                return;
+            end
             y = types.Parameter.apply_binary(lhs, rhs, "*");
         end
 
         function y = mtimes(lhs, rhs)
             % Overload * preserving expression and dependency metadata.
+            if isa(rhs, "types.Vertices")
+                y = rhs * lhs;
+                return;
+            end
             y = types.Parameter.apply_binary(lhs, rhs, "*");
         end
 

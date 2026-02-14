@@ -94,10 +94,12 @@ classdef Vertices < handle
         function y = times(lhs, rhs)
             if isa(lhs, "types.Vertices")
                 scale = types.Vertices.coerce_scale(rhs, "times");
-                y = types.Vertices(lhs.array, lhs.prefactor * scale);
+                pref = types.Vertices.scale_prefactor(lhs.prefactor, scale, "times");
+                y = types.Vertices(lhs.array, pref);
             else
                 scale = types.Vertices.coerce_scale(lhs, "times");
-                y = types.Vertices(rhs.array, rhs.prefactor * scale);
+                pref = types.Vertices.scale_prefactor(rhs.prefactor, scale, "times");
+                y = types.Vertices(rhs.array, pref);
             end
         end
 
@@ -110,7 +112,8 @@ classdef Vertices < handle
                 error("Division by Vertices is not supported.");
             end
             scale = types.Vertices.coerce_scale(rhs, "mrdivide");
-            y = types.Vertices(lhs.array, lhs.prefactor / scale);
+            pref = types.Vertices.scale_prefactor(lhs.prefactor, scale, "mrdivide");
+            y = types.Vertices(lhs.array, pref);
         end
 
         function y = rdivide(lhs, rhs)
@@ -197,6 +200,54 @@ classdef Vertices < handle
                 return;
             end
             error("Vertices.%s expects a scalar numeric or types.Parameter factor.", op_name);
+        end
+
+        function pref = scale_prefactor(base_pref, scale, op_name)
+            % Scale a length prefactor by numeric or Parameter factors.
+            base_unit = string(base_pref.unit);
+
+            if isnumeric(scale)
+                if op_name == "times"
+                    pref = base_pref * scale;
+                else
+                    pref = base_pref / scale;
+                end
+                pref.unit = base_unit;
+                return;
+            end
+
+            scale_unit = string(scale.unit);
+            is_scale_dimensionless = strlength(scale_unit) == 0;
+
+            if op_name == "times"
+                pref = base_pref * scale;
+            else
+                if ~is_scale_dimensionless
+                    error(["Vertices.mrdivide with a unit-bearing Parameter is not supported. " ...
+                        "Use a dimensionless scale Parameter for division."]);
+                end
+                pref = base_pref / scale;
+            end
+
+            if is_scale_dimensionless
+                pref.unit = base_unit;
+                return;
+            end
+
+            if types.Vertices.is_neutral_prefactor(base_pref)
+                pref.unit = scale_unit;
+                return;
+            end
+
+            error(["Vertices scaling with a unit-bearing Parameter requires a neutral prefactor " ...
+                "(for example Vertices([x y]) * p_um)."]);
+        end
+
+        function tf = is_neutral_prefactor(p)
+            % True for default unit-length neutral prefactor.
+            tf = isscalar(p.value) && isfinite(p.value) && ...
+                abs(double(p.value) - 1) <= 1e-12 && ...
+                string(p.expression_token()) == "1";
         end
     end
 end

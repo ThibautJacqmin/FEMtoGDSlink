@@ -4,7 +4,12 @@ import primitives.*
 import ops.*
 
 % Example 1: tower composition with transforms + boolean operations + fillet.
+% COMSOL backend: "livelink" (default) or "mph".
+comsol_api = "livelink";
+comsol_host = "localhost";
+comsol_port = 2036;
 ctx = GeometrySession.with_shared_comsol(use_comsol=true, use_gds=true, ...
+    comsol_api=comsol_api, comsol_host=comsol_host, comsol_port=comsol_port, ...
     snap_mode='off', gds_resolution_nm=1, warn_on_snap=true, reset_model=true);
 
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...

@@ -11,8 +11,23 @@ classdef ComsolModeler < handle
         study
     end
     methods
-        function obj = ComsolModeler
+        function obj = ComsolModeler(args)
             % Create a fresh COMSOL model with one component and workplane.
+            arguments
+                args.bootstrap_mode {mustBeTextScalar} = "auto"
+                args.comsol_host {mustBeTextScalar} = "localhost"
+                args.comsol_port double = 2036
+                args.comsol_root {mustBeTextScalar} = ""
+                args.bootstrap_connect logical = true
+            end
+
+            core.ComsolBootstrap.ensure_ready( ...
+                mode=args.bootstrap_mode, ...
+                host=args.comsol_host, ...
+                port=args.comsol_port, ...
+                comsol_root=args.comsol_root, ...
+                connect=args.bootstrap_connect);
+
             import com.comsol.model.*
             import com.comsol.model.util.*
             obj.model_tag = core.ComsolModeler.next_model_tag();
@@ -224,10 +239,20 @@ classdef ComsolModeler < handle
             % Return a shared ComsolModeler instance, optionally reset first.
             arguments
                 args.reset logical = true
+                args.bootstrap_mode {mustBeTextScalar} = "auto"
+                args.comsol_host {mustBeTextScalar} = "localhost"
+                args.comsol_port double = 2036
+                args.comsol_root {mustBeTextScalar} = ""
+                args.bootstrap_connect logical = true
             end
             obj = core.ComsolModeler.shared_store();
             if isempty(obj) || ~isvalid(obj)
-                obj = core.ComsolModeler();
+                obj = core.ComsolModeler( ...
+                    bootstrap_mode=args.bootstrap_mode, ...
+                    comsol_host=args.comsol_host, ...
+                    comsol_port=args.comsol_port, ...
+                    comsol_root=args.comsol_root, ...
+                    bootstrap_connect=args.bootstrap_connect);
             elseif args.reset
                 obj.reset_workspace();
             end

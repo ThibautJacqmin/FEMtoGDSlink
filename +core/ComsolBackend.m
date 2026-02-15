@@ -1269,12 +1269,8 @@ classdef ComsolBackend < handle
             wp = obj.session.get_workplane(layer);
             % Best-effort creation of a cumulative selection node in this workplane.
             try
-                wp.geom.selection.create(tag, 'CumulativeSelection');
+                wp.geom.selection().create(tag, 'CumulativeSelection');
             catch
-                try
-                    wp.geom.selection().create(tag, 'CumulativeSelection');
-                catch
-                end
             end
             try
                 wp.geom.selection(tag).label(char(name));

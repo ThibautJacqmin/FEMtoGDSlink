@@ -29,12 +29,12 @@ p_trench_w = Parameter(55, "trench_w", unit="um");
 p_trench_h = Parameter(240, "trench_h", unit="um");
 p_fillet_r = Parameter(8, "fillet_r", unit="um");
 p_fillet_n = Parameter(@(x) max(8, round(3*x)), p_fillet_r, "fillet_n", unit="");
-p_env_corner = Vertices([-190, -10], p_um);
+p_env_corner = p_um*Vertices([-190, -10]);
 
 tower_parts = cell(1, nlevels);
 for k = 1:nlevels
     width_k = p_base_width - p_width_step * (k - 1);
-    center_k = Vertices([0, (k - 1)], p_pitch_y);
+    center_k = Vertices([0, (k - 1)])*p_pitch_y;
     tower_parts{k} = Rectangle(center=center_k, width=width_k, height=p_level_height, ...
         layer="metal1");
 end

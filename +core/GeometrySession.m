@@ -34,7 +34,7 @@ classdef GeometrySession < handle
                 args.warn_on_snap logical = true
                 args.reuse_comsol_gui logical = false
                 args.launch_comsol_gui logical = false
-                args.comsol_modeler core.ComsolModeler = core.ComsolModeler.empty
+                args.comsol_modeler = []
             end
 
             enable_comsol = args.enable_comsol && args.use_comsol;
@@ -483,6 +483,13 @@ classdef GeometrySession < handle
 
         function ctx = with_shared_comsol(args)
             % Create a session using process-wide shared COMSOL modeler.
+            % comsol_bootstrap:
+            % - "livelink": use mphstart workflow.
+            % - "independent": direct Java API bootstrap (no mphstart).
+            % - "auto": try livelink first, then independent.
+            % comsol_api:
+            % - "livelink": MATLAB LiveLink modeler (current default).
+            % - "mph": Python MPh modeler (no LiveLink).
             arguments
                 args.enable_gds logical = true
                 args.use_comsol logical = true
@@ -496,14 +503,35 @@ classdef GeometrySession < handle
                 args.reset_model logical = true
                 args.launch_comsol_gui logical = false
                 args.clean_on_reset logical = true
+                args.comsol_api {mustBeTextScalar} = "livelink"
+                args.comsol_bootstrap {mustBeTextScalar} = "auto"
+                args.comsol_host {mustBeTextScalar} = "localhost"
+                args.comsol_port double = 2036
+                args.comsol_root {mustBeTextScalar} = ""
+                args.bootstrap_connect logical = true
             end
             if args.use_comsol
                 if args.reset_model && args.clean_on_reset
                     core.GeometrySession.clean_comsol_server();
                 end
-                shared_modeler = core.ComsolModeler.shared(reset=args.reset_model);
+                api = lower(string(args.comsol_api));
+                if api == "mph"
+                    shared_modeler = core.ComsolMphModeler.shared( ...
+                        reset=args.reset_model, ...
+                        comsol_host=args.comsol_host, ...
+                        comsol_port=args.comsol_port, ...
+                        strict_installed=true);
+                else
+                    shared_modeler = core.ComsolModeler.shared( ...
+                        reset=args.reset_model, ...
+                        bootstrap_mode=args.comsol_bootstrap, ...
+                        comsol_host=args.comsol_host, ...
+                        comsol_port=args.comsol_port, ...
+                        comsol_root=args.comsol_root, ...
+                        bootstrap_connect=args.bootstrap_connect);
+                end
             else
-                shared_modeler = core.ComsolModeler.empty;
+                shared_modeler = [];
             end
             ctx = core.GeometrySession( ...
                 enable_comsol=args.use_comsol, ...
@@ -523,6 +551,10 @@ classdef GeometrySession < handle
         function clear_shared_comsol()
             % Dispose and clear shared COMSOL model used by helper API.
             core.ComsolModeler.clear_shared();
+            try
+                core.ComsolMphModeler.clear_shared();
+            catch
+            end
         end
 
         function removed = clean_comsol_server(args)
@@ -531,6 +563,10 @@ classdef GeometrySession < handle
                 args.prefix (1,1) string = "Model_"
             end
             removed = core.ComsolModeler.clear_generated_models(prefix=args.prefix);
+            try
+                removed = removed + core.ComsolMphModeler.clear_generated_models(prefix=args.prefix);
+            catch
+            end
             core.GeometrySession.clear_shared_comsol();
         end
 

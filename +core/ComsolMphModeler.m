@@ -236,7 +236,8 @@ classdef ComsolMphModeler < handle
             % Allocate and initialize a fresh COMSOL model in MPh.
             obj.model_tag = core.ComsolModeler.next_model_tag();
             obj.py_model = obj.py_client.create(char(obj.model_tag));
-            obj.model = core.MphProxy(obj.py_model.java);
+            java_model = py.getattr(obj.py_model, 'java');
+            obj.model = core.MphProxy(java_model);
             try
                 obj.model.modelPath(pwd);
             catch
@@ -316,7 +317,9 @@ classdef ComsolMphModeler < handle
             % Return true when the MPh client can query server tags.
             tf = false;
             try
-                client.java.tags();
+                java_client = py.getattr(client, 'java');
+                tags_fn = py.getattr(java_client, 'tags');
+                tags_fn();
                 tf = true;
             catch
             end

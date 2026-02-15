@@ -381,21 +381,70 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
     methods (Static, Access=private)
         function tf = hasComsolApi()
-            % Return true when core.ComsolModeler can be instantiated.
+            % Return true when LiveLink prerequisites/server are reachable.
             persistent cached
             if ~isempty(cached)
                 tf = cached;
                 return;
             end
 
+            host = TestComsolBackend.comsolHost();
+            port = TestComsolBackend.comsolPort();
+            if ~TestComsolBackend.canReachServer(host, port, 250)
+                cached = false;
+                tf = cached;
+                return;
+            end
+
             try
-                m = core.ComsolModeler.shared(reset=true);
-                cached = ~isempty(m) && isvalid(m);
-                core.ComsolModeler.clear_shared();
+                core.ComsolBootstrap.ensure_ready( ...
+                    mode="livelink", host=host, port=port, connect=false);
+                cached = true;
             catch
                 cached = false;
             end
             tf = cached;
+        end
+
+        function host = comsolHost()
+            % Resolve COMSOL host from environment or default.
+            host = string(getenv("FEMTOGDS_COMSOL_HOST"));
+            if strlength(host) == 0
+                host = "localhost";
+            end
+        end
+
+        function port = comsolPort()
+            % Resolve COMSOL port from environment or default.
+            token = string(getenv("FEMTOGDS_COMSOL_PORT"));
+            val = str2double(token);
+            if ~(isscalar(val) && isfinite(val) && val > 0)
+                port = 2036;
+            else
+                port = double(val);
+            end
+        end
+
+        function tf = canReachServer(host, port, timeout_ms)
+            % Fast TCP probe to avoid long blocking COMSOL bootstrap calls.
+            tf = false;
+            try
+                s = javaObject("java.net.Socket");
+                c = onCleanup(@() TestComsolBackend.safeCloseSocket(s));
+                addr = javaObject("java.net.InetSocketAddress", char(host), int32(port));
+                s.connect(addr, int32(timeout_ms));
+                tf = true;
+            catch
+            end
+            clear c
+        end
+
+        function safeCloseSocket(s)
+            % Close Java socket best-effort.
+            try
+                s.close();
+            catch
+            end
         end
 
         function names = paramNames(model)

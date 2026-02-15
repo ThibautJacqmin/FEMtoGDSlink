@@ -97,7 +97,15 @@ classdef MphProxy < handle
                 return;
             end
 
-            cls = string(class(v));
+            try
+                cls = string(class(v));
+            catch
+                % Some JPype-backed Java proxies expose class names MATLAB
+                % cannot resolve as MATLAB classes. Treat them as opaque
+                % Python objects and keep proxy wrapping enabled.
+                out = core.MphProxy(v);
+                return;
+            end
             if startsWith(cls, "py.")
                 raw_classes = [ ...
                     "py.NoneType", "py.str", "py.int", "py.float", ...
@@ -169,4 +177,3 @@ classdef MphProxy < handle
         end
     end
 end
-

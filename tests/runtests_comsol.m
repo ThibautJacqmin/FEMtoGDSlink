@@ -22,7 +22,10 @@ if args.initialize_comsol
     end
 end
 
-suite = testsuite("tests/TestComsolBackend.m");
+suite = [ ...
+    testsuite("tests/TestComsolBackend.m"), ...
+    testsuite("tests/TestComsolMphBackend.m") ...
+];
 results = run(suite);
 disp(results);
 end

@@ -4,12 +4,13 @@ import primitives.*
 import ops.*
 
 % Example 1: tower composition with transforms + boolean operations + fillet.
-% COMSOL backend: "livelink" (default) or "mph".
+cfg = ProjectConfig.load();
 comsol_api = "livelink";
-comsol_host = "localhost";
-comsol_port = 2036;
+preview_klayout = true;
 ctx = GeometrySession.with_shared_comsol(use_comsol=true, use_gds=true, ...
-    comsol_api=comsol_api, comsol_host=comsol_host, comsol_port=comsol_port, ...
+    comsol_api=comsol_api, comsol_host=cfg.comsol.host, comsol_port=cfg.comsol.port, ...
+    comsol_root=cfg.comsol.root, ...
+    preview_klayout=preview_klayout, preview_scope="all", preview_step_delay_s=0.08, ...
     snap_mode='off', gds_resolution_nm=1, warn_on_snap=true, reset_model=true);
 
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
@@ -62,6 +63,6 @@ towers_cut = Difference(towers_in_envelope, {trench}, layer="metal1");
 Fillet(towers_cut, radius=p_fillet_r, npoints=p_fillet_n, ...
     points="all", layer="metal1");
 
-ctx.build_comsol();
 ctx.export_gds("example_1.gds");
+ctx.build_comsol();
 ctx.build_report();

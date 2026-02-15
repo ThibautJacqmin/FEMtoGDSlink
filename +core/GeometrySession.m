@@ -17,6 +17,14 @@ classdef GeometrySession < handle
         warn_on_snap
         snap_warned
         snap_stats
+        preview_klayout
+        preview_scope
+        preview_step_delay_s
+        preview_zoom_fit
+        preview_show_all_cells
+        preview_live_active
+        preview_live_filename
+        preview_live_readyfile
     end
     methods
         function obj = GeometrySession(args)
@@ -32,6 +40,11 @@ classdef GeometrySession < handle
                 args.gds_resolution_nm double = NaN
                 args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
+                args.preview_klayout logical = false
+                args.preview_scope {mustBeTextScalar} = "all"
+                args.preview_step_delay_s double = 0.08
+                args.preview_zoom_fit logical = true
+                args.preview_show_all_cells logical = true
                 args.reuse_comsol_gui logical = false
                 args.launch_comsol_gui logical = false
                 args.comsol_modeler = []
@@ -76,6 +89,14 @@ classdef GeometrySession < handle
             obj.snap_warned = dictionary(string.empty(0,1), false(0,1));
             obj.snap_stats = dictionary(string.empty(0,1), ...
                 struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.gds_resolution_nm));
+            obj.preview_klayout = args.preview_klayout;
+            obj.preview_scope = core.GeometrySession.normalize_gds_scope(args.preview_scope);
+            obj.preview_step_delay_s = double(args.preview_step_delay_s);
+            obj.preview_zoom_fit = args.preview_zoom_fit;
+            obj.preview_show_all_cells = args.preview_show_all_cells;
+            obj.preview_live_active = false;
+            obj.preview_live_filename = "";
+            obj.preview_live_readyfile = "";
 
             if args.set_as_current
                 core.GeometrySession.set_current(obj);
@@ -153,6 +174,11 @@ classdef GeometrySession < handle
                     obj.comsol_backend = core.ComsolBackend(obj);
                 end
                 obj.comsol_backend.tag_for(feature);
+            end
+
+            % Live KLayout preview: open and update as nodes are created.
+            if obj.preview_klayout && obj.has_gds()
+                obj.preview_live_step(feature);
             end
         end
 
@@ -252,6 +278,30 @@ classdef GeometrySession < handle
             if ~obj.has_gds()
                 error("GDS backend disabled.");
             end
+
+            if obj.preview_klayout
+                if obj.preview_live_active
+                    obj.reset_gds_layout();
+                    if isempty(obj.gds_backend)
+                        obj.gds_backend = core.GdsBackend(obj);
+                    end
+                    nodes_to_emit = obj.gds_nodes_for_export(scope=args.scope);
+                    obj.gds_backend.emit_all(nodes_to_emit);
+                    obj.gds.write(filename);
+                else
+                    obj.preview_gds_build( ...
+                        scope=obj.preview_scope, ...
+                        reset_layout=true, ...
+                        step_delay_s=obj.preview_step_delay_s, ...
+                        zoom_fit=obj.preview_zoom_fit, ...
+                        show_all_cells=obj.preview_show_all_cells, ...
+                        output_filename=filename, ...
+                        final_scope=args.scope, ...
+                        launch_external=true);
+                end
+                return;
+            end
+
             if isempty(obj.gds_backend)
                 obj.gds_backend = core.GdsBackend(obj);
             end
@@ -314,6 +364,110 @@ classdef GeometrySession < handle
                 error("COMSOL backend disabled.");
             end
             obj.comsol.start_gui();
+        end
+
+        function open_klayout_gui(obj, args)
+            % Open KLayout view for current in-memory GDS layout.
+            arguments
+                obj core.GeometrySession
+                args.zoom_fit logical = true
+                args.show_all_cells logical = true
+            end
+            if ~obj.has_gds()
+                error("GDS backend disabled.");
+            end
+            obj.gds.open_gui(zoom_fit=args.zoom_fit, show_all_cells=args.show_all_cells);
+        end
+
+        function refresh_klayout_gui(obj, args)
+            % Refresh KLayout view for current in-memory GDS layout.
+            arguments
+                obj core.GeometrySession
+                args.zoom_fit logical = false
+                args.show_all_cells logical = true
+            end
+            if ~obj.has_gds()
+                error("GDS backend disabled.");
+            end
+            obj.gds.refresh_gui(zoom_fit=args.zoom_fit, show_all_cells=args.show_all_cells);
+        end
+
+        function preview_gds_build(obj, args)
+            % Emit GDS geometry step-by-step and optionally launch KLayout preview.
+            arguments
+                obj core.GeometrySession
+                args.scope {mustBeTextScalar} = "all"
+                args.reset_layout logical = true
+                args.step_delay_s double = 0.15
+                args.zoom_fit logical = true
+                args.show_all_cells logical = true
+                args.output_filename {mustBeTextScalar} = ""
+                args.final_scope {mustBeTextScalar} = ""
+                args.launch_external logical = false
+            end
+            if ~obj.has_gds()
+                error("GDS backend disabled.");
+            end
+
+            preview_scope_local = core.GeometrySession.normalize_gds_scope(args.scope);
+            final_scope_local = string(args.final_scope);
+            if strlength(final_scope_local) > 0
+                final_scope_local = core.GeometrySession.normalize_gds_scope(final_scope_local);
+            end
+
+            output_filename = string(args.output_filename);
+            if strlength(output_filename) == 0
+                output_filename = fullfile(tempdir, "femtogds_preview.gds");
+            end
+
+            if args.reset_layout
+                obj.reset_gds_layout();
+            end
+            if isempty(obj.gds_backend)
+                obj.gds_backend = core.GdsBackend(obj);
+            end
+
+            nodes_to_emit = obj.gds_nodes_for_export(scope=preview_scope_local);
+            obj.gds.write(output_filename);
+
+            if args.launch_external
+                refresh_ms = max(20, round(max(args.step_delay_s, 0.02) * 1000));
+                ready_file = fullfile(tempdir, "femtogds_klayout_ready.flag");
+                if isfile(ready_file)
+                    delete(ready_file);
+                end
+                obj.gds.launch_external_preview(output_filename, ...
+                    refresh_interval_ms=refresh_ms, ...
+                    zoom_fit=args.zoom_fit, ...
+                    show_all_cells=args.show_all_cells, ...
+                    ready_file=ready_file);
+
+                t0 = tic;
+                while toc(t0) < 6
+                    if isfile(ready_file)
+                        break;
+                    end
+                    pause(0.05);
+                end
+            end
+
+            for i = 1:numel(nodes_to_emit)
+                obj.gds_backend.emit(nodes_to_emit{i});
+                obj.gds.write(output_filename);
+                if args.step_delay_s > 0
+                    pause(args.step_delay_s);
+                end
+            end
+
+            if strlength(final_scope_local) > 0 && final_scope_local ~= preview_scope_local
+                obj.reset_gds_layout();
+                if isempty(obj.gds_backend)
+                    obj.gds_backend = core.GdsBackend(obj);
+                end
+                final_nodes = obj.gds_nodes_for_export(scope=final_scope_local);
+                obj.gds_backend.emit_all(final_nodes);
+                obj.gds.write(output_filename);
+            end
         end
 
         function snapped = snap_length(obj, values, context)
@@ -500,6 +654,11 @@ classdef GeometrySession < handle
                 args.gds_resolution_nm double = NaN
                 args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
+                args.preview_klayout logical = false
+                args.preview_scope {mustBeTextScalar} = "all"
+                args.preview_step_delay_s double = 0.08
+                args.preview_zoom_fit logical = true
+                args.preview_show_all_cells logical = true
                 args.reset_model logical = true
                 args.launch_comsol_gui logical = false
                 args.clean_on_reset logical = true
@@ -544,6 +703,11 @@ classdef GeometrySession < handle
                 gds_resolution_nm=args.gds_resolution_nm, ...
                 snap_grid_nm=args.snap_grid_nm, ...
                 warn_on_snap=args.warn_on_snap, ...
+                preview_klayout=args.preview_klayout, ...
+                preview_scope=args.preview_scope, ...
+                preview_step_delay_s=args.preview_step_delay_s, ...
+                preview_zoom_fit=args.preview_zoom_fit, ...
+                preview_show_all_cells=args.preview_show_all_cells, ...
                 launch_comsol_gui=args.launch_comsol_gui, ...
                 comsol_modeler=shared_modeler);
         end
@@ -702,6 +866,20 @@ classdef GeometrySession < handle
                 end
             end
         end
+
+        function scope = normalize_gds_scope(raw_scope)
+            % Normalize and validate one GDS node selection scope.
+            scope = lower(string(raw_scope));
+            if scope == "all"
+                return;
+            end
+            if any(scope == ["final", "terminal", "sinks", "leaf"])
+                scope = "final";
+                return;
+            end
+            error("GeometrySession:InvalidGdsScope", ...
+                "Invalid GDS scope '%s'. Use 'final' or 'all'.", char(scope));
+        end
     end
     methods (Access=private)
         function record_snap(obj, key, delta)
@@ -771,6 +949,83 @@ classdef GeometrySession < handle
             report.selections = core.GeometrySession.map_count(obj.comsol_backend.selection_tags);
             report.snapped_expr_params = core.GeometrySession.map_count(obj.comsol_backend.snapped_length_tokens);
             report.defined_params = core.GeometrySession.map_count(obj.comsol_backend.defined_params);
+        end
+
+        function reset_gds_layout(obj)
+            % Reinitialize in-memory GDS modeler and clear backend caches.
+            if ~obj.has_gds()
+                error("GDS backend disabled.");
+            end
+            obj.gds = core.GDSModeler(dbu_nm=obj.gds_resolution_nm);
+            obj.gds_backend = [];
+        end
+
+        function preview_live_step(obj, feature)
+            % Incrementally update external KLayout preview after one node creation.
+            if ~obj.has_gds()
+                return;
+            end
+
+            obj.ensure_preview_live_started();
+            if ~obj.preview_live_active
+                return;
+            end
+
+            if obj.preview_scope == "all"
+                if isempty(obj.gds_backend)
+                    obj.gds_backend = core.GdsBackend(obj);
+                end
+                obj.gds_backend.emit(feature);
+            else
+                obj.reset_gds_layout();
+                if isempty(obj.gds_backend)
+                    obj.gds_backend = core.GdsBackend(obj);
+                end
+                final_nodes = obj.gds_nodes_for_export(scope="final");
+                obj.gds_backend.emit_all(final_nodes);
+            end
+
+            obj.gds.write(obj.preview_live_filename);
+            if obj.preview_step_delay_s > 0
+                pause(obj.preview_step_delay_s);
+            end
+        end
+
+        function ensure_preview_live_started(obj)
+            % Start external KLayout preview process once for this session.
+            if obj.preview_live_active
+                return;
+            end
+            if ~obj.preview_klayout || ~obj.has_gds()
+                return;
+            end
+
+            if strlength(obj.preview_live_filename) == 0
+                obj.preview_live_filename = string(tempname()) + ".gds";
+            end
+            if strlength(obj.preview_live_readyfile) == 0
+                obj.preview_live_readyfile = string(tempname()) + ".flag";
+            end
+            if isfile(obj.preview_live_readyfile)
+                delete(obj.preview_live_readyfile);
+            end
+
+            obj.gds.write(obj.preview_live_filename);
+            refresh_ms = max(20, round(max(obj.preview_step_delay_s, 0.02) * 1000));
+            obj.gds.launch_external_preview(obj.preview_live_filename, ...
+                refresh_interval_ms=refresh_ms, ...
+                zoom_fit=obj.preview_zoom_fit, ...
+                show_all_cells=obj.preview_show_all_cells, ...
+                ready_file=obj.preview_live_readyfile);
+
+            t0 = tic;
+            while toc(t0) < 6
+                if isfile(obj.preview_live_readyfile)
+                    break;
+                end
+                pause(0.05);
+            end
+            obj.preview_live_active = true;
         end
     end
 end

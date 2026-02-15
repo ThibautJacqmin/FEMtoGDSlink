@@ -5,11 +5,13 @@ import ops.*
 
 % Example 3: curve primitives and Thicken operation.
 % COMSOL backend: "livelink" (default) or "mph".
+cfg = ProjectConfig.load();
 comsol_api = "livelink";
-comsol_host = "localhost";
-comsol_port = 2036;
+preview_klayout = false;
 ctx = GeometrySession.with_shared_comsol(use_comsol=true, use_gds=true, ...
-    comsol_api=comsol_api, comsol_host=comsol_host, comsol_port=comsol_port, ...
+    comsol_api=comsol_api, comsol_host=cfg.comsol.host, comsol_port=cfg.comsol.port, ...
+    comsol_root=cfg.comsol.root, ...
+    preview_klayout=preview_klayout, preview_scope="all", preview_step_delay_s=0.08, ...
     snap_mode='off', gds_resolution_nm=1, warn_on_snap=true, reset_model=true);
 
 ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
@@ -77,6 +79,6 @@ p_s2max = Parameter(2*pi, "pc2_smax", unit="");
 ParametricCurve(coord={"pc2_r*cos(s)", "pc2_r*sin(s)"}, parname="s", ...
     parmin=p_s2min, parmax=p_s2max, type="closed", npoints=128, width=p_curve_w, layer="metal1");
 
-ctx.build_comsol();
 ctx.export_gds("example_3.gds");
+ctx.build_comsol();
 ctx.build_report();

@@ -434,6 +434,65 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             default_ids = cellfun(@(n) int32(n.id), default_nodes);
             testCase.verifyEqual(sort(default_ids), sort(int32([r.id, m.id])));
         end
+
+        function openRefreshKlayoutGuiWrappers(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+            testCase.assumeTrue(TestGdsBackend.hasKLayoutGui(), ...
+                "Skipping: KLayout GUI Application API not available (klayout.lay).");
+
+            ctx = TestGdsBackend.newContext();
+            primitives.Rectangle(ctx, center=[0 0], width=120, height=80, layer="m1");
+            ctx.export_gds(fullfile(tempdir, "test_gui_open_refresh.gds"));
+
+            try
+                ctx.open_klayout_gui(zoom_fit=true, show_all_cells=true);
+                ctx.refresh_klayout_gui(zoom_fit=false, show_all_cells=true);
+            catch ex
+                testCase.assumeTrue(false, ...
+                    sprintf("Skipping GUI wrapper test (unable to open GUI): %s", ex.message));
+            end
+
+            testCase.verifyFalse(isempty(ctx.gds.pyview));
+            ctx.gds.close_gui();
+        end
+
+        function previewGdsBuildAllVsFinalScope(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = TestGdsBackend.newContext();
+            r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
+            m = ops.Move(ctx, r, delta=[20 0], layer="m1");
+            c = primitives.Circle(ctx, center=[200 0], radius=40, layer="m1");
+
+            out_all = fullfile(tempdir, "test_preview_all.gds");
+            ctx.preview_gds_build(scope="all", reset_layout=true, step_delay_s=0, ...
+                zoom_fit=false, show_all_cells=true, output_filename=out_all, launch_external=false);
+
+            keys_all = keys(ctx.gds_backend.emitted);
+            actual_all = sort(double(keys_all(:)));
+            expected_all = sort(double(int32([r.id; m.id; c.id])));
+            testCase.verifyEqual(actual_all, expected_all);
+            testCase.verifyTrue(isfile(out_all));
+
+            out_final = fullfile(tempdir, "test_preview_final.gds");
+            ctx.preview_gds_build(scope="final", reset_layout=true, step_delay_s=0, ...
+                zoom_fit=false, show_all_cells=true, output_filename=out_final, launch_external=false);
+            keys_final = keys(ctx.gds_backend.emitted);
+            actual_final = sort(double(keys_final(:)));
+            expected_final = sort(double(int32([m.id; c.id])));
+            testCase.verifyEqual(actual_final, expected_final);
+            testCase.verifyTrue(isfile(out_final));
+
+            out_all_finalized = fullfile(tempdir, "test_preview_all_then_final.gds");
+            ctx.preview_gds_build(scope="all", final_scope="final", reset_layout=true, step_delay_s=0, ...
+                zoom_fit=false, show_all_cells=true, output_filename=out_all_finalized, launch_external=false);
+            keys_all_finalized = keys(ctx.gds_backend.emitted);
+            actual_all_finalized = sort(double(keys_all_finalized(:)));
+            testCase.verifyEqual(actual_all_finalized, expected_final);
+            testCase.verifyTrue(isfile(out_all_finalized));
+        end
     end
 
     methods (Static, Access=private)
@@ -466,6 +525,45 @@ classdef TestGdsBackend < matlab.unittest.TestCase
                     catch
                         mod = py.importlib.import_module('lygadgets');
                         cached = logical(py.hasattr(mod, 'pya')) && ~isa(mod.pya, 'py.NoneType');
+                    end
+                end
+            catch
+                cached = false;
+            end
+            tf = cached;
+        end
+
+        function tf = hasKLayoutGui()
+            % Return true when KLayout GUI module is importable.
+            persistent cached
+            if ~isempty(cached)
+                tf = cached;
+                return;
+            end
+            cached = false;
+            try
+                try
+                    pyenv;
+                catch
+                    % Older MATLAB versions may not have pyenv.
+                end
+                try
+                    lay_mod = py.importlib.import_module('klayout.lay');
+                catch
+                    lay_mod = py.importlib.import_module('lay');
+                end
+
+                if ~logical(py.hasattr(lay_mod, 'Application'))
+                    cached = false;
+                else
+                    app = lay_mod.Application.instance();
+                    if isa(app, 'py.NoneType')
+                        cached = false;
+                    elseif logical(py.hasattr(app, 'main_window'))
+                        mw = app.main_window();
+                        cached = ~isa(mw, 'py.NoneType');
+                    else
+                        cached = false;
                     end
                 end
             catch

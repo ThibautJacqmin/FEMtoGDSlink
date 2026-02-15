@@ -88,10 +88,7 @@ classdef ComsolBootstrap
             end
 
             if isempty(which('mphstart'))
-                root = string(args.comsol_root);
-                if strlength(root) == 0
-                    root = core.ComsolBootstrap.discover_comsol_root();
-                end
+                root = core.ComsolBootstrap.resolve_comsol_root(args.comsol_root);
                 if strlength(root) > 0
                     mli = fullfile(char(root), "mli");
                     if isfolder(mli)
@@ -120,10 +117,7 @@ classdef ComsolBootstrap
             end
 
             try
-                root = string(args.comsol_root);
-                if strlength(root) == 0
-                    root = core.ComsolBootstrap.discover_comsol_root();
-                end
+                root = core.ComsolBootstrap.resolve_comsol_root(args.comsol_root);
 
                 if strlength(root) == 0
                     error("ComsolBootstrap:ComsolRootNotFound", ...
@@ -207,6 +201,34 @@ classdef ComsolBootstrap
                     root = g;
                     return;
                 end
+            end
+        end
+
+        function root = resolve_comsol_root(explicit_root)
+            % Resolve COMSOL root from explicit input, config, then discovery.
+            root = string(explicit_root);
+            if strlength(root) > 0 && ~isfolder(root)
+                warning("ComsolBootstrap:InvalidConfiguredRoot", ...
+                    "Configured COMSOL root does not exist: %s", char(root));
+                root = "";
+            end
+
+            if strlength(root) == 0
+                try
+                    cfg = core.ProjectConfig.load();
+                    root = string(cfg.comsol.root);
+                catch
+                    root = "";
+                end
+                if strlength(root) > 0 && ~isfolder(root)
+                    warning("ComsolBootstrap:InvalidConfiguredRoot", ...
+                        "Configured COMSOL root does not exist: %s", char(root));
+                    root = "";
+                end
+            end
+
+            if strlength(root) == 0
+                root = core.ComsolBootstrap.discover_comsol_root();
             end
         end
 

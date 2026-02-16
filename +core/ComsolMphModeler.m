@@ -36,9 +36,10 @@ classdef ComsolMphModeler < handle
 
         function reset_workspace(obj)
             % Recreate a fresh model in the same MPh client/session.
+            prior_tag = string(obj.model_tag);
             obj.dispose_model();
             obj.feature_counters = dictionary(string.empty(0,1), int32.empty(0,1));
-            obj.create_new_model();
+            obj.create_new_model(model_tag=prior_tag);
             obj.mesh = [];
             obj.shell = [];
             obj.study = [];
@@ -95,10 +96,73 @@ classdef ComsolMphModeler < handle
             var1.set(name, expression, "");
         end
 
-        function start_gui(~)
-            % GUI launch is not handled by the MPh backend.
-            warning("ComsolMphModeler:GuiUnsupported", ...
-                "MPh backend does not launch COMSOL Desktop from MATLAB.");
+        function start_gui(obj, args)
+            % Launch COMSOL Desktop, optionally opening an MPH file.
+            arguments
+                obj core.ComsolMphModeler
+                args.open_file {mustBeTextScalar} = ""
+                args.export_current logical = true
+                args.output_file {mustBeTextScalar} = ""
+                args.connect_server logical = true
+            end
+
+            exe_path = "";
+            launch_args = "";
+            if args.connect_server
+                exe_path = core.ComsolMphModeler.find_comsol_mphclient_executable();
+                if strlength(exe_path) == 0
+                    error("ComsolMphModeler:ComsolMphClientNotFound", ...
+                        "Could not find COMSOL Multiphysics client executable from configured paths.");
+                end
+                launch_args = sprintf(' -server "%s" -port %d', ...
+                    char(obj.comsol_host), round(double(obj.comsol_port)));
+            else
+                exe_path = core.ComsolMphModeler.find_comsol_executable();
+                if strlength(exe_path) == 0
+                    error("ComsolMphModeler:ComsolExecutableNotFound", ...
+                        "Could not find COMSOL Desktop executable from configured paths.");
+                end
+            end
+
+            target = string(args.open_file);
+            if strlength(target) == 0 && args.export_current
+                if strlength(string(args.output_file)) > 0
+                    target = string(args.output_file);
+                else
+                    stamp = string(datestr(now, "yyyymmdd_HHMMSSFFF"));
+                    target = fullfile(tempdir, "femtogds_gui_" + stamp + ".mph");
+                end
+
+                try
+                    obj.model.save(char(target));
+                catch ex
+                    warning("ComsolMphModeler:GuiExportFailed", ...
+                        "Could not export current model for GUI opening: %s", ex.message);
+                    target = "";
+                end
+            end
+
+            open_arg = "";
+            if strlength(target) > 0
+                if ~isfile(target)
+                    warning("ComsolMphModeler:GuiOpenFileMissing", ...
+                        "Requested open file does not exist: %s", char(target));
+                else
+                    open_arg = " -open """ + target + """";
+                end
+            end
+
+            if ispc
+                cmd = sprintf('start "" "%s"%s%s', char(exe_path), char(launch_args), char(open_arg));
+            else
+                cmd = sprintf('"%s"%s%s &', char(exe_path), char(launch_args), char(open_arg));
+            end
+
+            [status, out] = system(cmd);
+            if status ~= 0
+                error("ComsolMphModeler:GuiLaunchFailed", ...
+                    "Failed to launch COMSOL Desktop (%s): %s", char(exe_path), string(out));
+            end
         end
 
         function plot(obj)
@@ -232,11 +296,22 @@ classdef ComsolMphModeler < handle
     end
 
     methods (Access=private)
-        function create_new_model(obj)
+        function create_new_model(obj, args)
             % Allocate and initialize a fresh COMSOL model in MPh.
-            obj.model_tag = core.ComsolModeler.next_model_tag();
+            arguments
+                obj
+                args.model_tag {mustBeTextScalar} = ""
+            end
+
+            requested = string(args.model_tag);
+            if strlength(requested) == 0
+                obj.model_tag = core.ComsolModeler.next_model_tag();
+            else
+                obj.model_tag = requested;
+            end
             obj.py_model = obj.py_client.create(char(obj.model_tag));
-            java_model = py.getattr(obj.py_model, 'java');
+            bridge = core.ComsolMphModeler.bridge_module();
+            java_model = bridge.model_java_handle(obj.py_model);
             obj.model = core.MphProxy(java_model);
             try
                 obj.model.modelPath(pwd);
@@ -302,9 +377,20 @@ classdef ComsolMphModeler < handle
                 try
                     client = mph_mod.Client(pyargs('host', char(host), 'port', int32(port)));
                 catch ex
-                    error("ComsolMphModeler:ClientConnectFailed", ...
-                        "Failed to connect MPh client to %s:%d: %s", ...
-                        char(host), port, ex.message);
+                    if contains(string(ex.message), "Only one client can be instantiated")
+                        try
+                            bridge = core.ComsolMphModeler.bridge_module();
+                            client = bridge.attach_existing_client(mph_mod, char(host), int32(port));
+                        catch ex_attach
+                            error("ComsolMphModeler:ClientConnectFailed", ...
+                                "Failed to reuse existing MPh client at %s:%d: %s", ...
+                                char(host), port, ex_attach.message);
+                        end
+                    else
+                        error("ComsolMphModeler:ClientConnectFailed", ...
+                            "Failed to connect MPh client to %s:%d: %s", ...
+                            char(host), port, ex.message);
+                    end
                 end
                 entry = struct('client', client, 'host', host, 'port', port);
                 core.ComsolMphModeler.client_store(entry);
@@ -317,11 +403,162 @@ classdef ComsolMphModeler < handle
             % Return true when the MPh client can query server tags.
             tf = false;
             try
-                java_client = py.getattr(client, 'java');
-                tags_fn = py.getattr(java_client, 'tags');
-                tags_fn();
+                client.names();
                 tf = true;
             catch
+            end
+        end
+
+        function mod = bridge_module()
+            % Import the MATLAB-safe Python bridge for JPype objects.
+            persistent bridge_mod
+            if ~isempty(bridge_mod)
+                mod = bridge_mod;
+                return;
+            end
+
+            module_name = "femtogds_mph_bridge";
+            try
+                bridge_mod = py.importlib.import_module(char(module_name));
+            catch
+                % Add project root to sys.path if MATLAB was started elsewhere.
+                try
+                    this_dir = fileparts(mfilename("fullpath"));
+                    root_dir = fileparts(this_dir);
+                    sys_mod = py.importlib.import_module("sys");
+                    sys_mod.path.append(char(root_dir));
+                catch
+                end
+                bridge_mod = py.importlib.import_module(char(module_name));
+            end
+            mod = bridge_mod;
+        end
+
+        function exe_path = find_comsol_executable()
+            % Resolve COMSOL Desktop executable from config and PATH.
+            exe_path = "";
+            candidates = strings(0, 1);
+
+            try
+                cfg = core.ProjectConfig.load();
+                root = string(cfg.comsol.root);
+            catch
+                root = "";
+            end
+
+            roots = strings(0, 1);
+            if strlength(root) > 0
+                roots = [roots; root];
+                if endsWith(lower(root), lower("\Multiphysics")) || endsWith(lower(root), lower("/Multiphysics"))
+                    roots = [roots; string(fileparts(char(root)))];
+                end
+            end
+            roots = unique(roots(strlength(roots) > 0), "stable");
+
+            for r = 1:numel(roots)
+                rr = roots(r);
+                if ispc
+                    candidates = [candidates; ...
+                        rr + "\bin\win64\comsol.exe"; ...
+                        rr + "\bin\comsol.exe"; ...
+                        rr + "\comsol.exe"];
+                else
+                    candidates = [candidates; ...
+                        rr + "/bin/comsol"; ...
+                        rr + "/comsol"];
+                end
+            end
+
+            for i = 1:numel(candidates)
+                if isfile(candidates(i))
+                    exe_path = candidates(i);
+                    return;
+                end
+            end
+
+            if ispc
+                [status, out] = system("where comsol.exe");
+                if status == 0
+                    lines = splitlines(string(out));
+                    lines = strtrim(lines(lines ~= ""));
+                    if ~isempty(lines) && isfile(lines(1))
+                        exe_path = lines(1);
+                        return;
+                    end
+                end
+            else
+                [status, out] = system("which comsol");
+                if status == 0
+                    hit = strtrim(string(out));
+                    if strlength(hit) > 0 && isfile(hit)
+                        exe_path = hit;
+                        return;
+                    end
+                end
+            end
+        end
+
+        function exe_path = find_comsol_mphclient_executable()
+            % Resolve COMSOL mph client executable from config and PATH.
+            exe_path = "";
+            candidates = strings(0, 1);
+
+            try
+                cfg = core.ProjectConfig.load();
+                root = string(cfg.comsol.root);
+            catch
+                root = "";
+            end
+
+            roots = strings(0, 1);
+            if strlength(root) > 0
+                roots = [roots; root];
+                if endsWith(lower(root), lower("\Multiphysics")) || endsWith(lower(root), lower("/Multiphysics"))
+                    roots = [roots; string(fileparts(char(root)))];
+                end
+            end
+            roots = unique(roots(strlength(roots) > 0), "stable");
+
+            for r = 1:numel(roots)
+                rr = roots(r);
+                if ispc
+                    candidates = [candidates; ...
+                        rr + "\bin\win64\comsolmphclient.exe"; ...
+                        rr + "\bin\comsolmphclient.exe"; ...
+                        rr + "\comsolmphclient.exe"];
+                else
+                    candidates = [candidates; ...
+                        rr + "/bin/comsolmphclient"; ...
+                        rr + "/comsolmphclient"];
+                end
+            end
+
+            for i = 1:numel(candidates)
+                if isfile(candidates(i))
+                    exe_path = candidates(i);
+                    return;
+                end
+            end
+
+            if ispc
+                [status, out] = system("where comsolmphclient.exe");
+                if status == 0
+                    lines = splitlines(string(out));
+                    lines = strtrim(lines(lines ~= ""));
+                    if ~isempty(lines) && isfile(lines(1))
+                        exe_path = lines(1);
+                        return;
+                    end
+                end
+            else
+                [status, out] = system("which comsolmphclient");
+                if status == 0
+                    hit = strtrim(string(out));
+                    if strlength(hit) > 0 && isfile(hit)
+                        exe_path = hit;
+                        return;
+                    end
+                end
             end
         end
 

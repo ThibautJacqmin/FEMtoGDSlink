@@ -43,6 +43,7 @@ classdef MphProxy < handle
         function out = runPre(obj, varargin), out = obj.call('runPre', varargin{:}); end
         function out = selection(obj, varargin), out = obj.call('selection', varargin{:}); end
         function out = feature(obj, varargin), out = obj.call('feature', varargin{:}); end
+        function out = all(obj, varargin), out = obj.call('all', varargin{:}); end
         function out = propertyGroup(obj, varargin), out = obj.call('propertyGroup', varargin{:}); end
         function out = label(obj, varargin), out = obj.call('label', varargin{:}); end
         function out = lengthUnit(obj, varargin), out = obj.call('lengthUnit', varargin{:}); end

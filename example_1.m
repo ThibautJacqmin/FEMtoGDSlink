@@ -5,7 +5,7 @@ import ops.*
 
 % Example 1: tower composition with transforms + boolean operations + fillet.
 cfg = ProjectConfig.load();
-comsol_api = "livelink";
+comsol_api = "mph";
 preview_klayout = true;
 ctx = GeometrySession.with_shared_comsol(use_comsol=true, use_gds=true, ...
     comsol_api=comsol_api, comsol_host=cfg.comsol.host, comsol_port=cfg.comsol.port, ...

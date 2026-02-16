@@ -1,5 +1,6 @@
-﻿classdef GDSModeler < core.Klayout
+classdef GdsModeler < handle
     properties
+        pya
         pylayout
         pycell
         shapes
@@ -9,16 +10,17 @@
         pyview_cellview_index
     end
     methods
-        function obj = GDSModeler(args)
+        function obj = GdsModeler(args)
             arguments
                 args.dbu_nm double = 1
             end
             dbu_nm = double(args.dbu_nm);
             if ~(isscalar(dbu_nm) && isfinite(dbu_nm) && dbu_nm > 0)
-                error("GDSModeler:InvalidDbuNm", ...
+                error("GdsModeler:InvalidDbuNm", ...
                     "dbu_nm must be a finite positive scalar in nm.");
             end
             obj.dbu_nm = dbu_nm;
+            obj.pya = core.GdsModeler.import_pya();
 
             % Create layout
             obj.pylayout = obj.pya.Layout();
@@ -90,7 +92,7 @@
             end
 
             if ~obj.has_gui_support()
-                error("GDSModeler:KlayoutGuiUnavailable", "%s", ...
+                error("GdsModeler:KlayoutGuiUnavailable", "%s", ...
                     "KLayout GUI is unavailable in the current Python runtime. " + ...
                     "The loaded module provides geometry APIs but no desktop Application/main window.");
             end
@@ -100,7 +102,7 @@
                 try
                     obj.pyview = lay.LayoutView();
                 catch ex
-                    error("GDSModeler:KlayoutGuiOpenFailed", ...
+                    error("GdsModeler:KlayoutGuiOpenFailed", ...
                         "Could not create KLayout LayoutView: %s", ex.message);
                 end
             end
@@ -109,7 +111,7 @@
                 cv = obj.pyview.show_layout(obj.pylayout, false);
                 obj.pyview_cellview_index = int32(double(cv));
             catch ex
-                error("GDSModeler:KlayoutGuiOpenFailed", ...
+                error("GdsModeler:KlayoutGuiOpenFailed", ...
                     "Could not attach layout to KLayout LayoutView: %s", ex.message);
             end
 
@@ -161,13 +163,13 @@
 
             exe_path = obj.find_klayout_executable();
             if strlength(exe_path) == 0
-                error("GDSModeler:KlayoutExecutableNotFound", ...
+                error("GdsModeler:KlayoutExecutableNotFound", ...
                     "Could not find a KLayout desktop executable from configured paths.");
             end
 
             target = string(gds_filename);
             if ~isfile(target)
-                error("GDSModeler:MissingGdsFile", ...
+                error("GdsModeler:MissingGdsFile", ...
                     "Cannot launch KLayout: file does not exist (%s).", char(target));
             end
 
@@ -179,7 +181,7 @@
 
             [status, out] = system(cmd);
             if status ~= 0
-                error("GDSModeler:KlayoutLaunchFailed", ...
+                error("GdsModeler:KlayoutLaunchFailed", ...
                     "Failed to launch KLayout executable (%s): %s", char(exe_path), string(out));
             end
         end
@@ -197,25 +199,25 @@
 
             exe_path = obj.find_klayout_executable();
             if strlength(exe_path) == 0
-                error("GDSModeler:KlayoutExecutableNotFound", ...
+                error("GdsModeler:KlayoutExecutableNotFound", ...
                     "Could not find a KLayout desktop executable from configured paths.");
             end
 
-            script_path = fullfile(core.GDSModeler.get_folder(), "klayout_preview_bridge.py");
+            script_path = fullfile(core.GdsModeler.get_folder(), "klayout_preview_bridge.py");
             if ~isfile(script_path)
-                error("GDSModeler:KlayoutPreviewScriptMissing", ...
+                error("GdsModeler:KlayoutPreviewScriptMissing", ...
                     "KLayout preview script not found: %s", script_path);
             end
 
             target = string(gds_filename);
             if ~isfile(target)
-                error("GDSModeler:MissingGdsFile", ...
+                error("GdsModeler:MissingGdsFile", ...
                     "Cannot launch KLayout preview: file does not exist (%s).", char(target));
             end
 
             refresh_ms = max(20, round(double(args.refresh_interval_ms)));
-            zoom_flag = core.GDSModeler.bool_flag(args.zoom_fit);
-            show_all_flag = core.GDSModeler.bool_flag(args.show_all_cells);
+            zoom_flag = core.GdsModeler.bool_flag(args.zoom_fit);
+            show_all_flag = core.GdsModeler.bool_flag(args.show_all_cells);
             ready_file = string(args.ready_file);
 
             if ispc
@@ -243,7 +245,7 @@
 
             [status, out] = system(cmd);
             if status ~= 0
-                error("GDSModeler:KlayoutPreviewLaunchFailed", ...
+                error("GdsModeler:KlayoutPreviewLaunchFailed", ...
                     "Failed to launch KLayout preview (%s): %s", char(exe_path), string(out));
             end
         end
@@ -291,7 +293,7 @@
                 end
             end
 
-            error("GDSModeler:KlayoutLayMissing", ...
+            error("GdsModeler:KlayoutLayMissing", ...
                 "KLayout Application API module not found (expected 'klayout.lay').");
         end
 
@@ -351,6 +353,199 @@
             end
         end
     end
+    methods (Static, Access=private)
+        function configure_runtime_paths()
+            % Configure Python and DLL lookup paths from project config.
+            try
+                cfg = core.ProjectConfig.load();
+            catch
+                return;
+            end
+
+            root = string(cfg.klayout.root);
+            python_paths = strings(0, 1);
+            bin_paths = strings(0, 1);
+
+            if strlength(root) > 0 && isfolder(root)
+                if ispc
+                    python_paths = [ ...
+                        root + "\pymod"
+                        root + "\python"
+                        root + "\lib\python"
+                        root + "\lib\site-packages"
+                    ];
+                    python_paths = [python_paths; core.GdsModeler.find_versioned_python_paths(root + "\lib")];
+                    bin_paths = [ ...
+                        root
+                        root + "\bin"
+                        root + "\lib"
+                    ];
+                else
+                    python_paths = [ ...
+                        root + "/pymod"
+                        root + "/python"
+                        root + "/lib/python"
+                        root + "/lib/site-packages"
+                    ];
+                    python_paths = [python_paths; core.GdsModeler.find_versioned_python_paths(root + "/lib")];
+                    bin_paths = [ ...
+                        root
+                        root + "/bin"
+                        root + "/lib"
+                    ];
+                end
+            end
+
+            python_paths = [python_paths; string(cfg.klayout.python_paths(:))];
+            bin_paths = [bin_paths; string(cfg.klayout.bin_paths(:))];
+
+            python_paths = unique(python_paths(strlength(python_paths) > 0), "stable");
+            bin_paths = unique(bin_paths(strlength(bin_paths) > 0), "stable");
+
+            for i = 1:numel(python_paths)
+                p = python_paths(i);
+                if isfolder(p)
+                    core.GdsModeler.try_add_python_path(p);
+                end
+            end
+
+            for i = 1:numel(bin_paths)
+                p = bin_paths(i);
+                if isfolder(p)
+                    core.GdsModeler.try_add_process_path(p);
+                    core.GdsModeler.try_add_dll_directory(p);
+                end
+            end
+        end
+
+        function pya_mod = import_pya()
+            % Prefer already-importable Python modules before path injection.
+            [pya_mod, ok, details] = core.GdsModeler.try_import_modules();
+            if ok
+                return;
+            end
+
+            core.GdsModeler.configure_runtime_paths();
+            [pya_mod, ok, details] = core.GdsModeler.try_import_modules();
+            if ok
+                return;
+            end
+
+            diag = core.GdsModeler.format_import_diagnostic(details);
+            if strlength(diag) == 0
+                error("KLayout Python bindings not found. A valid pya handle is expected.");
+            end
+            error("KLayout Python bindings not found. A valid pya handle is expected. %s", char(diag));
+        end
+
+        function try_add_python_path(path_str)
+            % Add one directory to Python sys.path (best effort).
+            try
+                sys_mod = py.importlib.import_module("sys");
+                sys_mod.path.append(char(path_str));
+            catch
+            end
+        end
+
+        function try_add_process_path(path_str)
+            % Prepend directory to process PATH (best effort, Windows only).
+            if ~ispc
+                return;
+            end
+            try
+                current_path = string(getenv("PATH"));
+                if contains(lower(current_path), lower(path_str))
+                    return;
+                end
+                setenv("PATH", char(path_str + ";" + current_path));
+            catch
+            end
+        end
+
+        function try_add_dll_directory(path_str)
+            % Register directory for DLL loading in Python (best effort).
+            if ~ispc
+                return;
+            end
+            try
+                os_mod = py.importlib.import_module("os");
+                if py.hasattr(os_mod, "add_dll_directory")
+                    os_mod.add_dll_directory(char(path_str));
+                end
+            catch
+            end
+        end
+
+        function paths = find_versioned_python_paths(lib_root)
+            % Discover versioned lib/pythonX.Y paths shipped by KLayout.
+            paths = strings(0, 1);
+            if strlength(lib_root) == 0 || ~isfolder(lib_root)
+                return;
+            end
+
+            candidates = dir(fullfile(char(lib_root), "python*"));
+            for i = 1:numel(candidates)
+                entry = candidates(i);
+                if ~entry.isdir
+                    continue;
+                end
+                base = string(fullfile(entry.folder, entry.name));
+                paths = [paths; base; base + string(filesep) + "site-packages"; ...
+                    base + string(filesep) + "lib-dynload"]; %#ok<AGROW>
+            end
+        end
+
+        function [pya_mod, ok, details] = try_import_modules()
+            % Try importing supported KLayout Python entry points.
+            pya_mod = [];
+            ok = false;
+            details = strings(0, 1);
+
+            direct_modules = {"pya", "klayout.db"};
+            for i = 1:numel(direct_modules)
+                name = string(direct_modules{i});
+                try
+                    pya_mod = py.importlib.import_module(char(name));
+                    ok = true;
+                    return;
+                catch ex
+                    details(end+1, 1) = name + ": " + string(ex.message); %#ok<AGROW>
+                end
+            end
+
+            try
+                mod = py.importlib.import_module("lygadgets");
+                if logical(py.hasattr(mod, "pya")) && ~isa(mod.pya, "py.NoneType")
+                    pya_mod = mod.pya;
+                    ok = true;
+                    return;
+                end
+                details(end+1, 1) = "lygadgets: module found but pya handle is missing."; %#ok<AGROW>
+            catch ex
+                details(end+1, 1) = "lygadgets: " + string(ex.message); %#ok<AGROW>
+            end
+        end
+
+        function diag = format_import_diagnostic(details)
+            % Create a compact diagnostic for KLayout import failures.
+            diag = "";
+            try
+                pe = pyenv();
+                py_info = "Python " + string(pe.Version) + " (" + string(pe.Executable) + ")";
+                diag = py_info;
+            catch
+            end
+
+            if ~isempty(details)
+                attempts = "Import attempts: " + strjoin(cellstr(details), " | ");
+                if strlength(diag) > 0
+                    diag = diag + ". " + attempts;
+                else
+                    diag = attempts;
+                end
+            end
+        end
+    end
     methods (Static)
         function y = get_folder
             s = string(mfilename('fullpath'));
@@ -367,3 +562,4 @@
         end
     end
 end
+

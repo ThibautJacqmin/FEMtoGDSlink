@@ -1,3 +1,9 @@
 {
-    "MATLAB.installPath": ""
+    "MATLAB.installPath": "",
+    "files.watcherExclude": {
+        "**/.git/**": true
+    },
+    "search.exclude": {
+        "**/.git/**": true
+    }
 }

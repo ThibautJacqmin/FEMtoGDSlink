@@ -11,7 +11,7 @@ classdef GeometrySession < handle
         gds_backend
         node_counter
         emit_on_create
-        snap_mode
+        snap_on_grid
         gds_resolution_nm
         snap_grid_nm
         warn_on_snap
@@ -36,7 +36,7 @@ classdef GeometrySession < handle
                 args.use_gds logical = true
                 args.emit_on_create logical = false
                 args.set_as_current logical = true
-                args.snap_mode {mustBeTextScalar} = "strict"
+                args.snap_on_grid logical = true
                 args.gds_resolution_nm double = NaN
                 args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
@@ -47,11 +47,20 @@ classdef GeometrySession < handle
                 args.preview_show_all_cells logical = true
                 args.reuse_comsol_gui logical = false
                 args.launch_comsol_gui logical = false
+                args.comsol_api {mustBeTextScalar} = "mph"
+                args.comsol_host {mustBeTextScalar} = ""
+                args.comsol_port double = NaN
+                args.comsol_root {mustBeTextScalar} = ""
                 args.comsol_modeler = []
             end
 
             enable_comsol = args.enable_comsol && args.use_comsol;
             enable_gds = args.enable_gds && args.use_gds;
+            api = core.GeometrySession.normalize_comsol_api(args.comsol_api);
+            conn = core.GeometrySession.resolve_comsol_connection( ...
+                comsol_host=args.comsol_host, ...
+                comsol_port=args.comsol_port, ...
+                comsol_root=args.comsol_root);
             resolved_gds_nm = core.GeometrySession.resolve_gds_resolution( ...
                 args.gds_resolution_nm, args.snap_grid_nm);
 
@@ -59,16 +68,31 @@ classdef GeometrySession < handle
                 if ~isempty(args.comsol_modeler)
                     obj.comsol = args.comsol_modeler;
                 elseif args.reuse_comsol_gui
-                    obj.comsol = core.ComsolModeler.shared(reset=true);
+                    if api == "mph"
+                        obj.comsol = core.ComsolMphModeler.shared( ...
+                            reset=true, comsol_host=conn.host, comsol_port=conn.port, ...
+                            strict_installed=true);
+                    else
+                        obj.comsol = core.ComsolLivelinkModeler.shared( ...
+                            reset=true, comsol_host=conn.host, comsol_port=conn.port, ...
+                            comsol_root=conn.root);
+                    end
                 else
-                    obj.comsol = core.ComsolModeler;
+                    if api == "mph"
+                        obj.comsol = core.ComsolMphModeler( ...
+                            comsol_host=conn.host, comsol_port=conn.port, strict_installed=true);
+                    else
+                        obj.comsol = core.ComsolLivelinkModeler( ...
+                            comsol_host=conn.host, comsol_port=conn.port, ...
+                            comsol_root=conn.root);
+                    end
                 end
             else
                 obj.comsol = [];
             end
 
             if enable_gds
-                obj.gds = core.GDSModeler(dbu_nm=resolved_gds_nm);
+                obj.gds = core.GdsModeler(dbu_nm=resolved_gds_nm);
             else
                 obj.gds = [];
             end
@@ -81,7 +105,7 @@ classdef GeometrySession < handle
             obj.gds_backend = [];
             obj.node_counter = int32(0);
             obj.emit_on_create = args.emit_on_create;
-            obj.snap_mode = core.GeometrySession.validate_snap_mode(args.snap_mode);
+            obj.snap_on_grid = logical(args.snap_on_grid);
             obj.gds_resolution_nm = resolved_gds_nm;
             % Backward-compatible alias: keep snap_grid_nm tied to GDS DBU resolution.
             obj.snap_grid_nm = resolved_gds_nm;
@@ -283,7 +307,7 @@ classdef GeometrySession < handle
                 if obj.preview_live_active
                     obj.reset_gds_layout();
                     if isempty(obj.gds_backend)
-                        obj.gds_backend = core.GdsBackend(obj);
+                        obj.gds_backend = core.KlayoutBackend(obj);
                     end
                     nodes_to_emit = obj.gds_nodes_for_export(scope=args.scope);
                     obj.gds_backend.emit_all(nodes_to_emit);
@@ -303,7 +327,7 @@ classdef GeometrySession < handle
             end
 
             if isempty(obj.gds_backend)
-                obj.gds_backend = core.GdsBackend(obj);
+                obj.gds_backend = core.KlayoutBackend(obj);
             end
             nodes_to_emit = obj.gds_nodes_for_export(scope=args.scope);
             obj.gds_backend.emit_all(nodes_to_emit);
@@ -424,7 +448,7 @@ classdef GeometrySession < handle
                 obj.reset_gds_layout();
             end
             if isempty(obj.gds_backend)
-                obj.gds_backend = core.GdsBackend(obj);
+                obj.gds_backend = core.KlayoutBackend(obj);
             end
 
             nodes_to_emit = obj.gds_nodes_for_export(scope=preview_scope_local);
@@ -462,7 +486,7 @@ classdef GeometrySession < handle
             if strlength(final_scope_local) > 0 && final_scope_local ~= preview_scope_local
                 obj.reset_gds_layout();
                 if isempty(obj.gds_backend)
-                    obj.gds_backend = core.GdsBackend(obj);
+                    obj.gds_backend = core.KlayoutBackend(obj);
                 end
                 final_nodes = obj.gds_nodes_for_export(scope=final_scope_local);
                 obj.gds_backend.emit_all(final_nodes);
@@ -471,13 +495,13 @@ classdef GeometrySession < handle
         end
 
         function snapped = snap_length(obj, values, context)
-            % Snap lengths to grid when snap_mode is strict.
+            % Snap lengths to grid when snap_on_grid is enabled.
             arguments
                 obj core.GeometrySession
                 values
                 context {mustBeTextScalar} = "geometry"
             end
-            if obj.snap_mode == "off"
+            if ~obj.snap_on_grid
                 snapped = values;
                 return;
             end
@@ -566,7 +590,7 @@ classdef GeometrySession < handle
             report.session = struct( ...
                 "comsol_enabled", obj.has_comsol(), ...
                 "gds_enabled", obj.has_gds(), ...
-                "snap_mode", string(obj.snap_mode), ...
+                "snap_on_grid", logical(obj.snap_on_grid), ...
                 "gds_resolution_nm", obj.gds_resolution_nm, ...
                 "snap_grid_nm", obj.snap_grid_nm, ...
                 "warn_on_snap", obj.warn_on_snap);
@@ -578,9 +602,9 @@ classdef GeometrySession < handle
 
             if args.display
                 fprintf("Build Report (%s)\n", string(report.timestamp));
-                fprintf("Session: COMSOL=%d, GDS=%d, snap_mode=%s, gds_resolution_nm=%g\n", ...
+                fprintf("Session: COMSOL=%d, GDS=%d, snap_on_grid=%d, gds_resolution_nm=%g\n", ...
                     report.session.comsol_enabled, report.session.gds_enabled, ...
-                    report.session.snap_mode, report.session.gds_resolution_nm);
+                    report.session.snap_on_grid, report.session.gds_resolution_nm);
 
                 fprintf("Nodes: total=%d\n", report.nodes.total);
                 if height(report.nodes.by_type) > 0
@@ -637,12 +661,8 @@ classdef GeometrySession < handle
 
         function ctx = with_shared_comsol(args)
             % Create a session using process-wide shared COMSOL modeler.
-            % comsol_bootstrap:
-            % - "livelink": use mphstart workflow.
-            % - "independent": direct Java API bootstrap (no mphstart).
-            % - "auto": try livelink first, then independent.
             % comsol_api:
-            % - "livelink": MATLAB LiveLink modeler (current default).
+            % - "livelink": MATLAB LiveLink modeler.
             % - "mph": Python MPh modeler (no LiveLink).
             arguments
                 args.enable_gds logical = true
@@ -650,7 +670,7 @@ classdef GeometrySession < handle
                 args.use_gds logical = true
                 args.emit_on_create logical = false
                 args.set_as_current logical = true
-                args.snap_mode {mustBeTextScalar} = "strict"
+                args.snap_on_grid logical = true
                 args.gds_resolution_nm double = NaN
                 args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
@@ -662,32 +682,33 @@ classdef GeometrySession < handle
                 args.reset_model logical = true
                 args.launch_comsol_gui logical = false
                 args.clean_on_reset logical = true
-                args.comsol_api {mustBeTextScalar} = "livelink"
-                args.comsol_bootstrap {mustBeTextScalar} = "auto"
-                args.comsol_host {mustBeTextScalar} = "localhost"
-                args.comsol_port double = 2036
+                args.comsol_api {mustBeTextScalar} = "mph"
+                args.comsol_host {mustBeTextScalar} = ""
+                args.comsol_port double = NaN
                 args.comsol_root {mustBeTextScalar} = ""
-                args.bootstrap_connect logical = true
             end
+
+            api = core.GeometrySession.normalize_comsol_api(args.comsol_api);
+            conn = core.GeometrySession.resolve_comsol_connection( ...
+                comsol_host=args.comsol_host, ...
+                comsol_port=args.comsol_port, ...
+                comsol_root=args.comsol_root);
             if args.use_comsol
                 if args.reset_model && args.clean_on_reset
                     core.GeometrySession.clean_comsol_server();
                 end
-                api = lower(string(args.comsol_api));
                 if api == "mph"
                     shared_modeler = core.ComsolMphModeler.shared( ...
                         reset=args.reset_model, ...
-                        comsol_host=args.comsol_host, ...
-                        comsol_port=args.comsol_port, ...
+                        comsol_host=conn.host, ...
+                        comsol_port=conn.port, ...
                         strict_installed=true);
                 else
-                    shared_modeler = core.ComsolModeler.shared( ...
+                    shared_modeler = core.ComsolLivelinkModeler.shared( ...
                         reset=args.reset_model, ...
-                        bootstrap_mode=args.comsol_bootstrap, ...
-                        comsol_host=args.comsol_host, ...
-                        comsol_port=args.comsol_port, ...
-                        comsol_root=args.comsol_root, ...
-                        bootstrap_connect=args.bootstrap_connect);
+                        comsol_host=conn.host, ...
+                        comsol_port=conn.port, ...
+                        comsol_root=conn.root);
                 end
             else
                 shared_modeler = [];
@@ -699,7 +720,7 @@ classdef GeometrySession < handle
                 use_gds=args.use_gds, ...
                 emit_on_create=args.emit_on_create, ...
                 set_as_current=args.set_as_current, ...
-                snap_mode=args.snap_mode, ...
+                snap_on_grid=args.snap_on_grid, ...
                 gds_resolution_nm=args.gds_resolution_nm, ...
                 snap_grid_nm=args.snap_grid_nm, ...
                 warn_on_snap=args.warn_on_snap, ...
@@ -708,13 +729,17 @@ classdef GeometrySession < handle
                 preview_step_delay_s=args.preview_step_delay_s, ...
                 preview_zoom_fit=args.preview_zoom_fit, ...
                 preview_show_all_cells=args.preview_show_all_cells, ...
+                comsol_api=api, ...
+                comsol_host=conn.host, ...
+                comsol_port=conn.port, ...
+                comsol_root=conn.root, ...
                 launch_comsol_gui=args.launch_comsol_gui, ...
                 comsol_modeler=shared_modeler);
         end
 
         function clear_shared_comsol()
             % Dispose and clear shared COMSOL model used by helper API.
-            core.ComsolModeler.clear_shared();
+            core.ComsolLivelinkModeler.clear_shared();
             try
                 core.ComsolMphModeler.clear_shared();
             catch
@@ -726,7 +751,7 @@ classdef GeometrySession < handle
             arguments
                 args.prefix (1,1) string = "Model_"
             end
-            removed = core.ComsolModeler.clear_generated_models(prefix=args.prefix);
+            removed = core.ComsolLivelinkModeler.clear_generated_models(prefix=args.prefix);
             try
                 removed = removed + core.ComsolMphModeler.clear_generated_models(prefix=args.prefix);
             catch
@@ -758,12 +783,50 @@ classdef GeometrySession < handle
         end
     end
     methods (Static, Access=private)
-        function mode = validate_snap_mode(raw_mode)
-            % Validate and normalize snap mode text value.
-            mode = lower(string(raw_mode));
-            if ~any(mode == ["strict", "off"])
-                error("snap_mode must be 'strict' or 'off'.");
+        function api = normalize_comsol_api(raw_api)
+            % Validate COMSOL API selector.
+            api = lower(string(raw_api));
+            if ~any(api == ["mph", "livelink"])
+                error("GeometrySession:InvalidComsolApi", ...
+                    "comsol_api must be 'mph' or 'livelink'.");
             end
+        end
+
+        function conn = resolve_comsol_connection(args)
+            % Resolve COMSOL host/port/root from args with config fallback.
+            arguments
+                args.comsol_host {mustBeTextScalar}
+                args.comsol_port double
+                args.comsol_root {mustBeTextScalar}
+            end
+
+            cfg_host = "localhost";
+            cfg_port = 2036;
+            cfg_root = "";
+            try
+                cfg = core.ProjectConfig.load();
+                cfg_host = string(cfg.comsol.host);
+                cfg_port = double(cfg.comsol.port);
+                cfg_root = string(cfg.comsol.root);
+            catch
+            end
+
+            host = string(args.comsol_host);
+            if strlength(host) == 0
+                host = cfg_host;
+            end
+
+            port = double(args.comsol_port);
+            if ~(isscalar(port) && isfinite(port) && port > 0)
+                port = cfg_port;
+            end
+
+            root = string(args.comsol_root);
+            if strlength(root) == 0
+                root = cfg_root;
+            end
+
+            conn = struct("host", host, "port", port, "root", root);
         end
 
         function grid = validate_length_grid(raw_grid, arg_name)
@@ -956,7 +1019,7 @@ classdef GeometrySession < handle
             if ~obj.has_gds()
                 error("GDS backend disabled.");
             end
-            obj.gds = core.GDSModeler(dbu_nm=obj.gds_resolution_nm);
+            obj.gds = core.GdsModeler(dbu_nm=obj.gds_resolution_nm);
             obj.gds_backend = [];
         end
 
@@ -973,13 +1036,13 @@ classdef GeometrySession < handle
 
             if obj.preview_scope == "all"
                 if isempty(obj.gds_backend)
-                    obj.gds_backend = core.GdsBackend(obj);
+                    obj.gds_backend = core.KlayoutBackend(obj);
                 end
                 obj.gds_backend.emit(feature);
             else
                 obj.reset_gds_layout();
                 if isempty(obj.gds_backend)
-                    obj.gds_backend = core.GdsBackend(obj);
+                    obj.gds_backend = core.KlayoutBackend(obj);
                 end
                 final_nodes = obj.gds_nodes_for_export(scope="final");
                 obj.gds_backend.emit_all(final_nodes);
@@ -1029,6 +1092,7 @@ classdef GeometrySession < handle
         end
     end
 end
+
 
 
 

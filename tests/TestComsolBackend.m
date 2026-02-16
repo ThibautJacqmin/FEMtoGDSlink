@@ -20,7 +20,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function emitGeometryGraphRegistersParametersAndSelections(testCase)
             % Verify emitted features, named parameters, and layer selections.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -73,7 +74,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function emitFilletAllPointsOnComposite(testCase)
             % Verify fillet points="all" works on non-rectangle composite input.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -97,7 +99,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function keepInputObjectsSemanticsBuilds(testCase)
             % Verify keep_input_objects=false/true options both emit and build on branched graphs.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -121,11 +124,13 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function sharedModelerIsReusedAcrossSessions(testCase)
             % Verify with_shared_comsol reuses the same COMSOL model instance.
             core.GeometrySession.clear_shared_comsol();
-            ctx1 = core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
+            ctx1 = core.GeometrySession.with_shared_comsol(enable_gds=false, ...
+                snap_on_grid=false, comsol_api="livelink", ...
                 reset_model=true, clean_on_reset=false);
             tag1 = string(ctx1.comsol.model_tag);
 
-            ctx2 = core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
+            ctx2 = core.GeometrySession.with_shared_comsol(enable_gds=false, ...
+                snap_on_grid=false, comsol_api="livelink", ...
                 reset_model=true, clean_on_reset=false);
             tag2 = string(ctx2.comsol.model_tag);
 
@@ -136,13 +141,13 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function clearSharedCreatesNewModel(testCase)
             % Verify clearing shared COMSOL forces creation of a new model tag.
             core.GeometrySession.clear_shared_comsol();
-            ctx1 = core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
-                reset_model=true);
+            ctx1 = core.GeometrySession.with_shared_comsol(enable_gds=false, ...
+                snap_on_grid=false, comsol_api="livelink", reset_model=true);
             tag1 = string(ctx1.comsol.model_tag);
 
             core.GeometrySession.clear_shared_comsol();
-            ctx2 = core.GeometrySession.with_shared_comsol(enable_gds=false, snap_mode="off", ...
-                reset_model=true);
+            ctx2 = core.GeometrySession.with_shared_comsol(enable_gds=false, ...
+                snap_on_grid=false, comsol_api="livelink", reset_model=true);
             tag2 = string(ctx2.comsol.model_tag);
 
             testCase.verifyNotEqual(tag1, tag2);
@@ -150,7 +155,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
         function resetWorkspaceClearsSnappedParameters(testCase)
             % Verify shared reset clears old snp* parameters.
-            ctx1 = core.GeometrySession.with_shared_comsol(enable_gds=true, snap_mode="strict", ...
+            ctx1 = core.GeometrySession.with_shared_comsol(enable_gds=true, ...
+                snap_on_grid=true, comsol_api="livelink", ...
                 emit_on_create=false, reset_model=true);
             ctx1.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
@@ -162,7 +168,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             names_before = TestComsolBackend.paramNames(ctx1.comsol.model);
             testCase.verifyTrue(any(startsWith(names_before, "snp")));
 
-            ctx2 = core.GeometrySession.with_shared_comsol(enable_gds=true, snap_mode="off", ...
+            ctx2 = core.GeometrySession.with_shared_comsol(enable_gds=true, ...
+                snap_on_grid=false, comsol_api="livelink", ...
                 emit_on_create=false, reset_model=true);
             names_after = TestComsolBackend.paramNames(ctx2.comsol.model);
             testCase.verifyFalse(any(startsWith(names_after, "snp")));
@@ -171,7 +178,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function emitArrayFeatures(testCase)
             % Verify COMSOL backend emits 1D/2D array features and params.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=true, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=true, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -205,7 +213,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function emitPolygonPrimitive(testCase)
             % Verify COMSOL backend emits primitives.Polygon primitive and dependencies.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -224,7 +233,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function emitCircleAndEllipsePrimitives(testCase)
             % Verify COMSOL backend emits primitives.Circle/primitives.Ellipse primitives.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -254,7 +264,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function emitCurveAndPointPrimitives(testCase)
             % Verify COMSOL backend emits point/curve primitives.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -286,7 +297,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function emitThickenFeature(testCase)
             % Verify COMSOL backend emits ops.Thicken feature.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -309,7 +321,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function emitChamferOffsetTangent(testCase)
             % Verify COMSOL backend emits ops.Chamfer/ops.Offset/ops.Tangent.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -351,7 +364,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function registerStandaloneParameter(testCase)
             % Verify standalone Parameter expressions can be registered without ctx.comsol calls.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
 
             p_num = types.Parameter(8, "line_thk");
             p_den = types.Parameter(10, "off_dist");
@@ -366,7 +380,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         function constructorNamedParameterAutoRegisters(testCase)
             % Verify named Parameter(source, name=...) auto-registers in current COMSOL session.
             ctx = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, emit_on_create=false, snap_mode="off", reset_model=true);
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
 
             p_num = types.Parameter(8, "line_thk");
             p_den = types.Parameter(10, "off_dist");
@@ -397,8 +412,8 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             end
 
             try
-                core.ComsolBootstrap.ensure_ready( ...
-                    mode="livelink", host=host, port=port, connect=false);
+                core.ComsolLivelinkModeler.ensure_ready( ...
+                    host=host, port=port, connect=false);
                 cached = true;
             catch
                 cached = false;

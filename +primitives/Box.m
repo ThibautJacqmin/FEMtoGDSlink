@@ -33,7 +33,7 @@ classdef Box < Polygon
                 args.vertices types.Vertices
                 args.fillet_width types.Parameter = types.Parameter(1, "")
                 args.fillet_height types.Parameter = types.Parameter(1, "")
-                args.comsol_modeler core.ComsolModeler=core.ComsolModeler.empty
+                args.comsol_modeler = []
             end
             % Comsol
             obj.comsol_modeler = args.comsol_modeler;

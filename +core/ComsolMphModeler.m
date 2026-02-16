@@ -25,7 +25,7 @@ classdef ComsolMphModeler < handle
                 args.strict_installed logical = true
             end
 
-            core.ComsolMphBootstrap.ensure_ready(strict_installed=args.strict_installed);
+            core.ComsolMphModeler.ensure_mph_ready(strict_installed=args.strict_installed);
             obj.comsol_host = string(args.comsol_host);
             obj.comsol_port = double(args.comsol_port);
             obj.feature_counters = dictionary(string.empty(0,1), int32.empty(0,1));
@@ -189,6 +189,15 @@ classdef ComsolMphModeler < handle
     end
 
     methods (Static)
+        function mph_mod = ensure_ready(args)
+            % Ensure Python runtime and installed MPh package are available.
+            arguments
+                args.strict_installed logical = true
+            end
+            mph_mod = core.ComsolMphModeler.ensure_mph_ready( ...
+                strict_installed=args.strict_installed);
+        end
+
         function obj = shared(args)
             % Return shared MPh-backed modeler instance.
             arguments
@@ -305,7 +314,7 @@ classdef ComsolMphModeler < handle
 
             requested = string(args.model_tag);
             if strlength(requested) == 0
-                obj.model_tag = core.ComsolModeler.next_model_tag();
+                obj.model_tag = core.ComsolLivelinkModeler.next_model_tag();
             else
                 obj.model_tag = requested;
             end
@@ -348,6 +357,42 @@ classdef ComsolMphModeler < handle
     end
 
     methods (Static, Access=private)
+        function mph_mod = ensure_mph_ready(args)
+            % Ensure Python and installed MPh are available.
+            arguments
+                args.strict_installed logical = true
+            end
+
+            try
+                pe = pyenv();
+            catch ex
+                error("ComsolMphModeler:PyenvUnavailable", ...
+                    "MATLAB Python bridge is unavailable: %s", ex.message);
+            end
+
+            if pe.Status == "NotLoaded"
+                py.list();
+            end
+
+            try
+                mph_mod = py.importlib.import_module('mph');
+            catch ex
+                error("ComsolMphModeler:MphImportFailed", ...
+                    "Could not import Python package 'mph'. Install it in pyenv interpreter (%s): %s", ...
+                    pe.Executable, ex.message);
+            end
+
+            if args.strict_installed
+                module_file = string(char(py.getattr(mph_mod, "__file__")));
+                local_repo = string(fullfile(pwd, "MPh"));
+                if startsWith(lower(module_file), lower(local_repo))
+                    error("ComsolMphModeler:LocalMphForbidden", ...
+                        "Loaded local repo copy (%s). Install/use official Python package 'mph' instead.", ...
+                        char(module_file));
+                end
+            end
+        end
+
         function client = ensure_client(args)
             % Create/reuse one MPh client per MATLAB process.
             arguments
@@ -373,7 +418,7 @@ classdef ComsolMphModeler < handle
             end
 
             if needs_new
-                mph_mod = core.ComsolMphBootstrap.ensure_ready(strict_installed=true);
+                mph_mod = core.ComsolMphModeler.ensure_mph_ready(strict_installed=true);
                 try
                     client = mph_mod.Client(pyargs('host', char(host), 'port', int32(port)));
                 catch ex

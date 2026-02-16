@@ -152,7 +152,7 @@ classdef TestLattice < matlab.unittest.TestCase
         end
 
         function hexagonalCircleArrayBuildsParameterizedArrays(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             a_param = types.Parameter(20, "a_lat", unit="nm", auto_register=false);
             lat = lattices.HexagonalLattice(20, 4, 3);
 
@@ -179,7 +179,7 @@ classdef TestLattice < matlab.unittest.TestCase
         end
 
         function honeycombCircleArraySupportsSublatticeSelection(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             a_param = types.Parameter(12, "a_hc", unit="nm", auto_register=false);
             lat = lattices.HoneyCombLattice(12, 3, 2);
 
@@ -201,7 +201,7 @@ classdef TestLattice < matlab.unittest.TestCase
         end
 
         function latticeCreateArrayDispatchesHexagonalFromName(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             a_param = types.Parameter(18, "a_lat_dispatch", unit="nm", auto_register=false);
             seed = primitives.Circle(ctx, center=[0, 0], radius=2.5, npoints=48, layer="default");
 
@@ -214,7 +214,7 @@ classdef TestLattice < matlab.unittest.TestCase
         end
 
         function latticeCreateArraySupportsHoneycombDifferentABSeeds(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             a_param = types.Parameter(14, "a_lat_hc_dispatch", unit="nm", auto_register=false);
             seed_A = primitives.Circle(ctx, center=[0, 0], radius=2, npoints=40, layer="default");
             seed_B = primitives.Rectangle(ctx, center=[0, 0], width=3.5, height=2.5, ...

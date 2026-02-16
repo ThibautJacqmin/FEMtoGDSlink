@@ -14,7 +14,7 @@ classdef DependentParameter < types.Parameter
                 name {mustBeTextScalar} = ""
                 args.expression {mustBeTextScalar} = ""
                 args.unit {mustBeTextScalar} = "__auto__"
-                args.comsol_modeler core.ComsolModeler = core.ComsolModeler.empty
+                args.comsol_modeler = []
             end
 
             obj@types.Parameter( ...

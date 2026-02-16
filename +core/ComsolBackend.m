@@ -933,7 +933,7 @@ classdef ComsolBackend < handle
                 out = obj.session.snap_length(raw, context);
                 return;
             end
-            if obj.session.snap_mode == "strict"
+            if obj.session.snap_on_grid
                 out = obj.snapped_length_token(raw);
             else
                 out = raw;

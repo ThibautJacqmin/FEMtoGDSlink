@@ -11,7 +11,7 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
     methods (Test)
         function bootstrapLoadsInstalledMph(testCase)
             % Verify strict bootstrap resolves mph from site-packages, not local repo.
-            mph_mod = core.ComsolMphBootstrap.ensure_ready(strict_installed=true);
+            mph_mod = core.ComsolMphModeler.ensure_ready(strict_installed=true);
             mod_file = string(char(py.getattr(mph_mod, "__file__")));
             local_repo = lower(string(fullfile(pwd, "MPh")));
 
@@ -33,7 +33,7 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
 
             ctx = core.GeometrySession.with_shared_comsol( ...
                 enable_gds=false, use_gds=false, emit_on_create=false, ...
-                snap_mode="off", reset_model=true, clean_on_reset=false, ...
+                snap_on_grid=false, reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph", comsol_host=host, comsol_port=port);
             testCase.verifyClass(ctx.comsol, "core.ComsolMphModeler");
 
@@ -64,13 +64,13 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
 
             core.GeometrySession.clear_shared_comsol();
             ctx1 = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, use_gds=false, snap_mode="off", ...
+                enable_gds=false, use_gds=false, snap_on_grid=false, ...
                 reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph", comsol_host=host, comsol_port=port);
             tag1 = string(ctx1.comsol.model_tag);
 
             ctx2 = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, use_gds=false, snap_mode="off", ...
+                enable_gds=false, use_gds=false, snap_on_grid=false, ...
                 reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph", comsol_host=host, comsol_port=port);
             tag2 = string(ctx2.comsol.model_tag);
@@ -80,7 +80,7 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
 
             core.GeometrySession.clear_shared_comsol();
             ctx3 = core.GeometrySession.with_shared_comsol( ...
-                enable_gds=false, use_gds=false, snap_mode="off", ...
+                enable_gds=false, use_gds=false, snap_on_grid=false, ...
                 reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph", comsol_host=host, comsol_port=port);
             tag3 = string(ctx3.comsol.model_tag);
@@ -110,7 +110,7 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             end
 
             try
-                core.ComsolMphBootstrap.ensure_ready(strict_installed=true);
+                core.ComsolMphModeler.ensure_ready(strict_installed=true);
             catch ex
                 reason = "mph import/bootstrap failed: " + string(ex.message);
                 cached_tf = tf;
@@ -171,3 +171,4 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
         end
     end
 end
+

@@ -1,4 +1,4 @@
-classdef GdsBackend < handle
+classdef KlayoutBackend < handle
     % GDS backend for emitting feature graph into a GDS layout.
     properties
         session
@@ -7,7 +7,7 @@ classdef GdsBackend < handle
         emitted
     end
     methods
-        function obj = GdsBackend(session)
+        function obj = KlayoutBackend(session)
             obj.session = session;
             obj.modeler = session.gds;
             obj.regions = dictionary(int32.empty(0,1), cell(0,1));
@@ -1013,6 +1013,7 @@ if n > 0
     v = v ./ n;
 end
 end
+
 
 
 

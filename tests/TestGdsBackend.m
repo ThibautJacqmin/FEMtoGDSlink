@@ -16,7 +16,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             ctx.export_gds(outFile);
 
             testCase.verifyTrue(isfile(outFile));
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg = backend.region_for(r);
             testCase.verifyGreaterThan(double(reg.count()), 0);
         end
@@ -40,7 +40,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             ctx.export_gds(outFile);
 
             testCase.verifyTrue(isfile(outFile));
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg = backend.region_for(m);
             testCase.verifyGreaterThan(double(reg.count()), 0);
         end
@@ -63,7 +63,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             ctx.export_gds(outFile);
 
             testCase.verifyTrue(isfile(outFile));
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg = backend.region_for(f);
             testCase.verifyGreaterThan(double(reg.count()), 0);
         end
@@ -75,7 +75,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             ctx = TestGdsBackend.newContext();
             r = primitives.Rectangle(ctx, base="corner", corner=[10 20], ...
                 width=120, height=60, angle=35, layer="m1");
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg = backend.region_for(r);
 
             testCase.verifyEqual(double(reg.count()), 1);
@@ -98,7 +98,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             e = primitives.Ellipse(ctx, center=[200 0], a=80, b=40, angle=30, npoints=128, ...
                 layer="m1");
 
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg_c = backend.region_for(c);
             reg_e = backend.region_for(e);
 
@@ -121,7 +121,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             p = types.Parameter(25, "poly_pitch");
             poly = primitives.Polygon(ctx, vertices=types.Vertices([0 0; 2 0; 2 1; 0 1], p), ...
                 layer="m1");
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg = backend.region_for(poly);
 
             testCase.verifyEqual(double(reg.count()), 1);
@@ -146,7 +146,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
                 delta_x=types.Vertices([1, 0], p_pitch_x), delta_y=types.Vertices([0, 1], p_pitch_y), ...
                 layer="m1");
 
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg1 = backend.region_for(arr1);
             reg2 = backend.region_for(arr2);
             base_area = 100 * 50;
@@ -160,14 +160,14 @@ classdef TestGdsBackend < matlab.unittest.TestCase
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
-                snap_mode="off", gds_resolution_nm=2);
+                snap_on_grid=false, gds_resolution_nm=2);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
             base = primitives.Rectangle(ctx, center=[0 0], width=40, height=20, layer="m1");
             arr = ops.Array1D(ctx, base, ncopies=types.Parameter(5, "n_arr", unit=""), ...
                 delta=[100 0], layer="m1");
 
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg_base = backend.region_for(base);
             reg_arr = backend.region_for(arr);
             testCase.verifyEqual(double(reg_arr.area()), 5 * double(reg_base.area()));
@@ -184,7 +184,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
 
             r = primitives.Rectangle(ctx, center=types.Vertices([0, 0], p_um), ...
                 width=w_um, height=h_um, layer="m1");
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg = backend.region_for(r);
 
             expected_area_dbu = 36000 * 12000; % 36 um x 12 um at 1 nm dbu
@@ -219,7 +219,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             ctx.export_gds(outFile);
             testCase.verifyTrue(isfile(outFile));
 
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             nodes = {pt, ls, ic, qb, cb, ca, pc};
             for i = 1:numel(nodes)
                 reg = backend.region_for(nodes{i});
@@ -256,7 +256,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             ctx.export_gds(outFile);
             testCase.verifyTrue(isfile(outFile));
 
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg_ls = backend.region_for(ls);
             reg_th1 = backend.region_for(th1);
             reg_th2 = backend.region_for(th2);
@@ -292,7 +292,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             ctx.export_gds(outFile);
             testCase.verifyTrue(isfile(outFile));
 
-            backend = core.GdsBackend(ctx);
+            backend = core.KlayoutBackend(ctx);
             reg_base = backend.region_for(base);
             reg_cha = backend.region_for(cha);
             reg_off = backend.region_for(off);
@@ -394,19 +394,19 @@ classdef TestGdsBackend < matlab.unittest.TestCase
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
             ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
-                snap_mode="off", gds_resolution_nm=5);
+                snap_on_grid=false, gds_resolution_nm=5);
             testCase.verifyEqual(double(ctx.gds.pylayout.dbu), 0.005, AbsTol=1e-12);
         end
 
         function gdsIntegerUsesResolutionWhenSnapOff(testCase)
             ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, ...
-                snap_mode="off", gds_resolution_nm=2);
+                snap_on_grid=false, gds_resolution_nm=2);
             ints = ctx.gds_integer([1, 3, 5], "resolution-test");
             testCase.verifyEqual(ints, [1, 2, 3]);
         end
 
         function gdsNodesForExportUsesTerminalNodesByDefault(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
             r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
@@ -424,7 +424,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
         end
 
         function gdsNodesForExportRespectsKeepInputObjects(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_mode="off");
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
             r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
@@ -498,7 +498,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
     methods (Static, Access=private)
         function ctx = newContext()
             % Build a standard GDS-only context used by all tests.
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, snap_mode="off");
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
         end
 
@@ -573,6 +573,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
         end
     end
 end
+
 
 
 

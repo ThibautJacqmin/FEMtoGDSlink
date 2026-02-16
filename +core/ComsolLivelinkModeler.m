@@ -1,5 +1,5 @@
-classdef ComsolModeler < handle
-    % Thin wrapper around COMSOL Java API for geometry/model bookkeeping.
+classdef ComsolLivelinkModeler < handle
+    % COMSOL modeler backed by MATLAB LiveLink (mphstart/ModelUtil).
     properties
         model_tag
         model
@@ -10,40 +10,34 @@ classdef ComsolModeler < handle
         shell
         study
     end
+
     methods
-        function obj = ComsolModeler(args)
+        function obj = ComsolLivelinkModeler(args)
             % Create a fresh COMSOL model with one component and workplane.
             arguments
-                args.bootstrap_mode {mustBeTextScalar} = "auto"
                 args.comsol_host {mustBeTextScalar} = "localhost"
                 args.comsol_port double = 2036
                 args.comsol_root {mustBeTextScalar} = ""
-                args.bootstrap_connect logical = true
             end
 
-            core.ComsolBootstrap.ensure_ready( ...
-                mode=args.bootstrap_mode, ...
+            core.ComsolLivelinkModeler.ensure_ready( ...
                 host=args.comsol_host, ...
                 port=args.comsol_port, ...
                 comsol_root=args.comsol_root, ...
-                connect=args.bootstrap_connect);
+                connect=true);
 
             import com.comsol.model.*
             import com.comsol.model.util.*
-            obj.model_tag = core.ComsolModeler.next_model_tag();
-            % Create new model
+            obj.model_tag = core.ComsolLivelinkModeler.next_model_tag();
             obj.model = ModelUtil.create(char(obj.model_tag));
-            % Activate progress bar
             ModelUtil.showProgress(true);
-            % Disable Comsol model history
             obj.model.hist.disable;
-            % Set working path
             obj.model.modelPath(pwd);
             obj.initialize_workspace();
         end
+
         function reset_workspace(obj)
             % Reset component/geometry tree while keeping model/window alive.
-            % Reset model content while keeping the same COMSOL model/window.
             obj.clear_studies();
             obj.clear_variables();
             obj.clear_components();
@@ -53,19 +47,16 @@ classdef ComsolModeler < handle
             obj.shell = [];
             obj.study = [];
         end
+
         function names = get_names(obj)
             % Return geometry child node tags currently in active workplane.
-            % Get an string array containin all Comsol names of graphical
-            % objects and operation (corresponding to tree nodes in Comsol
-            % geometry)
             names = string(obj.workplane.geom);
             names = names.extractAfter("Child nodes: ");
             names = names.split(", ");
         end
+
         function y = get_next_index(obj, name)
             % Return next numeric suffix for a COMSOL geometry tag prefix.
-            % Retrueve the next index of a node name. For instance if
-            % rect1, rect2, and rect3 exists, the function returns 4.
             y = obj.get_names;
             y = y(y.startsWith(name));
             y = max(double(y.extractAfter(name)));
@@ -74,13 +65,15 @@ classdef ComsolModeler < handle
                 y=1;
             end
         end
-        function add_parameter(obj, value, name, unit)
+
+        function add_parameter(obj, value, name, unit, description)
             % Set one model parameter, converting numeric values to tokens.
             arguments
                 obj
                 value
                 name {mustBeTextScalar}
                 unit {mustBeTextScalar} = ""
+                description {mustBeTextScalar} = ""
             end
             if isnumeric(value)
                 value_str = string(value);
@@ -91,8 +84,9 @@ classdef ComsolModeler < handle
                 value_str = string(value);
             end
 
-            obj.model.param.set(name, value_str, "");
+            obj.model.param.set(name, value_str, description);
         end
+
         function add_variable(obj, name, expression)
             % Define one variable under var1.
             arguments
@@ -102,10 +96,11 @@ classdef ComsolModeler < handle
             end
             obj.model.variable('var1').set(name, expression, "");
         end
+
         function add_material(obj, prop)
             % Create and assign a basic isotropic material definition.
             arguments
-                obj core.ComsolModeler
+                obj core.ComsolLivelinkModeler
                 prop.poisson_ratio double
                 prop.youngs_modulus double
                 prop.density double
@@ -121,30 +116,28 @@ classdef ComsolModeler < handle
             mat_object.label('Si3N4 - Silicon nitride');
             basic = mat_object.propertyGroup().create("def", "Basic");
             basic.set('density', prop.density);
-            Enu = mat_object.propertyGroup().create("Enu", "Young's modulus and Poisson's ratio");
+            Enu = mat_object.propertyGroup().create("Enu", "Young''s modulus and Poisson''s ratio");
             Enu.set('nu', prop.poisson_ratio);
             Enu.set('E', prop.youngs_modulus);
-            % All the geometry set to the material, to be improved later
-            % Geometry elementas are assigned an index when created. It is
-            % incremented by 1 at each creation
             mat_object.selection.set(1:obj.geometry.getNBoundaries);
         end
+
         function add_mesh(obj, meshsize)
             % Create a default 2D free-triangular mesh configuration.
             arguments
-                obj core.ComsolModeler
+                obj core.ComsolLivelinkModeler
                 meshsize double=4
             end
-            % meshsize normal = 5, extremely fine = 1, extremely coarse = 9
             obj.mesh = obj.component.mesh.create('mesh1');
             obj.mesh.feature('size').set('hauto', meshsize);
             ftr = obj.mesh.create("ftri"+1, "FreeTri");
             ftr.selection.set(1:obj.geometry.getNBoundaries);
         end
+
         function add_physics(obj, args)
             % Add shell physics with thickness and initial stress settings.
             arguments
-                obj core.ComsolModeler
+                obj core.ComsolLivelinkModeler
                 args.thickness double
                 args.stress double
                 args.fixed_boundaries double=[]
@@ -160,6 +153,7 @@ classdef ComsolModeler < handle
             iss = obj.shell.feature("emm1").create("iss1", "InitialStressandStrain", 2);
             iss.set('Ni', {'stress*thickness' '0' '0' 'stress*thickness'});
         end
+
         function add_study(obj)
             % Add stationary and eigenfrequency study steps for shell physics.
             obj.study = obj.model.study.create('std1');
@@ -171,39 +165,38 @@ classdef ComsolModeler < handle
             eig.set('geometricNonlinearity', true);
             eig.set('eigmethod', 'region');
             eig.set('eigunit', 'kHz');
-            eig.set('eigsr', 1); % smallest real part
-            eig.set('eiglr', 100); % largest real part
+            eig.set('eigsr', 1);
+            eig.set('eiglr', 100);
         end
+
         function start_gui(obj)
             % Launch COMSOL Desktop attached to this model.
             mphlaunch(obj.model)
         end
+
         function plot(obj)
             % Run geometry and display it through mphgeom.
             obj.geometry.run;
             mphgeom(obj.model);
         end
+
         function save_to_m_file(obj, filename)
             % Export current model to a COMSOL-generated MATLAB script.
             arguments
-                obj core.ComsolModeler
+                obj core.ComsolLivelinkModeler
                 filename {mustBeTextScalar}='untitled.m'
             end
             obj.model.save(filename, 'm');
         end
+
         function comsol_object = create_comsol_object(obj, comsol_object_name)
             % Create a workplane geometry feature with an auto-generated tag.
-            % This function creates a new comsol object in the plane
-            % geometry. The comsol name can be "Rotate", "Difference",
-            % "Move", "Copy"....
-            % It returns the comsol object to be stored in
-            % obj.comsol_shape; and the comsol object name of the initial
-            % object that can be used for selection.
             prefix = obj.comsol_prefix(comsol_object_name);
             ind = obj.get_next_index(prefix);
             comsol_name = prefix+ind;
             comsol_object = obj.workplane.geom.create(comsol_name, comsol_object_name);
         end
+
         function comsol_shape = make_1D_array(obj, ncopies, vertex, initial_comsol_shape)
             % Build a linear Array feature from an existing geometry tag.
             arguments
@@ -212,7 +205,7 @@ classdef ComsolModeler < handle
                 vertex {mustBeA(vertex, {'types.Vertices'})}
                 initial_comsol_shape
             end
-            previous_object_name = string(initial_comsol_shape.tag); % save name of initial comsol object to be selected
+            previous_object_name = string(initial_comsol_shape.tag);
             comsol_shape = obj.create_comsol_object("Array");
             comsol_shape.set('type', 'linear')
             comsol_shape.set('linearsize', ncopies.value)
@@ -234,41 +227,58 @@ classdef ComsolModeler < handle
             comsol_shape = obj.make_1D_array(ncopies_y, vertex_y, row_shape);
         end
     end
+
     methods (Static)
+        function ensure_ready(args)
+            % Ensure LiveLink API is available and optionally connected.
+            arguments
+                args.host {mustBeTextScalar} = "localhost"
+                args.port double = 2036
+                args.comsol_root {mustBeTextScalar} = ""
+                args.connect logical = true
+            end
+            core.ComsolLivelinkModeler.ensure_livelink( ...
+                host=args.host, ...
+                port=args.port, ...
+                comsol_root=args.comsol_root, ...
+                connect=args.connect);
+
+            if args.connect && ~core.ComsolLivelinkModeler.is_modelutil_ready()
+                error("ComsolLivelinkModeler:NotReady", ...
+                    "COMSOL LiveLink API is not ready after bootstrap.");
+            end
+        end
+
         function obj = shared(args)
-            % Return a shared ComsolModeler instance, optionally reset first.
+            % Return a shared ComsolLivelinkModeler instance.
             arguments
                 args.reset logical = true
-                args.bootstrap_mode {mustBeTextScalar} = "auto"
                 args.comsol_host {mustBeTextScalar} = "localhost"
                 args.comsol_port double = 2036
                 args.comsol_root {mustBeTextScalar} = ""
-                args.bootstrap_connect logical = true
             end
-            obj = core.ComsolModeler.shared_store();
+            obj = core.ComsolLivelinkModeler.shared_store();
             if isempty(obj) || ~isvalid(obj)
-                obj = core.ComsolModeler( ...
-                    bootstrap_mode=args.bootstrap_mode, ...
+                obj = core.ComsolLivelinkModeler( ...
                     comsol_host=args.comsol_host, ...
                     comsol_port=args.comsol_port, ...
-                    comsol_root=args.comsol_root, ...
-                    bootstrap_connect=args.bootstrap_connect);
+                    comsol_root=args.comsol_root);
             elseif args.reset
                 obj.reset_workspace();
             end
-            core.ComsolModeler.shared_store(obj);
+            core.ComsolLivelinkModeler.shared_store(obj);
         end
 
         function clear_shared()
-            % Dispose and clear the process-wide shared ComsolModeler.
-            obj = core.ComsolModeler.shared_store();
+            % Dispose and clear the process-wide shared modeler.
+            obj = core.ComsolLivelinkModeler.shared_store();
             if ~isempty(obj) && isvalid(obj)
                 try
                     com.comsol.model.util.ModelUtil.remove(char(obj.model_tag));
                 catch
                 end
             end
-            core.ComsolModeler.shared_store([]);
+            core.ComsolLivelinkModeler.shared_store([]);
         end
 
         function removed = clear_generated_models(args)
@@ -296,10 +306,10 @@ classdef ComsolModeler < handle
                 end
             end
 
-            obj = core.ComsolModeler.shared_store();
+            obj = core.ComsolLivelinkModeler.shared_store();
             if ~isempty(obj) && isvalid(obj)
                 if any(string(obj.model_tag) == removed_tags)
-                    core.ComsolModeler.shared_store([]);
+                    core.ComsolLivelinkModeler.shared_store([]);
                 end
             end
         end
@@ -313,22 +323,17 @@ classdef ComsolModeler < handle
 
         function y = comsol_prefix(comsol_object_name)
             % Return default 3-letter lowercase COMSOL feature prefix.
-            % Comsol element prefix (pol, mir, fil, sca, ...)
             y = lower(comsol_object_name.extractBetween(1, 3));
         end
     end
+
     methods (Access=private)
         function initialize_workspace(obj)
             % Initialize default variable/component/geometry/workplane nodes.
-            % Create variable
             obj.model.variable.create('var1');
-            % Create component
             obj.component = obj.model.component.create('Component', true);
-            % Create 3D geometry
             obj.geometry = obj.component.geom.create('Geometry', 3);
-            % Set length unit to nanometer like in KLayout
             obj.geometry.lengthUnit("nm");
-            % Create workplane
             obj.workplane = obj.geometry.create('wp1', 'WorkPlane');
             obj.geometry.feature('wp1').set('unite', true);
         end
@@ -422,9 +427,184 @@ classdef ComsolModeler < handle
             end
         end
     end
+
     methods (Static, Access=private)
+        function ensure_livelink(args)
+            % Bootstrap via mphstart (LiveLink for MATLAB only).
+            arguments
+                args.host {mustBeTextScalar}
+                args.port double
+                args.connect logical
+                args.comsol_root {mustBeTextScalar} = ""
+            end
+
+            if core.ComsolLivelinkModeler.is_modelutil_class_available() && ~args.connect
+                return;
+            end
+            if core.ComsolLivelinkModeler.is_modelutil_ready()
+                return;
+            end
+
+            if isempty(which('mphstart'))
+                root = core.ComsolLivelinkModeler.resolve_comsol_root(args.comsol_root);
+                if strlength(root) > 0
+                    mli = fullfile(char(root), "mli");
+                    if isfolder(mli)
+                        addpath(mli);
+                    end
+                end
+            end
+
+            if isempty(which('mphstart'))
+                error("ComsolLivelinkModeler:LiveLinkMissing", ...
+                    "mphstart not found (even after adding COMSOL mli path).");
+            end
+
+            if args.connect
+                mphstart(char(string(args.host)), double(args.port));
+            end
+        end
+
+        function tf = is_modelutil_class_available()
+            % Return true when ModelUtil class can be loaded.
+            try
+                tf = exist("com.comsol.model.util.ModelUtil", "class") == 8;
+            catch
+                tf = false;
+            end
+        end
+
+        function tf = is_modelutil_ready()
+            % Return true when ModelUtil API is available and connected.
+            tf = false;
+            if ~core.ComsolLivelinkModeler.is_modelutil_class_available()
+                return;
+            end
+            try
+                com.comsol.model.util.ModelUtil.tags();
+                tf = true;
+            catch
+            end
+        end
+
+        function root = discover_comsol_root()
+            % Discover COMSOL root folder (Windows registry first).
+            root = "";
+            if ispc
+                root = core.ComsolLivelinkModeler.discover_comsol_root_windows();
+                if strlength(root) > 0
+                    return;
+                end
+            end
+
+            guesses = [
+                "C:\Program Files\COMSOL\COMSOL64\Multiphysics"
+                "/usr/local/comsol/multiphysics"
+                "/Applications/COMSOL/Multiphysics"
+            ];
+            for i = 1:numel(guesses)
+                g = guesses(i);
+                if isfolder(g)
+                    root = g;
+                    return;
+                end
+            end
+        end
+
+        function root = resolve_comsol_root(explicit_root)
+            % Resolve COMSOL root from explicit input, config, then discovery.
+            root = string(explicit_root);
+            if strlength(root) > 0 && ~isfolder(root)
+                warning("ComsolLivelinkModeler:InvalidConfiguredRoot", ...
+                    "Configured COMSOL root does not exist: %s", char(root));
+                root = "";
+            end
+
+            if strlength(root) == 0
+                try
+                    cfg = core.ProjectConfig.load();
+                    root = string(cfg.comsol.root);
+                catch
+                    root = "";
+                end
+                if strlength(root) > 0 && ~isfolder(root)
+                    warning("ComsolLivelinkModeler:InvalidConfiguredRoot", ...
+                        "Configured COMSOL root does not exist: %s", char(root));
+                    root = "";
+                end
+            end
+
+            if strlength(root) == 0
+                root = core.ComsolLivelinkModeler.discover_comsol_root();
+            end
+        end
+
+        function root = discover_comsol_root_windows()
+            % Discover COMSOL root from HKLM\SOFTWARE\Comsol\*\COMSOLROOT.
+            root = "";
+            keys = [
+                "HKLM\SOFTWARE\Comsol"
+                "HKLM\SOFTWARE\WOW6432Node\Comsol"
+            ];
+            latest_stamp = -inf;
+
+            for k = 1:numel(keys)
+                base = keys(k);
+                cmd = sprintf('reg query "%s" /s /v COMSOLROOT', char(base));
+                [status, out] = system(cmd);
+                if status ~= 0 || strlength(string(out)) == 0
+                    continue;
+                end
+
+                lines = splitlines(string(out));
+                current_subkey = "";
+                for i = 1:numel(lines)
+                    line = strtrim(lines(i));
+                    if strlength(line) == 0
+                        continue;
+                    end
+                    if startsWith(line, "HKEY_")
+                        current_subkey = line;
+                        continue;
+                    end
+                    if contains(line, "COMSOLROOT")
+                        toks = regexp(char(line), '^COMSOLROOT\s+REG_\w+\s+(.+)$', ...
+                            'tokens', 'once');
+                        if isempty(toks)
+                            continue;
+                        end
+                        candidate = string(strtrim(toks{1}));
+                        if ~isfolder(candidate)
+                            continue;
+                        end
+                        stamp = core.ComsolLivelinkModeler.subkey_version_score(current_subkey);
+                        if stamp > latest_stamp
+                            latest_stamp = stamp;
+                            root = candidate;
+                        end
+                    end
+                end
+            end
+        end
+
+        function score = subkey_version_score(subkey)
+            % Build sortable numeric score from key text like COMSOL60.
+            txt = lower(string(subkey));
+            tok = regexp(char(txt), 'comsol(\d+)([a-z]?)', 'tokens', 'once');
+            if isempty(tok)
+                score = -inf;
+                return;
+            end
+            major = str2double(tok{1});
+            patch = 0;
+            if ~isempty(tok{2})
+                patch = double(tok{2}) - double('a') + 1;
+            end
+            score = major * 100 + patch;
+        end
+
         function obj = shared_store(varargin)
-            % Persistent storage for the shared ComsolModeler instance.
+            % Persistent storage for the shared modeler instance.
             persistent shared_obj
             if nargin == 1
                 shared_obj = varargin{1};
@@ -433,7 +613,3 @@ classdef ComsolModeler < handle
         end
     end
 end
-
-
-
-

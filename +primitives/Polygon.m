@@ -10,7 +10,7 @@ classdef Polygon < core.GeomFeature
     end
     properties
         pgon_py = []
-        comsol_modeler = core.ComsolModeler.empty
+        comsol_modeler = []
         comsol_shape = []
         comsol_name = ""
     end
@@ -102,7 +102,7 @@ classdef Polygon < core.GeomFeature
                 args.vertices = []
                 args.layer = "default"
                 % Legacy compatibility: accepted but unused in feature mode.
-                args.comsol_modeler = core.ComsolModeler.empty
+                args.comsol_modeler = []
             end
             parsed = args;
         end

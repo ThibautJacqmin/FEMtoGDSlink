@@ -1,13 +1,12 @@
 import core.*
 import types.*
-import primitives.*
-import ops.*
 import routing.*
 
-% Example 5: routing showcase with visible triangular launch ports.
+% Example 5: high-level routing/components integration test.
+% This script intentionally exercises all new facade-level APIs.
 ctx = GeometrySession.with_shared_comsol(use_comsol=true, use_gds=true, ...
     comsol_api="mph", ...
-    preview_klayout=true, preview_scope="final", preview_step_delay_s=0.08, ...
+    preview_klayout=true, preview_scope="final", preview_step_delay_s=0.001, ...
     snap_on_grid=false, gds_resolution_nm=1, warn_on_snap=true, ...
     reset_model=true, clean_on_reset=false);
 
@@ -21,127 +20,127 @@ ctx.add_layer("portmark", gds_layer=10, gds_datatype=0, comsol_workplane="wp1", 
 % Base unit helper (all geometry lengths in um).
 p_um = Parameter(1, "u_ex5", unit="um");
 
-% Common CPW-like cross sections.
-cpw = PortSpec( ...
-    widths={Parameter(14, "cpw_sig_w", unit="um"), Parameter(34, "cpw_gap_w", unit="um")}, ...
-    offsets={0, 0}, ...
-    layers=["metal1", "gap"], ...
-    subnames=["sig", "gap"]);
-cpw_masked = cpw.with_mask(layer="gap", gap=Parameter(8, "cpw_mask_gap", unit="um"), ...
-    subname="mask");
+% CPW specs through high-level components API.
+cpw = components.cpw.spec( ...
+    Parameter(14, "cpw_sig_w", unit="um"), ...
+    Parameter(34, "cpw_gap_w", unit="um"), ...
+    layer_sig="metal1", layer_gap="gap");
 
-%% Demo A: basic Manhattan auto bend + triangular launch markers.
-pinA = PortRef(name="A_in", pos=Vertices([-320, -30], p_um), ori=[1, 0], spec=cpw);
-poutA = PortRef(name="A_out", pos=Vertices([320, 50], p_um), ori=[-1, 0], spec=cpw);
-pinA.draw_markers(ctx=ctx, layer="portmark");
-poutA.draw_markers(ctx=ctx, layer="portmark");
+cpw_masked = components.cpw.spec( ...
+    Parameter(14, "cpw_sig_wm", unit="um"), ...
+    Parameter(34, "cpw_gap_wm", unit="um"), ...
+    layer_sig="metal1", layer_gap="gap", ...
+    include_mask=true, mask_gap=Parameter(8, "cpw_mask_gap", unit="um"), ...
+    mask_layer="gap", mask_subname="mask");
 
-cA = Cable(ctx, pinA, poutA, ...
-    name="demoA", fillet=Parameter(24, "ex5_fillet_A", unit="um"), ...
-    start_straight=Parameter(36, "ex5_straight_A", unit="um"), ...
-    bend="auto", ends="straight", merge_per_layer=true);
-fprintf("Demo A length: %.3f um\n", cA.length_nm() / 1000);
+cpw_wide = components.cpw.spec( ...
+    Parameter(20, "cpw_sig_wide", unit="um"), ...
+    Parameter(48, "cpw_gap_wide", unit="um"), ...
+    layer_sig="metal1", layer_gap="gap");
 
-%% Demo B: explicit route points + circular end caps + no per-layer merge.
-pinB = PortRef(name="B_in", pos=Vertices([-280, -230], p_um), ori=[1, 0], spec=cpw);
-poutB = PortRef(name="B_out", pos=Vertices([280, -120], p_um), ori=[-1, 0], spec=cpw);
-pinB.draw_markers(ctx=ctx, layer="portmark", tip_scale=0.4);
-poutB.draw_markers(ctx=ctx, layer="portmark", tip_scale=0.4);
+%% Demo A: components.cpw.routed_line (uses routing.connect under the hood).
+pA1 = components.cpw.port("A_in", Vertices([-320, -40], p_um), [1, 0], cpw);
+pA2 = components.cpw.port("A_out", Vertices([320, 40], p_um), [-1, 0], cpw);
+components.cpw.markers(pA1, ctx=ctx, layer="portmark");
+components.cpw.markers(pA2, ctx=ctx, layer="portmark");
+rA = components.cpw.routed_line(ctx, pA1, pA2, ...
+    name="demoA_routed_line", fillet=22, start_straight=30, bend="auto");
+fprintf("Demo A routed_line length: %.3f um (achieved_target=%d)\n", ...
+    rA.length_nm / 1000, rA.achieved_target);
 
-routeB = Route(points=[-280, -230; -80, -230; -80, -300; 180, -300; 180, -120; 280, -120], ...
-    fillet=18);
-cB = Cable(ctx, pinB, poutB, ...
-    name="demoB", route=routeB, ends="circular", convexcorner="tangent", ...
-    merge_per_layer=false);
-fprintf("Demo B length: %.3f um\n", cB.length_nm() / 1000);
+%% Demo B: routing.connect_auto + target-driven auto meander tuning.
+pB1 = components.cpw.port("B_in", Vertices([-320, -190], p_um), [1, 0], cpw);
+pB2 = components.cpw.port("B_out", Vertices([320, -120], p_um), [-1, 0], cpw);
+components.cpw.markers(pB1, ctx=ctx, layer="portmark", tip_scale=0.45);
+components.cpw.markers(pB2, ctx=ctx, layer="portmark", tip_scale=0.45);
+targetB = routing.TargetLengthSpec(enabled=true, length_nm=1200, tolerance_nm=25);
+rB = routing.connect_auto(ctx, pB1, pB2, ...
+    name="demoB_connect_auto", fillet=16, start_straight=22, end_straight=10, ...
+    bend="y_first", target=targetB, merge_per_layer=false, ...
+    ends="circular", convexcorner="tangent");
+fprintf("Demo B connect_auto length: %.3f um (achieved_target=%d)\n", ...
+    rB.length_nm / 1000, rB.achieved_target);
 
-%% Demo C: split a two-track bus into two independent CPW ports and route both.
-bus = PortSpec( ...
-    widths={Parameter(16, "bus_w", unit="um"), Parameter(16, "bus_w2", unit="um")}, ...
-    offsets={Parameter(-22, "bus_off_l", unit="um"), Parameter(22, "bus_off_r", unit="um")}, ...
-    layers=["metal1", "metal1"], ...
-    subnames=["left", "right"]);
+%% Demo C: edge_launch + connector wrappers.
+pCleft = components.cpw.port("C_left_n", Vertices([-280, -360], p_um), [1, 0], cpw);
+pCright = components.cpw.port("C_right_n", Vertices([280, -310], p_um), [-1, 0], cpw);
+launchL = components.cpw.edge_launch(ctx, pCleft, ...
+    name="demoC_launchL", length_nm=120, sig_wide_nm=95, gap_wide_nm=160, direction="outward");
+launchR = components.cpw.edge_launch(ctx, pCright, ...
+    name="demoC_launchR", length_nm=120, sig_wide_nm=95, gap_wide_nm=160, direction="outward");
+components.cpw.markers(launchL.wide_port, ctx=ctx, layer="portmark");
+components.cpw.markers(launchR.wide_port, ctx=ctx, layer="portmark");
+rC = components.cpw.connector(ctx, launchL.narrow_port, launchR.narrow_port, ...
+    name="demoC_connector", fillet=18);
+fprintf("Demo C connector length: %.3f um\n", rC.length_nm / 1000);
 
-pinC = PortRef(name="C_in", pos=Vertices([-330, 190], p_um), ori=[1, 0], spec=bus);
-poutC = PortRef(name="C_out", pos=Vertices([330, 230], p_um), ori=[-1, 0], spec=bus);
-pinC.draw_markers(ctx=ctx, layer="portmark");
-poutC.draw_markers(ctx=ctx, layer="portmark");
+%% Demo D: explicit MeanderSpec + components.cpw.meander_line wrapper.
+pD1 = components.cpw.port("D_in", Vertices([-320, 120], p_um), [1, 0], cpw);
+pD2 = components.cpw.port("D_out", Vertices([320, 120], p_um), [-1, 0], cpw);
+components.cpw.markers(pD1, ctx=ctx, layer="portmark");
+components.cpw.markers(pD2, ctx=ctx, layer="portmark");
+meanderD = routing.MeanderSpec( ...
+    enabled=true, segment_indices=[1], amplitude_nm=120, pitch_nm=160, count=4);
+targetD = routing.TargetLengthSpec(enabled=true, length_nm=1540, tolerance_nm=25);
+rD = routing.connect(ctx, pD1, pD2, ...
+    name="demoD_connect_meander", fillet=14, start_straight=20, ...
+    meander=meanderD, target=targetD);
+fprintf("Demo D connect(meander) length: %.3f um (achieved_target=%d)\n", ...
+    rD.length_nm / 1000, rD.achieved_target);
 
-split_in = pinC.split(gap=10, gap_layer="gap");
-split_out = poutC.split(gap=10, gap_layer="gap");
+pD3 = components.cpw.port("D3_in", Vertices([-320, 260], p_um), [1, 0], cpw);
+pD4 = components.cpw.port("D4_out", Vertices([320, 260], p_um), [-1, 0], cpw);
+rD2 = components.cpw.meander_line(ctx, pD3, pD4, ...
+    name="demoD2_meander_line", fillet=12, target_nm=1700);
+fprintf("Demo D2 meander_line length: %.3f um (achieved_target=%d)\n", ...
+    rD2.length_nm / 1000, rD2.achieved_target);
 
-cC_left = Cable(ctx, split_in{1}, split_out{1}, ...
-    name="demoC_left", fillet=12, start_straight=24, bend="x_first");
-cC_right = Cable(ctx, split_in{2}, split_out{2}, ...
-    name="demoC_right", fillet=12, start_straight=24, bend="y_first");
-fprintf("Demo C left length: %.3f um\n", cC_left.length_nm() / 1000);
-fprintf("Demo C right length: %.3f um\n", cC_right.length_nm() / 1000);
+%% Demo E: mismatch + AdaptorSpec + allow_mismatch + layer_override.
+pE1 = components.cpw.port("E_in", Vertices([-320, 400], p_um), [1, 0], cpw);
+pE2 = components.cpw.port("E_out", Vertices([320, 430], p_um), [-1, 0], cpw_wide);
+components.cpw.markers(pE1, ctx=ctx, layer="portmark", tip_length=Parameter(8, "ex5_tip_E", unit="um"));
+components.cpw.markers(pE2, ctx=ctx, layer="portmark", tip_length=Parameter(8, "ex5_tip_E", unit="um"));
+adaptorE = routing.AdaptorSpec(enabled=true, style="linear", slope=0.4);
+rE = routing.connect(ctx, pE1, pE2, ...
+    name="demoE_mismatch", fillet=20, start_straight=26, bend="x_first", ...
+    allow_mismatch=true, adaptor=adaptorE, ...
+    layer_override=["metal1", "gap"], merge_per_layer=true);
+fprintf("Demo E mismatch length: %.3f um (adaptor_in=%d adaptor_out=%d)\n", ...
+    rE.length_nm / 1000, numel(rE.adaptor_in), numel(rE.adaptor_out));
 
-%% Demo D: masked cross-section (signal + gap + outer mask track).
-pinD = PortRef(name="D_in", pos=Vertices([-320, 120], p_um), ori=[1, 0], spec=cpw_masked);
-poutD = PortRef(name="D_out", pos=Vertices([320, 120], p_um), ori=[-1, 0], spec=cpw_masked);
-pinD.draw_markers(ctx=ctx, layer="portmark", tip_length=Parameter(8, "ex5_tip_D", unit="um"));
-poutD.draw_markers(ctx=ctx, layer="portmark", tip_length=Parameter(8, "ex5_tip_D", unit="um"));
+%% Demo F: PortRef split/selective split/reversed + bond_params.
+bus = routing.PortSpec( ...
+    widths={Parameter(16, "bus_wL", unit="um"), Parameter(16, "bus_wR", unit="um"), Parameter(42, "bus_shield", unit="um")}, ...
+    offsets={Parameter(-24, "bus_off_L", unit="um"), Parameter(24, "bus_off_R", unit="um"), 0}, ...
+    layers=["metal1", "metal1", "gap"], ...
+    subnames=["left", "right", "shield"]);
 
-cD = Cable(ctx, pinD, poutD, ...
-    name="demoD", fillet=20, start_straight=30, bend="auto", merge_per_layer=true);
-fprintf("Demo D length: %.3f um\n", cD.length_nm() / 1000);
+pF1 = routing.PortRef(name="F_in", pos=Vertices([-330, 560], p_um), ori=[1, 0], spec=bus);
+pF2 = routing.PortRef(name="F_out", pos=Vertices([330, 600], p_um), ori=[-1, 0], spec=bus);
+pF2r = pF2.reversed(name="F_out_r"); %#ok<NASGU>
+components.cpw.markers(pF1, ctx=ctx, layer="portmark");
+components.cpw.markers(pF2, ctx=ctx, layer="portmark");
 
-%% Demo E: meander-like route (explicit serpentine centerline points).
-pinE = PortRef(name="E_in", pos=Vertices([-320, 330], p_um), ori=[1, 0], spec=cpw);
-poutE = PortRef(name="E_out", pos=Vertices([320, 330], p_um), ori=[-1, 0], spec=cpw);
-pinE.draw_markers(ctx=ctx, layer="portmark");
-poutE.draw_markers(ctx=ctx, layer="portmark");
+split_in = pF1.split(subnames=-1, gap=10, gap_layer="gap");
+split_out = pF2.split(subnames=["left", "right"], gap=10, gap_layer="gap");
+rf1 = routing.connect(ctx, split_in{1}, split_out{1}, ...
+    name="demoF_left", fillet=10, start_straight=18, bend="x_first");
+rf2 = routing.connect(ctx, split_in{2}, split_out{2}, ...
+    name="demoF_right", fillet=10, start_straight=18, bend="y_first", ...
+    ends="circular", convexcorner="tangent");
+[ymaxF, yminF] = split_in{1}.bond_params();
+fprintf("Demo F split lengths: %.3f / %.3f um, bond span=[%.1f, %.1f] nm\n", ...
+    rf1.length_nm / 1000, rf2.length_nm / 1000, yminF, ymaxF);
 
-routeE = Route(points=[ ...
-    -320, 330; -240, 330; ...
-    -240, 255; -160, 255; ...
-    -160, 405; -80, 405; ...
-    -80, 255; 0, 255; ...
-    0, 405; 80, 405; ...
-    80, 255; 160, 255; ...
-    160, 330; 320, 330], ...
-    fillet=12);
-cE = Cable(ctx, pinE, poutE, ...
-    name="demoE_meander", route=routeE, ...
-    ends="straight", convexcorner="tangent", merge_per_layer=true);
-fprintf("Demo E (meander) length: %.3f um\n", cE.length_nm() / 1000);
-
-%% Demo F: tapered CPW edge-launches + routed interconnect.
-% Here tapers are explicit polygons from wide wirebond edge width to CPW width.
-sig_narrow = cpw.width_value(1);
-gap_narrow = cpw.width_value(2);
-sig_wide = 95;
-gap_wide = 160;
-
-% Left edge taper (wide at x=-380 to narrow at x=-280).
-draw_linear_taper(ctx, "metal1", -380, -280, -430, sig_wide, sig_narrow, p_um);
-draw_linear_taper(ctx, "gap", -380, -280, -430, gap_wide, gap_narrow, p_um);
-
-% Right edge taper (wide at x=380 to narrow at x=280).
-draw_linear_taper(ctx, "metal1", 380, 280, -360, sig_wide, sig_narrow, p_um);
-draw_linear_taper(ctx, "gap", 380, 280, -360, gap_wide, gap_narrow, p_um);
-
-pinF = PortRef(name="F_in", pos=Vertices([-280, -430], p_um), ori=[1, 0], spec=cpw);
-poutF = PortRef(name="F_out", pos=Vertices([280, -360], p_um), ori=[-1, 0], spec=cpw);
-pinF.draw_markers(ctx=ctx, layer="portmark", tip_scale=0.5);
-poutF.draw_markers(ctx=ctx, layer="portmark", tip_scale=0.5);
-
-cF = Cable(ctx, pinF, poutF, ...
-    name="demoF_tapered_launch", fillet=22, start_straight=28, bend="auto", ...
-    ends="straight", merge_per_layer=true);
-fprintf("Demo F (tapered launch) length: %.3f um\n", cF.length_nm() / 1000);
+%% Demo G: masked CPW via components spec(include_mask=true).
+pG1 = components.cpw.port("G_in", Vertices([-320, 710], p_um), [1, 0], cpw_masked);
+pG2 = components.cpw.port("G_out", Vertices([320, 710], p_um), [-1, 0], cpw_masked);
+components.cpw.markers(pG1, ctx=ctx, layer="portmark");
+components.cpw.markers(pG2, ctx=ctx, layer="portmark");
+rG = routing.connect(ctx, pG1, pG2, ...
+    name="demoG_masked", fillet=16, start_straight=22, bend="auto");
+fprintf("Demo G masked length: %.3f um\n", rG.length_nm / 1000);
 
 ctx.export_gds("example_5.gds");
 ctx.build_comsol();
 ctx.build_report();
-
-function feat = draw_linear_taper(ctx, layer, x0, x1, yc, w0, w1, pref)
-% Draw trapezoidal taper between widths w0 (at x0) and w1 (at x1).
-verts = [
-    x0, yc - 0.5 * w0;
-    x0, yc + 0.5 * w0;
-    x1, yc + 0.5 * w1;
-    x1, yc - 0.5 * w1];
-feat = primitives.Polygon(ctx, vertices=types.Vertices(verts, pref), layer=layer);
-end

@@ -121,6 +121,28 @@ classdef TestRouting < matlab.unittest.TestCase
             testCase.verifyEqual(sort(terminal_ids), sort(cable_ids));
         end
 
+        function cableKeepsFilletConvexModeWhenRouteFilleted(testCase)
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+            ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
+
+            spec = routing.PortSpec( ...
+                widths=[12, 36], offsets=[0, 0], ...
+                layers=["m1", "gap"], subnames=["sig", "gap"]);
+            p1 = routing.PortRef(name="in", pos=[0, 0], ori=[1, 0], spec=spec);
+            p2 = routing.PortRef(name="out", pos=[280, 120], ori=[-1, 0], spec=spec);
+
+            cable = routing.Cable(ctx, p1, p2, ...
+                fillet=20, ...
+                start_straight=25, ...
+                convexcorner="fillet", ...
+                name="fillet_mode");
+
+            for i = 1:numel(cable.raw_tracks)
+                testCase.verifyEqual(string(cable.raw_tracks{i}.convexcorner), "fillet");
+            end
+        end
+
         function cableRejectsMismatchedSpecs(testCase)
             ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");

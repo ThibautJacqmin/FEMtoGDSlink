@@ -4,7 +4,7 @@ import primitives.*
 import ops.*
 import routing.*
 
-% Example 5: routed multi-track cable between two ports using +routing.
+% Example 5: routing showcase with visible triangular launch ports.
 ctx = GeometrySession.with_shared_comsol(use_comsol=true, use_gds=true, ...
     comsol_api="mph", ...
     preview_klayout=true, preview_scope="final", preview_step_delay_s=0.08, ...
@@ -15,39 +15,77 @@ ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
     comsol_selection="metal1", comsol_selection_state="all", emit_to_comsol=true);
 ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1", ...
     comsol_selection="gap", comsol_selection_state="all", emit_to_comsol=true);
+ctx.add_layer("portmark", gds_layer=10, gds_datatype=0, comsol_workplane="wp1", ...
+    comsol_selection="", comsol_selection_state="none", emit_to_comsol=false);
 
 % Base unit helper (all geometry lengths in um).
 p_um = Parameter(1, "u_ex5", unit="um");
-p_pad_w = Parameter(90, "ex5_pad_w", unit="um");
-p_pad_h = Parameter(70, "ex5_pad_h", unit="um");
-p_fillet = Parameter(25, "ex5_fillet", unit="um");
-p_straight = Parameter(40, "ex5_straight", unit="um");
 
-% Two simple pads to anchor the route visually.
-Rectangle(center=Vertices([-260, 0], p_um), width=p_pad_w, height=p_pad_h, ...
-    layer="metal1");
-Rectangle(center=Vertices([260, 70], p_um), width=p_pad_w, height=p_pad_h, ...
-    layer="metal1");
-
-% CPW-like cross section (signal + gap) carried by PortSpec.
+% Common CPW-like cross sections.
 cpw = PortSpec( ...
     widths={Parameter(14, "cpw_sig_w", unit="um"), Parameter(34, "cpw_gap_w", unit="um")}, ...
     offsets={0, 0}, ...
     layers=["metal1", "gap"], ...
     subnames=["sig", "gap"]);
+cpw_masked = cpw.with_mask(layer="gap", gap=Parameter(8, "cpw_mask_gap", unit="um"), ...
+    subname="mask");
 
-pin = PortRef(name="in", pos=Vertices([-210, 0], p_um), ori=[1, 0], spec=cpw);
-pout = PortRef(name="out", pos=Vertices([210, 70], p_um), ori=[1, 0], spec=cpw);
+%% Demo A: basic Manhattan auto bend + triangular launch markers.
+pinA = PortRef(name="A_in", pos=Vertices([-320, -30], p_um), ori=[1, 0], spec=cpw);
+poutA = PortRef(name="A_out", pos=Vertices([320, 50], p_um), ori=[-1, 0], spec=cpw);
+pinA.draw_markers(ctx=ctx, layer="portmark");
+poutA.draw_markers(ctx=ctx, layer="portmark");
 
-feed = Cable(ctx, pin, pout, ...
-    name="feedline", ...
-    fillet=p_fillet, ...
-    start_straight=p_straight, ...
-    bend="auto", ...
-    ends="straight", ...
-    merge_per_layer=true);
+cA = Cable(ctx, pinA, poutA, ...
+    name="demoA", fillet=Parameter(24, "ex5_fillet_A", unit="um"), ...
+    start_straight=Parameter(36, "ex5_straight_A", unit="um"), ...
+    bend="auto", ends="straight", merge_per_layer=true);
+fprintf("Demo A length: %.3f um\n", cA.length_nm() / 1000);
 
-fprintf("example_5 feedline length: %.3f um\n", feed.length_nm() / 1000);
+%% Demo B: explicit route points + circular end caps + no per-layer merge.
+pinB = PortRef(name="B_in", pos=Vertices([-280, -230], p_um), ori=[1, 0], spec=cpw);
+poutB = PortRef(name="B_out", pos=Vertices([280, -120], p_um), ori=[-1, 0], spec=cpw);
+pinB.draw_markers(ctx=ctx, layer="portmark", tip_scale=0.4);
+poutB.draw_markers(ctx=ctx, layer="portmark", tip_scale=0.4);
+
+routeB = Route(points=[-280, -230; -80, -230; -80, -300; 180, -300; 180, -120; 280, -120], ...
+    fillet=18);
+cB = Cable(ctx, pinB, poutB, ...
+    name="demoB", route=routeB, ends="circular", convexcorner="tangent", ...
+    merge_per_layer=false);
+fprintf("Demo B length: %.3f um\n", cB.length_nm() / 1000);
+
+%% Demo C: split a two-track bus into two independent CPW ports and route both.
+bus = PortSpec( ...
+    widths={Parameter(16, "bus_w", unit="um"), Parameter(16, "bus_w2", unit="um")}, ...
+    offsets={Parameter(-22, "bus_off_l", unit="um"), Parameter(22, "bus_off_r", unit="um")}, ...
+    layers=["metal1", "metal1"], ...
+    subnames=["left", "right"]);
+
+pinC = PortRef(name="C_in", pos=Vertices([-330, 190], p_um), ori=[1, 0], spec=bus);
+poutC = PortRef(name="C_out", pos=Vertices([330, 230], p_um), ori=[-1, 0], spec=bus);
+pinC.draw_markers(ctx=ctx, layer="portmark");
+poutC.draw_markers(ctx=ctx, layer="portmark");
+
+split_in = pinC.split(gap=10, gap_layer="gap");
+split_out = poutC.split(gap=10, gap_layer="gap");
+
+cC_left = Cable(ctx, split_in{1}, split_out{1}, ...
+    name="demoC_left", fillet=12, start_straight=24, bend="x_first");
+cC_right = Cable(ctx, split_in{2}, split_out{2}, ...
+    name="demoC_right", fillet=12, start_straight=24, bend="y_first");
+fprintf("Demo C left length: %.3f um\n", cC_left.length_nm() / 1000);
+fprintf("Demo C right length: %.3f um\n", cC_right.length_nm() / 1000);
+
+%% Demo D: masked cross-section (signal + gap + outer mask track).
+pinD = PortRef(name="D_in", pos=Vertices([-320, 120], p_um), ori=[1, 0], spec=cpw_masked);
+poutD = PortRef(name="D_out", pos=Vertices([320, 120], p_um), ori=[-1, 0], spec=cpw_masked);
+pinD.draw_markers(ctx=ctx, layer="portmark", tip_length=Parameter(8, "ex5_tip_D", unit="um"));
+poutD.draw_markers(ctx=ctx, layer="portmark", tip_length=Parameter(8, "ex5_tip_D", unit="um"));
+
+cD = Cable(ctx, pinD, poutD, ...
+    name="demoD", fillet=20, start_straight=30, bend="auto", merge_per_layer=true);
+fprintf("Demo D length: %.3f um\n", cD.length_nm() / 1000);
 
 ctx.export_gds("example_5.gds");
 ctx.build_comsol();

@@ -50,6 +50,47 @@ classdef TestRouting < matlab.unittest.TestCase
             testCase.verifyLessThan(filleted.path_length(), sharp.path_length());
         end
 
+        function portRefMarkersBondAndSplit(testCase)
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+            ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
+            ctx.add_layer("port", gds_layer=10, gds_datatype=0, comsol_workplane="wp1");
+
+            spec = routing.PortSpec( ...
+                widths=[10, 30], offsets=[0, 5], ...
+                layers=["m1", "gap"], subnames=["sig", "gnd"]);
+            p = routing.PortRef(name="p", pos=[100, 50], ori=[1, 0], spec=spec);
+
+            [ymax, ymin] = p.bond_params();
+            testCase.verifyEqual(ymax, 20, AbsTol=1e-12);
+            testCase.verifyEqual(ymin, -10, AbsTol=1e-12);
+
+            tris = p.marker_triangles();
+            testCase.verifyEqual(numel(tris), 2);
+            testCase.verifyEqual(tris{1}.nvertices, 3);
+            testCase.verifyEqual(tris{2}.nvertices, 3);
+            tri1 = tris{1}.value;
+            testCase.verifyGreaterThan(tri1(2, 1), tri1(1, 1));
+            testCase.verifyGreaterThan(tri1(2, 1), tri1(3, 1));
+
+            feats = p.draw_markers(ctx=ctx, layer="port");
+            testCase.verifyEqual(numel(feats), 2);
+            for i = 1:numel(feats)
+                testCase.verifyTrue(isa(feats{i}, "core.GeomFeature"));
+            end
+
+            split_sig = p.split(subnames="sig", gap=8, gap_layer="gap");
+            testCase.verifyEqual(numel(split_sig), 1);
+            s = split_sig{1}.spec;
+            testCase.verifyEqual(s.ntracks, 2);
+            testCase.verifyEqual(s.widths_value(), [10, 26], AbsTol=1e-12);
+            testCase.verifyEqual(s.layers, ["m1", "gap"]);
+            testCase.verifyEqual(split_sig{1}.position_value(), [100, 50], AbsTol=1e-12);
+
+            split_all_but_last = p.split(subnames=-1, gap=6, gap_layer="gap");
+            testCase.verifyEqual(numel(split_all_but_last), 1);
+        end
+
         function cableBuildsFeaturesWithoutBackends(testCase)
             ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");

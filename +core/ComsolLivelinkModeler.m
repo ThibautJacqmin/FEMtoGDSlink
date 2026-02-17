@@ -1,15 +1,5 @@
-classdef ComsolLivelinkModeler < handle
+classdef ComsolLivelinkModeler < core.ComsolModeler
     % COMSOL modeler backed by MATLAB LiveLink (mphstart/ModelUtil).
-    properties
-        model_tag
-        model
-        component
-        geometry
-        workplane
-        mesh
-        shell
-        study
-    end
 
     methods
         function obj = ComsolLivelinkModeler(args)
@@ -28,7 +18,7 @@ classdef ComsolLivelinkModeler < handle
 
             import com.comsol.model.*
             import com.comsol.model.util.*
-            obj.model_tag = core.ComsolLivelinkModeler.next_model_tag();
+            obj.model_tag = core.ComsolModeler.next_model_tag();
             obj.model = ModelUtil.create(char(obj.model_tag));
             ModelUtil.showProgress(true);
             obj.model.hist.disable;
@@ -64,27 +54,6 @@ classdef ComsolLivelinkModeler < handle
             if isempty(y)
                 y=1;
             end
-        end
-
-        function add_parameter(obj, value, name, unit, description)
-            % Set one model parameter, converting numeric values to tokens.
-            arguments
-                obj
-                value
-                name {mustBeTextScalar}
-                unit {mustBeTextScalar} = ""
-                description {mustBeTextScalar} = ""
-            end
-            if isnumeric(value)
-                value_str = string(value);
-                if strlength(unit) ~= 0
-                    value_str = value_str + "[" + string(unit) + "]";
-                end
-            else
-                value_str = string(value);
-            end
-
-            obj.model.param.set(name, value_str, description);
         end
 
         function add_variable(obj, name, expression)
@@ -142,8 +111,8 @@ classdef ComsolLivelinkModeler < handle
                 args.stress double
                 args.fixed_boundaries double=[]
             end
-            obj.add_parameter('thickness', args.thickness, 'm', 'membrane thickness')
-            obj.add_parameter('stress', args.stress, 'Pa', 'in-plane initial stress')
+            obj.add_parameter(args.thickness, 'thickness', 'm', 'membrane thickness')
+            obj.add_parameter(args.stress, 'stress', 'Pa', 'in-plane initial stress')
             obj.shell = obj.model.physics.create('shell', 'Shell', obj.geometry.tag);
             if ~isempty(args.fixed_boundaries)
                 fix = obj.shell.create('fix1', 'Fixed', 1);
@@ -187,14 +156,6 @@ classdef ComsolLivelinkModeler < handle
                 filename {mustBeTextScalar}='untitled.m'
             end
             obj.model.save(filename, 'm');
-        end
-
-        function comsol_object = create_comsol_object(obj, comsol_object_name)
-            % Create a workplane geometry feature with an auto-generated tag.
-            prefix = obj.comsol_prefix(comsol_object_name);
-            ind = obj.get_next_index(prefix);
-            comsol_name = prefix+ind;
-            comsol_object = obj.workplane.geom.create(comsol_name, comsol_object_name);
         end
 
         function comsol_shape = make_1D_array(obj, ncopies, vertex, initial_comsol_shape)
@@ -314,30 +275,9 @@ classdef ComsolLivelinkModeler < handle
             end
         end
 
-        function tag = next_model_tag()
-            % Generate a unique COMSOL model tag for new sessions.
-            stamp = string(datetime("now", Format="yyyyMMdd_HHmmssSSS"));
-            suffix = string(randi([0, 9999]));
-            tag = "Model_" + stamp + "_" + suffix;
-        end
-
-        function y = comsol_prefix(comsol_object_name)
-            % Return default 3-letter lowercase COMSOL feature prefix.
-            y = lower(comsol_object_name.extractBetween(1, 3));
-        end
     end
 
     methods (Access=private)
-        function initialize_workspace(obj)
-            % Initialize default variable/component/geometry/workplane nodes.
-            obj.model.variable.create('var1');
-            obj.component = obj.model.component.create('Component', true);
-            obj.geometry = obj.component.geom.create('Geometry', 3);
-            obj.geometry.lengthUnit("nm");
-            obj.workplane = obj.geometry.create('wp1', 'WorkPlane');
-            obj.geometry.feature('wp1').set('unite', true);
-        end
-
         function clear_parameters(obj)
             % Clear global parameter table (including generated snp* tokens).
             try
@@ -521,12 +461,8 @@ classdef ComsolLivelinkModeler < handle
             end
 
             if strlength(root) == 0
-                try
-                    cfg = core.ProjectConfig.load();
-                    root = string(cfg.comsol.root);
-                catch
-                    root = "";
-                end
+                cfg = core.ComsolModeler.connection_defaults();
+                root = string(cfg.root);
                 if strlength(root) > 0 && ~isfolder(root)
                     warning("ComsolLivelinkModeler:InvalidConfiguredRoot", ...
                         "Configured COMSOL root does not exist: %s", char(root));

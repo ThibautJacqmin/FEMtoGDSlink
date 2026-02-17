@@ -40,12 +40,14 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             p_w = types.Parameter(40, "mph_w");
             p_h = types.Parameter(20, "mph_h");
             r = primitives.Rectangle(ctx, center=[0 0], width=p_w, height=p_h, layer="default");
+            s = primitives.Square(ctx, center=[-35 0], side=12, layer="default");
             c = primitives.Circle(ctx, center=[35 0], radius=8, layer="default");
-            u = ops.Union(ctx, {r, c}, layer="default");
+            u = ops.Union(ctx, {r, s, c}, layer="default");
 
             ctx.build_comsol();
 
             testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(r.id)));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(s.id)));
             testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(c.id)));
             testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(u.id)));
             testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "mph_w"));

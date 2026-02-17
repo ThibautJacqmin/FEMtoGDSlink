@@ -11,7 +11,7 @@ addpath(root_dir);
 addpath(tests_dir);
 
 if args.initialize_comsol
-    init_script = fullfile(root_dir, "comsol_matlab_initialization.m");
+    init_script = fullfile(root_dir, "tests", "helpers", "comsol_matlab_initialization.m");
     if isfile(init_script)
         try
             run(init_script);

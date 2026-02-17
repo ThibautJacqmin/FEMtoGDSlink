@@ -85,6 +85,11 @@ classdef KlayoutBackend < handle
             region.merge();
         end
 
+        function region = build_Square(obj, node)
+            % Square shares the same GDS polygon construction as Rectangle.
+            region = obj.build_Rectangle(node);
+        end
+
         function region = build_Circle(obj, node)
             angle = obj.scalar_value(node.angle);
             if abs(double(angle) - 360) > 1e-9

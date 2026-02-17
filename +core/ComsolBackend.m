@@ -8,7 +8,6 @@ classdef ComsolBackend < handle
         emitting
         selection_tags
         snapped_length_tokens
-        array_seed_tags
         input_use_counts
         input_remaining_counts
     end
@@ -22,7 +21,6 @@ classdef ComsolBackend < handle
             obj.emitting = dictionary(int32.empty(0,1), false(0,1));
             obj.selection_tags = dictionary(string.empty(0,1), strings(0,1));
             obj.snapped_length_tokens = dictionary(string.empty(0,1), strings(0,1));
-            obj.array_seed_tags = dictionary(string.empty(0,1), strings(0,1));
             obj.input_use_counts = dictionary(int32.empty(0,1), int32.empty(0,1));
             obj.input_remaining_counts = dictionary(int32.empty(0,1), int32.empty(0,1));
         end
@@ -155,6 +153,29 @@ classdef ComsolBackend < handle
             obj.finish_feature(node, layer, feature, tag);
         end
 
+        function emit_Square(obj, node)
+            % Emit a COMSOL Square primitive, with Rectangle fallback.
+            [layer, feature, tag] = obj.start_feature_with_fallback( ...
+                node, "squ", ["Square", "Rectangle"], "Square");
+            feature.set('base', char(node.base));
+            pos = obj.length_vector(node.position, "Square position");
+            obj.set_pair(feature, 'pos', pos(1), pos(2));
+
+            s = obj.length_component(node.side, "Square side");
+            try
+                obj.set_scalar(feature, 'size', s);
+            catch
+                % Older APIs may map square to rectangle-like size pair.
+                obj.set_pair(feature, 'size', s, s);
+            end
+            try
+                obj.set_scalar(feature, 'rot', obj.raw_component(node.angle));
+            catch
+                % Rotation is optional in COMSOL primitive API; ignore if unsupported.
+            end
+            obj.finish_feature(node, layer, feature, tag);
+        end
+
         function emit_Circle(obj, node)
             % Emit a COMSOL Circle primitive from a Circle node.
             [layer, feature, tag] = obj.start_feature(node, "cir", "Circle");
@@ -271,7 +292,7 @@ classdef ComsolBackend < handle
 
         function emit_Move(obj, node)
             % Emit a COMSOL Move operation.
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             [layer, feature, tag, ~] = obj.start_unary_feature(node, "mov", "Move", keep_input);
             delta = obj.length_vector(node.delta, "Move delta");
             obj.set_scalar(feature, 'displx', delta(1));
@@ -281,7 +302,7 @@ classdef ComsolBackend < handle
 
         function emit_Rotate(obj, node)
             % Emit a COMSOL Rotate operation.
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             [layer, feature, tag, ~] = obj.start_unary_feature(node, "rot", "Rotate", keep_input);
             obj.set_scalar(feature, 'rot', obj.raw_component(node.angle));
             origin = obj.length_vector(node.origin, "Rotate origin");
@@ -291,7 +312,7 @@ classdef ComsolBackend < handle
 
         function emit_Scale(obj, node)
             % Emit a COMSOL Scale operation.
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             [layer, feature, tag, ~] = obj.start_unary_feature(node, "sca", "Scale", keep_input);
             obj.set_scalar(feature, 'factor', obj.raw_component(node.factor));
             origin = obj.length_vector(node.origin, "Scale origin");
@@ -301,7 +322,7 @@ classdef ComsolBackend < handle
 
         function emit_Mirror(obj, node)
             % Emit a COMSOL Mirror operation.
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             [layer, feature, tag, ~] = obj.start_unary_feature(node, "mir", "Mirror", keep_input);
             point = obj.length_vector(node.point, "Mirror point");
             obj.set_pair(feature, 'pos', point(1), point(2));
@@ -312,7 +333,7 @@ classdef ComsolBackend < handle
         function emit_Union(obj, node)
             % Emit a COMSOL Union operation.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             tags = strings(1, numel(node.inputs));
             for i = 1:numel(node.inputs)
                 tags(i) = string(obj.resolve_input_tag(layer, node.inputs{i}, keep_input));
@@ -327,7 +348,7 @@ classdef ComsolBackend < handle
         function emit_Difference(obj, node)
             % Emit a COMSOL Difference operation.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             base_tag = obj.resolve_input_tag(layer, node.base, keep_input);
             tool_tags = strings(1, numel(node.tools));
             for i = 1:numel(node.tools)
@@ -346,7 +367,7 @@ classdef ComsolBackend < handle
         function emit_Intersection(obj, node)
             % Emit a COMSOL Intersection operation.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             tags = strings(1, numel(node.inputs));
             for i = 1:numel(node.inputs)
                 tags(i) = string(obj.resolve_input_tag(layer, node.inputs{i}, keep_input));
@@ -361,7 +382,7 @@ classdef ComsolBackend < handle
         function emit_Array1D(obj, node)
             % Emit a COMSOL 1D Array operation.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             source_tag = string(obj.tag_for(node.target));
             input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
             [~, feature, tag] = obj.start_feature(node, "arr", "Array");
@@ -376,7 +397,7 @@ classdef ComsolBackend < handle
         function emit_Array2D(obj, node)
             % Emit a COMSOL 2D rectangular Array operation.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             source_tag = string(obj.tag_for(node.target));
             input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
             [~, feature, tag] = obj.start_feature(node, "arr", "Array");
@@ -402,7 +423,7 @@ classdef ComsolBackend < handle
         function emit_Fillet(obj, node)
             % Emit a COMSOL Fillet operation with explicit point selection.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             base_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature(node, "fil", "Fillet");
             obj.set_keep_input(feature, keep_input);
@@ -445,7 +466,7 @@ classdef ComsolBackend < handle
         function emit_Chamfer(obj, node)
             % Emit a COMSOL Chamfer operation with explicit point selection.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             base_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature(node, "cha", "Chamfer");
             obj.set_keep_input(feature, keep_input);
@@ -487,7 +508,7 @@ classdef ComsolBackend < handle
         function emit_Offset(obj, node)
             % Emit a COMSOL Offset operation.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             input_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature_with_fallback( ...
                 node, "off", ["Offset", "Offset2D"], "Offset");
@@ -518,7 +539,7 @@ classdef ComsolBackend < handle
         function emit_Tangent(obj, node)
             % Emit a COMSOL Tangent feature.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             edge_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             if lower(string(node.type)) == "edge"
                 if isempty(node.edge2)
@@ -563,7 +584,7 @@ classdef ComsolBackend < handle
         function emit_Thicken(obj, node)
             % Emit a COMSOL Thicken operation (2D) from a target curve/object.
             layer = node.layer;
-            keep_input = obj.node_keep_flag(node);
+            keep_input = core.GeometrySession.node_keeps_inputs(node);
             input_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature_with_fallback( ...
                 node, "thk", ["Thicken2D", "Thicken"], "Thicken");
@@ -1065,17 +1086,6 @@ classdef ComsolBackend < handle
             parts = split(cname, ".");
             name = parts(end);
         end
-        function tags = collect_tags(obj, inputs)
-            % Resolve COMSOL tags for a list of input nodes.
-            if isempty(inputs)
-                tags = [];
-                return;
-            end
-            tags = strings(1, numel(inputs));
-            for i = 1:numel(inputs)
-                tags(i) = string(obj.tag_for(inputs{i}));
-            end
-        end
 
         function prepare_input_usage_counts(obj)
             % Count how many times each graph node is used as downstream input.
@@ -1101,31 +1111,6 @@ classdef ComsolBackend < handle
             end
             obj.input_use_counts = counts;
             obj.input_remaining_counts = counts;
-        end
-
-        function keep = node_keep_flag(~, node)
-            % Read per-feature keep-input-objects preference (default false).
-            keep = false;
-            if isprop(node, 'keep_input_objects')
-                try
-                    val = node.keep_input_objects;
-                    if isscalar(val)
-                        keep = logical(val);
-                        return;
-                    end
-                catch
-                end
-            end
-            % Backward compatibility for legacy keep flag.
-            if isprop(node, 'keep')
-                try
-                    val = node.keep;
-                    if isscalar(val)
-                        keep = logical(val);
-                    end
-                catch
-                end
-            end
         end
 
         function input_tag = resolve_input_tag(obj, layer, input_node, keep_input)
@@ -1176,19 +1161,6 @@ classdef ComsolBackend < handle
             end
         end
 
-        function tags_out = copy_input_tags(obj, layer, tags_in)
-            % Create one in-place Copy feature per source tag.
-            if isempty(tags_in)
-                tags_out = tags_in;
-                return;
-            end
-            tags_in = string(tags_in);
-            tags_out = strings(size(tags_in));
-            for i = 1:numel(tags_in)
-                tags_out(i) = string(obj.copy_input_tag(layer, tags_in(i)));
-            end
-        end
-
         function copied_tag = copy_input_tag(obj, layer, source_tag)
             % Clone one source object tag through a COMSOL Copy feature.
             source = string(source_tag);
@@ -1211,16 +1183,6 @@ classdef ComsolBackend < handle
                     "Failed to build COMSOL copy feature '%s' from '%s': %s", ...
                     char(copied_tag), char(source), char(string(ex.message)));
             end
-        end
-
-        function input_tag = resolve_array_input_tag(~, ~, source_tag)
-            % Array inputs should use feature tags; object tags like arr1(1,1)
-            % are not accepted consistently as Array 'input' selections.
-            input_tag = string(source_tag);
-        end
-
-        function register_array_seed_tag(~, ~, ~)
-            % Legacy no-op kept for compatibility with older code paths.
         end
 
         function apply_layer_selection(obj, layer, feature)

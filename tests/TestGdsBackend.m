@@ -21,6 +21,27 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyGreaterThan(double(reg.count()), 0);
         end
 
+        function exportSquare(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = TestGdsBackend.newContext();
+
+            s = primitives.Square(ctx, center=[0 0], side=60, layer="m1");
+            backend = core.KlayoutBackend(ctx);
+            reg = backend.region_for(s);
+
+            testCase.verifyEqual(double(reg.count()), 1);
+            expected_area = 60 * 60;
+            testCase.verifyGreaterThan(double(reg.area()), 0.95 * expected_area);
+            testCase.verifyLessThan(double(reg.area()), 1.05 * expected_area);
+
+            fillets = s.get_fillets(fillet_width=8, fillet_height=5, npoints=10, layer="m1");
+            u = ops.Union(ctx, [{s}, fillets], layer="m1");
+            reg_u = backend.region_for(u);
+            testCase.verifyGreaterThan(double(reg_u.area()), double(reg.area()));
+        end
+
         function exportBooleanAndTransform(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");

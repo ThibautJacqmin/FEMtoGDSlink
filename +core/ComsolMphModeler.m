@@ -1,14 +1,6 @@
-classdef ComsolMphModeler < handle
+classdef ComsolMphModeler < core.ComsolModeler
     % COMSOL modeler backed by Python MPh (no MATLAB LiveLink dependency).
     properties
-        model_tag
-        model
-        component
-        geometry
-        workplane
-        mesh
-        shell
-        study
         comsol_host
         comsol_port
         py_client
@@ -63,25 +55,6 @@ classdef ComsolMphModeler < handle
             end
             obj.feature_counters(key) = obj.feature_counters(key) + 1;
             y = double(obj.feature_counters(key));
-        end
-
-        function add_parameter(obj, value, name, unit)
-            % Set one model parameter in COMSOL.
-            arguments
-                obj
-                value
-                name {mustBeTextScalar}
-                unit {mustBeTextScalar} = ""
-            end
-            if isnumeric(value)
-                value_str = string(value);
-                if strlength(unit) ~= 0
-                    value_str = value_str + "[" + string(unit) + "]";
-                end
-            else
-                value_str = string(value);
-            end
-            obj.model.param.set(name, value_str, "");
         end
 
         function add_variable(obj, name, expression)
@@ -179,13 +152,6 @@ classdef ComsolMphModeler < handle
             obj.model.save(filename, 'm');
         end
 
-        function comsol_object = create_comsol_object(obj, comsol_object_name)
-            % Create a workplane feature with the default COMSOL tag prefix.
-            prefix = obj.comsol_prefix(comsol_object_name);
-            ind = obj.get_next_index(prefix);
-            comsol_name = prefix + ind;
-            comsol_object = obj.workplane.geom.create(comsol_name, comsol_object_name);
-        end
     end
 
     methods (Static)
@@ -275,11 +241,6 @@ classdef ComsolMphModeler < handle
             end
         end
 
-        function y = comsol_prefix(comsol_object_name)
-            % Return default 3-letter lowercase COMSOL feature prefix.
-            y = lower(string(comsol_object_name).extractBetween(1, 3));
-        end
-
         function names = py_iter_to_strings(iterable)
             % Convert Python iterable of string-like objects to MATLAB string.
             values = cell(py.list(iterable));
@@ -314,7 +275,7 @@ classdef ComsolMphModeler < handle
 
             requested = string(args.model_tag);
             if strlength(requested) == 0
-                obj.model_tag = core.ComsolLivelinkModeler.next_model_tag();
+                obj.model_tag = core.ComsolModeler.next_model_tag();
             else
                 obj.model_tag = requested;
             end
@@ -327,16 +288,6 @@ classdef ComsolMphModeler < handle
             catch
             end
             obj.initialize_workspace();
-        end
-
-        function initialize_workspace(obj)
-            % Initialize variable/component/geometry/workplane defaults.
-            obj.model.variable.create('var1');
-            obj.component = obj.model.component.create('Component', true);
-            obj.geometry = obj.component.geom.create('Geometry', int32(3));
-            obj.geometry.lengthUnit("nm");
-            obj.workplane = obj.geometry.create('wp1', 'WorkPlane');
-            obj.geometry.feature('wp1').set('unite', true);
         end
 
         function dispose_model(obj)
@@ -466,12 +417,13 @@ classdef ComsolMphModeler < handle
             try
                 bridge_mod = py.importlib.import_module(char(module_name));
             catch
-                % Add project root to sys.path if MATLAB was started elsewhere.
+                % Add project python folder to sys.path if MATLAB was started elsewhere.
                 try
                     this_dir = fileparts(mfilename("fullpath"));
                     root_dir = fileparts(this_dir);
+                    python_dir = fullfile(root_dir, "python");
                     sys_mod = py.importlib.import_module("sys");
-                    sys_mod.path.append(char(root_dir));
+                    sys_mod.path.append(char(python_dir));
                 catch
                 end
                 bridge_mod = py.importlib.import_module(char(module_name));
@@ -483,22 +435,7 @@ classdef ComsolMphModeler < handle
             % Resolve COMSOL Desktop executable from config and PATH.
             exe_path = "";
             candidates = strings(0, 1);
-
-            try
-                cfg = core.ProjectConfig.load();
-                root = string(cfg.comsol.root);
-            catch
-                root = "";
-            end
-
-            roots = strings(0, 1);
-            if strlength(root) > 0
-                roots = [roots; root];
-                if endsWith(lower(root), lower("\Multiphysics")) || endsWith(lower(root), lower("/Multiphysics"))
-                    roots = [roots; string(fileparts(char(root)))];
-                end
-            end
-            roots = unique(roots(strlength(roots) > 0), "stable");
+            roots = core.ComsolModeler.configured_roots();
 
             for r = 1:numel(roots)
                 rr = roots(r);
@@ -547,22 +484,7 @@ classdef ComsolMphModeler < handle
             % Resolve COMSOL mph client executable from config and PATH.
             exe_path = "";
             candidates = strings(0, 1);
-
-            try
-                cfg = core.ProjectConfig.load();
-                root = string(cfg.comsol.root);
-            catch
-                root = "";
-            end
-
-            roots = strings(0, 1);
-            if strlength(root) > 0
-                roots = [roots; root];
-                if endsWith(lower(root), lower("\Multiphysics")) || endsWith(lower(root), lower("/Multiphysics"))
-                    roots = [roots; string(fileparts(char(root)))];
-                end
-            end
-            roots = unique(roots(strlength(roots) > 0), "stable");
+            roots = core.ComsolModeler.configured_roots();
 
             for r = 1:numel(roots)
                 rr = roots(r);

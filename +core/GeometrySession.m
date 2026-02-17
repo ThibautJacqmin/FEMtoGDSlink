@@ -305,10 +305,7 @@ classdef GeometrySession < handle
 
             if obj.preview_klayout
                 if obj.preview_live_active
-                    obj.reset_gds_layout();
-                    if isempty(obj.gds_backend)
-                        obj.gds_backend = core.KlayoutBackend(obj);
-                    end
+                    obj.reset_and_init_gds_backend();
                     nodes_to_emit = obj.gds_nodes_for_export(scope=args.scope);
                     obj.gds_backend.emit_all(nodes_to_emit);
                     obj.gds.write(filename);
@@ -326,9 +323,7 @@ classdef GeometrySession < handle
                 return;
             end
 
-            if isempty(obj.gds_backend)
-                obj.gds_backend = core.KlayoutBackend(obj);
-            end
+            obj.ensure_gds_backend();
             nodes_to_emit = obj.gds_nodes_for_export(scope=args.scope);
             obj.gds_backend.emit_all(nodes_to_emit);
             obj.gds.write(filename);
@@ -447,9 +442,7 @@ classdef GeometrySession < handle
             if args.reset_layout
                 obj.reset_gds_layout();
             end
-            if isempty(obj.gds_backend)
-                obj.gds_backend = core.KlayoutBackend(obj);
-            end
+            obj.ensure_gds_backend();
 
             nodes_to_emit = obj.gds_nodes_for_export(scope=preview_scope_local);
             obj.gds.write(output_filename);
@@ -484,10 +477,7 @@ classdef GeometrySession < handle
             end
 
             if strlength(final_scope_local) > 0 && final_scope_local ~= preview_scope_local
-                obj.reset_gds_layout();
-                if isempty(obj.gds_backend)
-                    obj.gds_backend = core.KlayoutBackend(obj);
-                end
+                obj.reset_and_init_gds_backend();
                 final_nodes = obj.gds_nodes_for_export(scope=final_scope_local);
                 obj.gds_backend.emit_all(final_nodes);
                 obj.gds.write(output_filename);
@@ -659,6 +649,31 @@ classdef GeometrySession < handle
             end
         end
 
+        function tf = node_keeps_inputs(node)
+            % Return true when node declares keep-input behavior.
+            tf = false;
+            if isprop(node, "keep_input_objects")
+                try
+                    v = node.keep_input_objects;
+                    if isscalar(v)
+                        tf = logical(v);
+                        return;
+                    end
+                catch
+                end
+            end
+            % Backward compatibility for legacy keep flag.
+            if isprop(node, "keep")
+                try
+                    v = node.keep;
+                    if isscalar(v)
+                        tf = logical(v);
+                    end
+                catch
+                end
+            end
+        end
+
         function ctx = with_shared_comsol(args)
             % Create a session using process-wide shared COMSOL modeler.
             % comsol_api:
@@ -800,16 +815,10 @@ classdef GeometrySession < handle
                 args.comsol_root {mustBeTextScalar}
             end
 
-            cfg_host = "localhost";
-            cfg_port = 2036;
-            cfg_root = "";
-            try
-                cfg = core.ProjectConfig.load();
-                cfg_host = string(cfg.comsol.host);
-                cfg_port = double(cfg.comsol.port);
-                cfg_root = string(cfg.comsol.root);
-            catch
-            end
+            cfg = core.ComsolModeler.connection_defaults();
+            cfg_host = string(cfg.host);
+            cfg_port = double(cfg.port);
+            cfg_root = string(cfg.root);
 
             host = string(args.comsol_host);
             if strlength(host) == 0
@@ -905,31 +914,6 @@ classdef GeometrySession < handle
             n = sum(vals);
         end
 
-        function tf = node_keeps_inputs(node)
-            % Return true when node declares keep-input behavior.
-            tf = false;
-            if isprop(node, "keep_input_objects")
-                try
-                    v = node.keep_input_objects;
-                    if isscalar(v)
-                        tf = logical(v);
-                        return;
-                    end
-                catch
-                end
-            end
-            % Backward compatibility for legacy keep flag.
-            if isprop(node, "keep")
-                try
-                    v = node.keep;
-                    if isscalar(v)
-                        tf = logical(v);
-                    end
-                catch
-                end
-            end
-        end
-
         function scope = normalize_gds_scope(raw_scope)
             % Normalize and validate one GDS node selection scope.
             scope = lower(string(raw_scope));
@@ -1023,6 +1007,19 @@ classdef GeometrySession < handle
             obj.gds_backend = [];
         end
 
+        function ensure_gds_backend(obj)
+            % Lazily initialize GDS backend for current in-memory layout.
+            if isempty(obj.gds_backend)
+                obj.gds_backend = core.KlayoutBackend(obj);
+            end
+        end
+
+        function reset_and_init_gds_backend(obj)
+            % Recreate GDS modeler/backends and ensure backend is ready.
+            obj.reset_gds_layout();
+            obj.ensure_gds_backend();
+        end
+
         function preview_live_step(obj, feature)
             % Incrementally update external KLayout preview after one node creation.
             if ~obj.has_gds()
@@ -1035,15 +1032,10 @@ classdef GeometrySession < handle
             end
 
             if obj.preview_scope == "all"
-                if isempty(obj.gds_backend)
-                    obj.gds_backend = core.KlayoutBackend(obj);
-                end
+                obj.ensure_gds_backend();
                 obj.gds_backend.emit(feature);
             else
-                obj.reset_gds_layout();
-                if isempty(obj.gds_backend)
-                    obj.gds_backend = core.KlayoutBackend(obj);
-                end
+                obj.reset_and_init_gds_backend();
                 final_nodes = obj.gds_nodes_for_export(scope="final");
                 obj.gds_backend.emit_all(final_nodes);
             end

@@ -261,6 +261,28 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
 
+        function emitSquarePrimitive(testCase)
+            % Verify COMSOL backend emits primitives.Square primitive.
+            ctx = core.GeometrySession.with_shared_comsol( ...
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            p_side = types.Parameter(34, "sq_side");
+            s = primitives.Square(ctx, base="corner", corner=[20 -10], ...
+                side=p_side, angle=15, layer="m1");
+            ctx.build_comsol();
+
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(s.id)));
+            s_tag = string(ctx.comsol_backend.feature_tags(int32(s.id)));
+            testCase.verifyTrue(startsWith(s_tag, "squ"));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "sq_side"));
+            testCase.verifyEqual(s.width.value, p_side.value);
+            testCase.verifyEqual(s.height.value, p_side.value);
+            testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
+        end
+
         function emitCurveAndPointPrimitives(testCase)
             % Verify COMSOL backend emits point/curve primitives.
             ctx = core.GeometrySession.with_shared_comsol( ...

@@ -29,12 +29,18 @@ classdef Route
         end
 
         function y = path_length(obj)
-            d = diff(obj.points, 1, 1);
+            pts = obj.shifted_points(0);
+            d = diff(pts, 1, 1);
             y = sum(sqrt(sum(d.^2, 2)));
         end
 
         function out = shifted(obj, offset)
-            pts = obj.shifted_points(offset);
+            off = routing.Route.scalar_value(offset, "offset");
+            if abs(off) < 1e-15
+                pts = obj.points;
+            else
+                pts = routing.Route.offset_polyline(obj.points, off);
+            end
             out = routing.Route(points=pts, fillet=obj.fillet);
         end
 
@@ -42,9 +48,13 @@ classdef Route
             off = routing.Route.scalar_value(offset, "offset");
             if abs(off) < 1e-15
                 pts = obj.points;
-                return;
+            else
+                pts = routing.Route.offset_polyline(obj.points, off);
             end
-            pts = routing.Route.offset_polyline(obj.points, off);
+
+            if obj.fillet > 1e-15
+                pts = routing.Route.apply_circular_fillets(pts, obj.fillet);
+            end
         end
     end
     methods (Static)
@@ -141,6 +151,129 @@ classdef Route
             end
         end
 
+        function pts = apply_circular_fillets(pts, radius)
+            % Replace sharp interior corners by circular arcs of given radius.
+            p = double(pts);
+            n = size(p, 1);
+            if n < 3 || radius <= 1e-15
+                pts = routing.Route.clean_points(p);
+                return;
+            end
+
+            tol = 1e-12;
+            d = zeros(n, 1);
+            phi = zeros(n, 1);
+            turn = zeros(n, 1);
+
+            for i = 2:(n-1)
+                a = p(i, :) - p(i-1, :);
+                b = p(i+1, :) - p(i, :);
+                la = norm(a);
+                lb = norm(b);
+                if la <= tol || lb <= tol
+                    continue;
+                end
+
+                u = a / la;
+                v = b / lb;
+                cross_z = u(1) * v(2) - u(2) * v(1);
+                if abs(cross_z) <= tol
+                    continue;
+                end
+
+                dot_uv = max(-1, min(1, dot(u, v)));
+                ang = acos(dot_uv);
+                if ang <= 1e-9 || abs(pi - ang) <= 1e-9
+                    continue;
+                end
+
+                tan_half = tan(0.5 * ang);
+                if abs(tan_half) <= tol
+                    continue;
+                end
+
+                d(i) = radius * tan_half;
+                phi(i) = ang;
+                turn(i) = sign(cross_z);
+            end
+
+            if ~any(d > tol)
+                pts = routing.Route.clean_points(p);
+                return;
+            end
+
+            seg_len = sqrt(sum(diff(p, 1, 1).^2, 2));
+            cap = 0.999;
+            for pass = 1:4
+                changed = false;
+                for s = 1:(n-1)
+                    total_trim = d(s) + d(s+1);
+                    max_trim = cap * seg_len(s);
+                    if total_trim > max_trim && total_trim > tol
+                        scale = max_trim / total_trim;
+                        if d(s) > 0
+                            d(s) = d(s) * scale;
+                        end
+                        if d(s+1) > 0
+                            d(s+1) = d(s+1) * scale;
+                        end
+                        changed = true;
+                    end
+                end
+                if ~changed
+                    break;
+                end
+            end
+
+            out = zeros(0, 2);
+            out = routing.Route.append_unique_point(out, p(1, :), tol);
+
+            for i = 2:(n-1)
+                if d(i) <= tol || phi(i) <= 1e-9 || turn(i) == 0
+                    out = routing.Route.append_unique_point(out, p(i, :), tol);
+                    continue;
+                end
+
+                a = p(i, :) - p(i-1, :);
+                b = p(i+1, :) - p(i, :);
+                la = norm(a);
+                lb = norm(b);
+                if la <= tol || lb <= tol
+                    out = routing.Route.append_unique_point(out, p(i, :), tol);
+                    continue;
+                end
+                u = a / la;
+                v = b / lb;
+
+                trim = min([d(i), 0.499 * la, 0.499 * lb]);
+                if trim <= tol
+                    out = routing.Route.append_unique_point(out, p(i, :), tol);
+                    continue;
+                end
+
+                tan_half = tan(0.5 * phi(i));
+                if abs(tan_half) <= tol
+                    out = routing.Route.append_unique_point(out, p(i, :), tol);
+                    continue;
+                end
+                r_use = trim / tan_half;
+
+                t1 = p(i, :) - u * trim;
+                t2 = p(i, :) + v * trim;
+                n_u = [-u(2), u(1)];
+                center = t1 + turn(i) * n_u * r_use;
+
+                arc = routing.Route.sample_corner_arc(center, t1, t2, turn(i), r_use);
+                out = routing.Route.append_unique_point(out, t1, tol);
+                for k = 2:size(arc, 1)
+                    out = routing.Route.append_unique_point(out, arc(k, :), tol);
+                end
+            end
+
+            out = routing.Route.append_unique_point(out, p(end, :), tol);
+            pts = routing.Route.clean_points(out);
+        end
+
         function shifted = offset_polyline(pts, offset)
             if size(pts, 1) < 2
                 error("Route offset requires at least 2 points.");
@@ -179,6 +312,36 @@ classdef Route
                 v = v / n;
             end
         end
+
+        function arc = sample_corner_arc(center, t1, t2, turn_sign, radius)
+            % Sample arc from tangent point t1 to t2 with oriented sweep.
+            a1 = atan2(t1(2) - center(2), t1(1) - center(1));
+            a2 = atan2(t2(2) - center(2), t2(1) - center(1));
+            if turn_sign > 0
+                while a2 <= a1
+                    a2 = a2 + 2*pi;
+                end
+            else
+                while a2 >= a1
+                    a2 = a2 - 2*pi;
+                end
+            end
+
+            sweep = abs(a2 - a1);
+            npts = max(3, ceil(sweep / (pi / 18)) + 1); % about 10-degree steps
+            ang = linspace(a1, a2, npts).';
+            arc = [center(1) + radius .* cos(ang), center(2) + radius .* sin(ang)];
+        end
+
+        function pts = append_unique_point(pts, p, tol)
+            % Append point when it is not a duplicate of the last vertex.
+            if isempty(pts)
+                pts = reshape(p, 1, 2);
+                return;
+            end
+            if norm(pts(end, :) - p) > tol
+                pts(end+1, :) = p; %#ok<AGROW>
+            end
+        end
     end
 end
-

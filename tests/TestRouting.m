@@ -40,6 +40,14 @@ classdef TestRouting < matlab.unittest.TestCase
             shifted = route.shifted(12);
             testCase.verifyEqual(size(shifted.points, 2), 2);
             testCase.verifyEqual(shifted.fillet, route.fillet, AbsTol=1e-12);
+
+            sharp = routing.Route(points=[0, 0; 100, 0; 100, 100], fillet=0);
+            filleted = routing.Route(points=[0, 0; 100, 0; 100, 100], fillet=20);
+            sharp_pts = sharp.shifted_points(0);
+            fillet_pts = filleted.shifted_points(0);
+            testCase.verifyEqual(size(sharp_pts, 1), 3);
+            testCase.verifyGreaterThan(size(fillet_pts, 1), size(sharp_pts, 1));
+            testCase.verifyLessThan(filleted.path_length(), sharp.path_length());
         end
 
         function cableBuildsFeaturesWithoutBackends(testCase)
@@ -59,6 +67,9 @@ classdef TestRouting < matlab.unittest.TestCase
             testCase.verifyEqual(numel(cable.raw_tracks), 2);
             testCase.verifyEqual(numel(cable.features), 2);
             testCase.verifyGreaterThan(cable.length_nm(), 0);
+            testCase.verifyGreaterThan( ...
+                cable.centerlines{1}.points.nvertices, ...
+                size(cable.route.points, 1));
             for i = 1:numel(cable.features)
                 testCase.verifyTrue(isa(cable.features{i}, "core.GeomFeature"));
             end
@@ -145,4 +156,3 @@ classdef TestRouting < matlab.unittest.TestCase
         end
     end
 end
-

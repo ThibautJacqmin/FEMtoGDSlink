@@ -65,6 +65,12 @@ classdef Cable
                     fillet=args.fillet);
             end
             obj.route = route_local;
+            convex_mode = string(args.convexcorner);
+            if route_local.fillet > 1e-15 && lower(convex_mode) == "fillet"
+                % Route geometry already contains explicit circular bends.
+                % Avoid backend-specific second-pass corner filleting.
+                convex_mode = "tangent";
+            end
 
             n = spec_in.ntracks;
             raw_local = cell(1, n);
@@ -86,7 +92,7 @@ classdef Cable
                     offset="symmetric", ...
                     totalthick=width_i, ...
                     ends=args.ends, ...
-                    convexcorner=args.convexcorner, ...
+                    convexcorner=convex_mode, ...
                     keep_input_objects=args.keep_input_objects, ...
                     layer=layer_i);
                 layer_local(i) = string(layer_i);

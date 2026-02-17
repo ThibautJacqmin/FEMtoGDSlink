@@ -30,6 +30,9 @@ classdef ComsolMphModeler < core.ComsolModeler
             % Recreate a fresh model in the same MPh client/session.
             prior_tag = string(obj.model_tag);
             obj.dispose_model();
+            % Rebind client in case server was restarted/disconnected.
+            obj.py_client = core.ComsolMphModeler.ensure_client( ...
+                host=obj.comsol_host, port=obj.comsol_port);
             obj.feature_counters = dictionary(string.empty(0,1), int32.empty(0,1));
             obj.create_new_model(model_tag=prior_tag);
             obj.mesh = [];
@@ -182,13 +185,26 @@ classdef ComsolMphModeler < core.ComsolModeler
             else
                 host_changed = obj.comsol_host ~= string(args.comsol_host);
                 port_changed = obj.comsol_port ~= double(args.comsol_port);
-                if host_changed || port_changed
+                client_ok = ~isempty(obj.py_client) && ...
+                    core.ComsolMphModeler.client_alive(obj.py_client);
+                if host_changed || port_changed || ~client_ok
                     obj = core.ComsolMphModeler( ...
                         comsol_host=args.comsol_host, ...
                         comsol_port=args.comsol_port, ...
                         strict_installed=args.strict_installed);
                 elseif args.reset
-                    obj.reset_workspace();
+                    try
+                        obj.reset_workspace();
+                    catch ex
+                        if contains(lower(string(ex.message)), "not connected to a server")
+                            obj = core.ComsolMphModeler( ...
+                                comsol_host=args.comsol_host, ...
+                                comsol_port=args.comsol_port, ...
+                                strict_installed=args.strict_installed);
+                        else
+                            rethrow(ex);
+                        end
+                    end
                 end
             end
             core.ComsolMphModeler.shared_store(obj);

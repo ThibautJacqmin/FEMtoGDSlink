@@ -291,10 +291,12 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
+            p_um = types.Parameter(1, "curve_u", unit="um");
             p = primitives.Point(ctx, p=[-10 -20; 30 40], marker_size=4, layer="m1");
             ls = primitives.LineSegment(ctx, p1=[-20 0], p2=[20 10], width=6, ...
                 layer="m1");
-            ic = primitives.InterpolationCurve(ctx, points=[0 0; 10 20; 20 0; 30 10], ...
+            ic = primitives.InterpolationCurve(ctx, ...
+                points=types.Vertices([0 0; 10 20; 20 0; 30 10], p_um), ...
                 type="open", width=6, layer="m1");
             qb = primitives.QuadraticBezier(ctx, p0=[40 0], p1=[50 30], p2=[70 10], ...
                 npoints=64, width=6, layer="m1");
@@ -313,6 +315,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             for i = 1:numel(nodes)
                 testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(nodes{i}.id)));
             end
+            testCase.verifyTrue(isKey(ctx.comsol_backend.defined_params, "curve_u"));
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
 

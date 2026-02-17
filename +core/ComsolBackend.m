@@ -222,10 +222,66 @@ classdef ComsolBackend < handle
         end
 
         function emit_InterpolationCurve(obj, node)
-            % Emit a COMSOL InterpolationCurve primitive.
+            % Emit InterpolationCurve. For open curves, emit a piecewise-linear
+            % Polygon(type=open) so COMSOL thickening matches KLayout polyline behavior.
+            mode = lower(string(node.type));
+            if mode == "open"
+                [layer, feature, tag] = obj.start_feature(node, "ic", "Polygon");
+                try
+                    feature.set('type', 'open');
+                catch
+                end
+
+                pts_obj = node.points;
+                if isa(pts_obj, 'types.Vertices')
+                    [xvals, yvals] = obj.polygon_components(pts_obj, ...
+                        "InterpolationCurve points");
+                else
+                    pts = obj.session.snap_length(node.points_value(), ...
+                        "InterpolationCurve points");
+                    n = size(pts, 1);
+                    xvals = cell(1, n);
+                    yvals = cell(1, n);
+                    for i = 1:n
+                        xvals{i} = obj.to_comsol_token(pts(i, 1));
+                        yvals{i} = obj.to_comsol_token(pts(i, 2));
+                    end
+                end
+
+                try
+                    feature.set('source', 'vectors');
+                catch
+                end
+                feature.set('x', xvals);
+                feature.set('y', yvals);
+                obj.finish_feature(node, layer, feature, tag);
+                return;
+            end
+
+            % Closed/solid modes keep native COMSOL InterpolationCurve semantics.
             [layer, feature, tag] = obj.start_feature(node, "ic", "InterpolationCurve");
-            pts = obj.session.snap_length(node.points_value(), "InterpolationCurve table");
-            feature.set('table', pts);
+            set_from_vectors = false;
+            pts_obj = node.points;
+            if isa(pts_obj, 'types.Vertices')
+                [xvals, yvals] = obj.polygon_components(pts_obj, ...
+                    "InterpolationCurve points");
+                try
+                    feature.set('source', 'vectors');
+                catch
+                end
+                try
+                    feature.set('x', xvals);
+                    feature.set('y', yvals);
+                    set_from_vectors = true;
+                catch
+                    set_from_vectors = false;
+                end
+            end
+
+            if ~set_from_vectors
+                pts = obj.session.snap_length(node.points_value(), "InterpolationCurve table");
+                feature.set('table', pts);
+            end
             feature.set('type', char(node.type));
             obj.finish_feature(node, layer, feature, tag);
         end

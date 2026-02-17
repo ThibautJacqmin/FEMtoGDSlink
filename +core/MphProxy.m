@@ -158,7 +158,9 @@ classdef MphProxy < handle
                     cells = arrayfun(@(x) x, v(:).', 'UniformOutput', false);
                     py_v = py.list(cells);
                 else
-                    rows = cell(size(v, 1), 1);
+                    % MATLAB's Python bridge accepts cell->py.list conversion
+                    % only for 1xN cell vectors (not Nx1 column cells).
+                    rows = cell(1, size(v, 1));
                     for r = 1:size(v, 1)
                         rows{r} = core.MphProxy.to_py(v(r, :));
                     end

@@ -696,7 +696,7 @@ classdef GeometrySession < handle
                 args.preview_show_all_cells logical = true
                 args.reset_model logical = true
                 args.launch_comsol_gui logical = false
-                args.clean_on_reset logical = true
+                args.clean_on_reset logical = false
                 args.comsol_api {mustBeTextScalar} = "mph"
                 args.comsol_host {mustBeTextScalar} = ""
                 args.comsol_port double = NaN
@@ -762,7 +762,8 @@ classdef GeometrySession < handle
         end
 
         function removed = clean_comsol_server(args)
-            % Remove generated COMSOL models and clear shared COMSOL handle.
+            % Remove generated COMSOL models from the server.
+            % This intentionally does not clear the shared modeler handle.
             arguments
                 args.prefix (1,1) string = "Model_"
             end
@@ -771,7 +772,6 @@ classdef GeometrySession < handle
                 removed = removed + core.ComsolMphModeler.clear_generated_models(prefix=args.prefix);
             catch
             end
-            core.GeometrySession.clear_shared_comsol();
         end
 
         function set_current(ctx)

@@ -87,6 +87,61 @@ cD = Cable(ctx, pinD, poutD, ...
     name="demoD", fillet=20, start_straight=30, bend="auto", merge_per_layer=true);
 fprintf("Demo D length: %.3f um\n", cD.length_nm() / 1000);
 
+%% Demo E: meander-like route (explicit serpentine centerline points).
+pinE = PortRef(name="E_in", pos=Vertices([-320, 330], p_um), ori=[1, 0], spec=cpw);
+poutE = PortRef(name="E_out", pos=Vertices([320, 330], p_um), ori=[-1, 0], spec=cpw);
+pinE.draw_markers(ctx=ctx, layer="portmark");
+poutE.draw_markers(ctx=ctx, layer="portmark");
+
+routeE = Route(points=[ ...
+    -320, 330; -240, 330; ...
+    -240, 255; -160, 255; ...
+    -160, 405; -80, 405; ...
+    -80, 255; 0, 255; ...
+    0, 405; 80, 405; ...
+    80, 255; 160, 255; ...
+    160, 330; 320, 330], ...
+    fillet=12);
+cE = Cable(ctx, pinE, poutE, ...
+    name="demoE_meander", route=routeE, ...
+    ends="straight", convexcorner="tangent", merge_per_layer=true);
+fprintf("Demo E (meander) length: %.3f um\n", cE.length_nm() / 1000);
+
+%% Demo F: tapered CPW edge-launches + routed interconnect.
+% Here tapers are explicit polygons from wide wirebond edge width to CPW width.
+sig_narrow = cpw.width_value(1);
+gap_narrow = cpw.width_value(2);
+sig_wide = 95;
+gap_wide = 160;
+
+% Left edge taper (wide at x=-380 to narrow at x=-280).
+draw_linear_taper(ctx, "metal1", -380, -280, -430, sig_wide, sig_narrow, p_um);
+draw_linear_taper(ctx, "gap", -380, -280, -430, gap_wide, gap_narrow, p_um);
+
+% Right edge taper (wide at x=380 to narrow at x=280).
+draw_linear_taper(ctx, "metal1", 380, 280, -360, sig_wide, sig_narrow, p_um);
+draw_linear_taper(ctx, "gap", 380, 280, -360, gap_wide, gap_narrow, p_um);
+
+pinF = PortRef(name="F_in", pos=Vertices([-280, -430], p_um), ori=[1, 0], spec=cpw);
+poutF = PortRef(name="F_out", pos=Vertices([280, -360], p_um), ori=[-1, 0], spec=cpw);
+pinF.draw_markers(ctx=ctx, layer="portmark", tip_scale=0.5);
+poutF.draw_markers(ctx=ctx, layer="portmark", tip_scale=0.5);
+
+cF = Cable(ctx, pinF, poutF, ...
+    name="demoF_tapered_launch", fillet=22, start_straight=28, bend="auto", ...
+    ends="straight", merge_per_layer=true);
+fprintf("Demo F (tapered launch) length: %.3f um\n", cF.length_nm() / 1000);
+
 ctx.export_gds("example_5.gds");
 ctx.build_comsol();
 ctx.build_report();
+
+function feat = draw_linear_taper(ctx, layer, x0, x1, yc, w0, w1, pref)
+% Draw trapezoidal taper between widths w0 (at x0) and w1 (at x1).
+verts = [
+    x0, yc - 0.5 * w0;
+    x0, yc + 0.5 * w0;
+    x1, yc + 0.5 * w1;
+    x1, yc - 0.5 * w1];
+feat = primitives.Polygon(ctx, vertices=types.Vertices(verts, pref), layer=layer);
+end

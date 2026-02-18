@@ -143,6 +143,26 @@ classdef TestRouting < matlab.unittest.TestCase
             end
         end
 
+        function cableRaisesTooSmallFilletForWideTracks(testCase)
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+            ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
+
+            spec = routing.PortSpec( ...
+                widths=[12, 40], offsets=[0, 0], ...
+                layers=["m1", "gap"], subnames=["sig", "gap"]);
+            p1 = routing.PortRef(name="in", pos=[0, 0], ori=[1, 0], spec=spec);
+            p2 = routing.PortRef(name="out", pos=[260, 110], ori=[-1, 0], spec=spec);
+
+            cable = routing.Cable(ctx, p1, p2, ...
+                fillet=10, ...
+                start_straight=20, ...
+                convexcorner="fillet", ...
+                name="fillet_clamped");
+
+            testCase.verifyGreaterThanOrEqual(cable.route.fillet, 20);
+        end
+
         function cableRejectsMismatchedSpecs(testCase)
             ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");

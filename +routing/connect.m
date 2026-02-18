@@ -35,6 +35,7 @@ if ~spec_ok && opts.allow_mismatch && opts.adaptor.enabled
 end
 fixed_adaptor_len_nm = adaptor_extra_length_nm( ...
     port_in, route_port_in, port_out, route_port_out);
+fillet_eff = effective_fillet_nm(route_port_in.spec, opts.fillet, opts.convexcorner);
 
 switch lower(string(opts.mode))
     case "manhattan"
@@ -43,14 +44,14 @@ switch lower(string(opts.mode))
             start_straight=opts.start_straight, ...
             end_straight=opts.end_straight, ...
             bend=opts.bend, ...
-            fillet=opts.fillet);
+            fillet=fillet_eff);
     case "auto"
         route_local = routing.internal.route_auto_select( ...
             route_port_in, route_port_out, ...
             start_straight=opts.start_straight, ...
             end_straight=opts.end_straight, ...
             bend=opts.bend, ...
-            fillet=opts.fillet);
+            fillet=fillet_eff);
     otherwise
         error("routing:connect:InvalidMode", "Unknown mode '%s'.", string(opts.mode));
 end
@@ -105,4 +106,31 @@ if ~isempty(route_out)
         y = y + d_out;
     end
 end
+end
+
+function f = effective_fillet_nm(spec, fillet_raw, convexcorner)
+f = local_scalar_value(fillet_raw, "fillet");
+if f <= 0
+    return;
+end
+if lower(string(convexcorner)) ~= "fillet"
+    return;
+end
+min_f = 0.5 * max(spec.widths_value());
+if f < min_f
+    f = min_f;
+end
+end
+
+function y = local_scalar_value(val, label)
+if isa(val, 'types.Parameter')
+    y = val.value;
+else
+    y = val;
+end
+if ~(isscalar(y) && isnumeric(y) && isfinite(y))
+    error("routing:connect:InvalidScalar", ...
+        "Option '%s' must resolve to a finite scalar.", char(string(label)));
+end
+y = double(y);
 end

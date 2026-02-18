@@ -4,6 +4,7 @@ classdef Array1D < core.GeomFeature
         target
         ncopies
         delta
+        unwanted_indices
         keep_input_objects
     end
     methods
@@ -19,6 +20,7 @@ classdef Array1D < core.GeomFeature
             obj.add_input(target);
             obj.ncopies = args.ncopies;
             obj.delta = args.delta;
+            obj.unwanted_indices = args.unwanted_indices;
             obj.keep_input_objects = logical(args.keep_input_objects) || logical(args.keep);
             obj.finalize();
         end
@@ -37,6 +39,14 @@ classdef Array1D < core.GeomFeature
 
         function val = get.delta(obj)
             val = obj.get_param("delta");
+        end
+
+        function set.unwanted_indices(obj, val)
+            obj.set_param("unwanted_indices", ops.Array1D.normalize_unwanted_indices(val));
+        end
+
+        function val = get.unwanted_indices(obj)
+            val = obj.get_param("unwanted_indices", zeros(1, 0));
         end
 
         function set.keep_input_objects(obj, val)
@@ -61,11 +71,27 @@ classdef Array1D < core.GeomFeature
             arguments
                 args.ncopies = 1
                 args.delta = [1, 0]
+                args.unwanted_indices = []
                 args.keep_input_objects logical = false
                 args.keep logical = false
                 args.layer = []
             end
             parsed = args;
+        end
+
+        function idx = normalize_unwanted_indices(val)
+            if isempty(val)
+                idx = zeros(1, 0);
+                return;
+            end
+            if ~(isnumeric(val) && isvector(val))
+                error("Array1D unwanted_indices must be a numeric vector of 1-based indices.");
+            end
+            idx = double(val(:).');
+            if any(~isfinite(idx)) || any(abs(idx - round(idx)) > 1e-12) || any(idx < 1)
+                error("Array1D unwanted_indices must contain finite integers >= 1.");
+            end
+            idx = unique(round(idx), "stable");
         end
     end
 end

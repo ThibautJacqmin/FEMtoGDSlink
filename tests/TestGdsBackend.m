@@ -176,6 +176,33 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(double(reg2.area()), p_nx.value * p_ny.value * base_area);
         end
 
+        function array1DAnd2DWithUnwantedIndices(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = TestGdsBackend.newContext();
+            p_nx = types.Parameter(5, "arr_nx_cut", unit="");
+            p_ny = types.Parameter(4, "arr_ny_cut", unit="");
+            p_pitch_x = types.Parameter(220, "arr_pitch_x_cut");
+            p_pitch_y = types.Parameter(180, "arr_pitch_y_cut");
+
+            base = primitives.Rectangle(ctx, center=[0 0], width=100, height=50, layer="m1");
+            arr1 = ops.Array1D(ctx, base, ncopies=p_nx, ...
+                delta=types.Vertices([1, 0], p_pitch_x), ...
+                unwanted_indices=[2, 4], layer="m1");
+            arr2 = ops.Array2D(ctx, base, ncopies_x=p_nx, ncopies_y=p_ny, ...
+                delta_x=types.Vertices([1, 0], p_pitch_x), delta_y=types.Vertices([0, 1], p_pitch_y), ...
+                unwanted_array_elements=[1, 1; 3, 2; 5, 4], layer="m1");
+
+            backend = core.KlayoutBackend(ctx);
+            reg1 = backend.region_for(arr1);
+            reg2 = backend.region_for(arr2);
+            base_area = 100 * 50;
+
+            testCase.verifyEqual(double(reg1.area()), (p_nx.value - 2) * base_area);
+            testCase.verifyEqual(double(reg2.area()), (p_nx.value * p_ny.value - 3) * base_area);
+        end
+
         function arrayCopyCountNotQuantizedByResolution(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");

@@ -23,8 +23,6 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
 
         function withSharedComsolUsesMphModelerAndBuilds(testCase)
             % Verify GeometrySession can emit basic features through comsol_api="mph".
-            testCase.assumeTrue(TestComsolMphBackend.runIntegrationTests(), ...
-                "Skipping MPh integration test. Set FEMTOGDS_RUN_MPH_INTEGRATION=1 to enable.");
             [ok, reason] = TestComsolMphBackend.hasMphServer();
             testCase.assumeTrue(ok, "Skipping MPh integration test: " + reason);
 
@@ -56,8 +54,6 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
 
         function mphSharedModelerReuseAndClear(testCase)
             % Verify shared MPh modeler reuses model tag and clear_shared resets it.
-            testCase.assumeTrue(TestComsolMphBackend.runIntegrationTests(), ...
-                "Skipping MPh integration test. Set FEMTOGDS_RUN_MPH_INTEGRATION=1 to enable.");
             [ok, reason] = TestComsolMphBackend.hasMphServer();
             testCase.assumeTrue(ok, "Skipping MPh integration test: " + reason);
 
@@ -142,12 +138,6 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             else
                 port = double(val);
             end
-        end
-
-        function tf = runIntegrationTests()
-            % Return true when deep MPh integration tests are explicitly enabled.
-            token = lower(strtrim(string(getenv("FEMTOGDS_RUN_MPH_INTEGRATION"))));
-            tf = any(token == ["1", "true", "on", "yes"]);
         end
 
         function tf = canReachServer(host, port, timeout_ms)

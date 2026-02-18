@@ -64,6 +64,18 @@ classdef Cable
                     bend=args.bend, ...
                     fillet=args.fillet);
             end
+            if lower(string(args.convexcorner)) == "fillet" && route_local.fillet > 1e-15
+                min_fillet = 0.5 * max(spec_in.widths_value());
+                if route_local.fillet < min_fillet - 1e-12
+                    msg = sprintf([ ...
+                        'Route fillet (%.3f nm) is too small for widest track (%.3f nm). ' ...
+                        'Using %.3f nm so concave corners remain rounded.'], ...
+                        route_local.fillet, max(spec_in.widths_value()), min_fillet);
+                    warning("routing:Cable:FilletTooSmallForTrack", ...
+                        "%s", msg);
+                    route_local = routing.Route(points=route_local.points, fillet=min_fillet);
+                end
+            end
             obj.route = route_local;
             convex_mode = string(args.convexcorner);
 

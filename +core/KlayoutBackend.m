@@ -245,8 +245,12 @@ classdef KlayoutBackend < handle
             base = obj.region_for(node.target);
             n = obj.copy_count(node.ncopies, "Array1D ncopies");
             delta = obj.gds_length_vector(node.delta, "Array1D delta");
+            unwanted = obj.array1d_unwanted_mask(node, n);
             region = obj.modeler.pya.Region();
             for i = 0:(n-1)
+                if unwanted(i + 1)
+                    continue;
+                end
                 shifted = obj.apply_translate(base, i*delta(1), i*delta(2));
                 region = region + shifted;
             end
@@ -259,9 +263,13 @@ classdef KlayoutBackend < handle
             ny = obj.copy_count(node.ncopies_y, "Array2D ncopies_y");
             dx = obj.gds_length_vector(node.delta_x, "Array2D delta_x");
             dy = obj.gds_length_vector(node.delta_y, "Array2D delta_y");
+            unwanted = obj.array2d_unwanted_mask(node, nx, ny);
             region = obj.modeler.pya.Region();
             for ix = 0:(nx-1)
                 for iy = 0:(ny-1)
+                    if unwanted(ix + 1, iy + 1)
+                        continue;
+                    end
                     shift = ix*dx + iy*dy;
                     shifted = obj.apply_translate(base, shift(1), shift(2));
                     region = region + shifted;
@@ -536,6 +544,37 @@ classdef KlayoutBackend < handle
             if ~(isscalar(n) && isfinite(n) && n >= 1)
                 error("%s must be a scalar >= 1.", char(string(context)));
             end
+        end
+
+        function mask = array1d_unwanted_mask(~, node, n)
+            mask = false(1, n);
+            idx = node.unwanted_indices;
+            if isempty(idx)
+                return;
+            end
+            idx = round(double(idx(:)));
+            if any(~isfinite(idx)) || any(idx < 1) || any(idx > n)
+                error("Array1D unwanted_indices must be within [1, %d].", n);
+            end
+            mask(idx) = true;
+        end
+
+        function mask = array2d_unwanted_mask(~, node, nx, ny)
+            mask = false(nx, ny);
+            pairs = node.unwanted_array_elements;
+            if isempty(pairs)
+                return;
+            end
+            pairs = round(double(pairs));
+            if size(pairs, 2) ~= 2
+                error("Array2D unwanted_array_elements must be Nx2.");
+            end
+            if any(~isfinite(pairs), "all") || any(pairs(:, 1) < 1) || any(pairs(:, 1) > nx) || ...
+                    any(pairs(:, 2) < 1) || any(pairs(:, 2) > ny)
+                error("Array2D unwanted_array_elements must be within [1..%d]x[1..%d].", nx, ny);
+            end
+            lin = sub2ind([nx, ny], pairs(:, 1), pairs(:, 2));
+            mask(lin) = true;
         end
 
         function n = point_count(obj, val, context)

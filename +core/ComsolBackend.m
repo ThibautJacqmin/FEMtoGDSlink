@@ -441,13 +441,26 @@ classdef ComsolBackend < handle
             keep_input = core.GeometrySession.node_keeps_inputs(node);
             source_tag = string(obj.tag_for(node.target));
             input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
-            [~, feature, tag] = obj.start_feature(node, "arr", "Array");
-            obj.set_input_selection(feature, input_tag);
-            obj.set_keep_input(feature, keep_input);
-            obj.set_scalar(feature, 'size', obj.copy_count_token(node.ncopies, "Array1D ncopies"));
+            [~, arr_feature, arr_tag] = obj.start_feature(node, "arr", "Array");
+            obj.set_input_selection(arr_feature, input_tag);
+            obj.set_keep_input(arr_feature, keep_input);
+            n = obj.copy_count_token(node.ncopies, "Array1D ncopies");
+            obj.set_scalar(arr_feature, 'size', n);
             disp_vec = obj.length_vector(node.delta, "Array1D delta");
-            obj.set_pair(feature, 'displ', disp_vec(1), disp_vec(2));
-            obj.finish_feature(node, layer, feature, tag);
+            obj.set_pair(arr_feature, 'displ', disp_vec(1), disp_vec(2));
+
+            unwanted = obj.array1d_unwanted_indices(node, n);
+            if isempty(unwanted)
+                obj.finish_feature(node, layer, arr_feature, arr_tag);
+                return;
+            end
+            obj.finish_feature(node, layer, arr_feature, arr_tag);
+
+            % COMSOL Delete in this workplane context is entity-based and does
+            % not reliably accept array object tags (arr(i[,j])). Prune array
+            % copies by subtracting a union of moved source clones instead.
+            trim_source = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), true);
+            obj.finish_array_trim_difference_1d(node, layer, arr_tag, trim_source, disp_vec, unwanted);
         end
 
         function emit_Array2D(obj, node)
@@ -456,12 +469,12 @@ classdef ComsolBackend < handle
             keep_input = core.GeometrySession.node_keeps_inputs(node);
             source_tag = string(obj.tag_for(node.target));
             input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
-            [~, feature, tag] = obj.start_feature(node, "arr", "Array");
-            obj.set_input_selection(feature, input_tag);
-            obj.set_keep_input(feature, keep_input);
+            [~, arr_feature, arr_tag] = obj.start_feature(node, "arr", "Array");
+            obj.set_input_selection(arr_feature, input_tag);
+            obj.set_keep_input(arr_feature, keep_input);
             nx = obj.copy_count_token(node.ncopies_x, "Array2D ncopies_x");
             ny = obj.copy_count_token(node.ncopies_y, "Array2D ncopies_y");
-            obj.set_pair(feature, 'size', nx, ny);
+            obj.set_pair(arr_feature, 'size', nx, ny);
 
             disp_x = obj.length_vector(node.delta_x, "Array2D delta_x");
             disp_y = obj.length_vector(node.delta_y, "Array2D delta_y");
@@ -472,8 +485,20 @@ classdef ComsolBackend < handle
                 warning("Array2D delta_y x-component is ignored by COMSOL rectangular Array.");
             end
             % COMSOL rectangular Array displ is [dx, dy] along axis directions.
-            obj.set_pair(feature, 'displ', disp_x(1), disp_y(2));
-            obj.finish_feature(node, layer, feature, tag);
+            obj.set_pair(arr_feature, 'displ', disp_x(1), disp_y(2));
+
+            unwanted = obj.array2d_unwanted_indices(node, nx, ny);
+            if isempty(unwanted)
+                obj.finish_feature(node, layer, arr_feature, arr_tag);
+                return;
+            end
+            obj.finish_feature(node, layer, arr_feature, arr_tag);
+
+            % COMSOL Delete in this workplane context is entity-based and does
+            % not reliably accept array object tags (arr(i[,j])). Prune array
+            % copies by subtracting a union of moved source clones instead.
+            trim_source = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), true);
+            obj.finish_array_trim_difference_2d(node, layer, arr_tag, trim_source, disp_x, disp_y, unwanted);
         end
 
         function emit_Fillet(obj, node)
@@ -1029,6 +1054,145 @@ classdef ComsolBackend < handle
                 return;
             end
             out = raw;
+        end
+
+        function idx = array1d_unwanted_indices(~, node, n)
+            idx = node.unwanted_indices;
+            if isempty(idx)
+                idx = zeros(1, 0);
+                return;
+            end
+            idx = round(double(idx(:).'));
+            if any(~isfinite(idx)) || any(idx < 1)
+                error("Array1D unwanted_indices must contain finite integers >= 1.");
+            end
+            if isnumeric(n)
+                nmax = round(double(n));
+                if any(idx > nmax)
+                    error("Array1D unwanted_indices must be within [1, %d].", nmax);
+                end
+            end
+            idx = unique(idx, "stable");
+        end
+
+        function pairs = array2d_unwanted_indices(~, node, nx, ny)
+            pairs = node.unwanted_array_elements;
+            if isempty(pairs)
+                pairs = zeros(0, 2);
+                return;
+            end
+            pairs = round(double(pairs));
+            if size(pairs, 2) ~= 2
+                error("Array2D unwanted_array_elements must be Nx2.");
+            end
+            if any(~isfinite(pairs), "all") || any(pairs(:) < 1)
+                error("Array2D unwanted_array_elements must contain finite integers >= 1.");
+            end
+            if isnumeric(nx)
+                nxn = round(double(nx));
+                if any(pairs(:, 1) > nxn)
+                    error("Array2D unwanted_array_elements ix must be within [1, %d].", nxn);
+                end
+            end
+            if isnumeric(ny)
+                nyn = round(double(ny));
+                if any(pairs(:, 2) > nyn)
+                    error("Array2D unwanted_array_elements iy must be within [1, %d].", nyn);
+                end
+            end
+            pairs = unique(pairs, "rows", "stable");
+        end
+
+        function finish_array_trim_difference_1d(obj, node, layer, arr_tag, trim_source_tag, disp_vec, unwanted)
+            move_tags = strings(1, numel(unwanted));
+            for i = 1:numel(unwanted)
+                k = double(unwanted(i) - 1);
+                dx = obj.scale_component(disp_vec(1), k);
+                dy = obj.scale_component(disp_vec(2), k);
+                [~, mv, mv_tag] = obj.start_feature(node, "mov", "Move");
+                obj.set_input_selection(mv, trim_source_tag);
+                obj.set_keep_input(mv, true);
+                obj.set_pair(mv, 'displ', dx, dy);
+                obj.finish_feature(node, layer, mv, mv_tag);
+                move_tags(i) = string(mv_tag);
+            end
+            obj.finish_array_trim_difference_common(node, layer, arr_tag, move_tags);
+        end
+
+        function finish_array_trim_difference_2d(obj, node, layer, arr_tag, trim_source_tag, disp_x, disp_y, unwanted)
+            move_tags = strings(1, size(unwanted, 1));
+            for i = 1:size(unwanted, 1)
+                kx = double(unwanted(i, 1) - 1);
+                ky = double(unwanted(i, 2) - 1);
+                dx = obj.sum_components( ...
+                    obj.scale_component(disp_x(1), kx), ...
+                    obj.scale_component(disp_y(1), ky));
+                dy = obj.sum_components( ...
+                    obj.scale_component(disp_x(2), kx), ...
+                    obj.scale_component(disp_y(2), ky));
+
+                [~, mv, mv_tag] = obj.start_feature(node, "mov", "Move");
+                obj.set_input_selection(mv, trim_source_tag);
+                obj.set_keep_input(mv, true);
+                obj.set_pair(mv, 'displ', dx, dy);
+                obj.finish_feature(node, layer, mv, mv_tag);
+                move_tags(i) = string(mv_tag);
+            end
+            obj.finish_array_trim_difference_common(node, layer, arr_tag, move_tags);
+        end
+
+        function finish_array_trim_difference_common(obj, node, layer, arr_tag, move_tags)
+            if isempty(move_tags)
+                return;
+            end
+            if numel(move_tags) == 1
+                tool_tag = string(move_tags(1));
+            else
+                [~, uni, uni_tag] = obj.start_feature(node, "uni", "Union");
+                obj.set_keep_input(uni, false);
+                obj.set_input_selection(uni, move_tags);
+                obj.finish_feature(node, layer, uni, uni_tag);
+                tool_tag = string(uni_tag);
+            end
+
+            [~, dif, dif_tag] = obj.start_feature(node, "dif", "Difference");
+            obj.set_keep_input(dif, false);
+            obj.set_input_selection(dif, arr_tag);
+            dif.selection('input2').set(tool_tag);
+            obj.finish_feature(node, layer, dif, dif_tag);
+        end
+
+        function out = scale_component(~, val, factor)
+            f = round(double(factor));
+            if f == 0
+                out = 0;
+                return;
+            end
+            if isnumeric(val)
+                out = f * double(val);
+                return;
+            end
+            if f == 1
+                out = val;
+            else
+                out = "(" + string(f) + ")*(" + string(val) + ")";
+            end
+        end
+
+        function out = sum_components(~, a, b)
+            if isnumeric(a) && isnumeric(b)
+                out = double(a) + double(b);
+                return;
+            end
+            if isnumeric(a) && abs(double(a)) <= 1e-15
+                out = b;
+                return;
+            end
+            if isnumeric(b) && abs(double(b)) <= 1e-15
+                out = a;
+                return;
+            end
+            out = "(" + string(a) + ")+(" + string(b) + ")";
         end
 
         function idx = entity_index(obj, val, context)

@@ -6,6 +6,7 @@ arguments
     opts.name {mustBeTextScalar} = "cpw_meander_0"
     opts.fillet = 0
     opts.target_nm double = NaN
+    opts.target_tolerance_nm double = 30
     opts.segment_indices double = []
     opts.amplitude_nm double = 100
     opts.pitch_nm double = 140
@@ -19,6 +20,7 @@ m = routing.MeanderSpec( ...
     pitch_nm=opts.pitch_nm, ...
     count=opts.count);
 t = routing.TargetLengthSpec(enabled=isfinite(opts.target_nm), length_nm=opts.target_nm);
+t.tolerance_nm = opts.target_tolerance_nm;
 
 out = routing.connect(ctx, p1, p2, ...
     name=opts.name, ...

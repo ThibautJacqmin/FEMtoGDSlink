@@ -210,6 +210,38 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
 
+        function emitArrayFeaturesWithUnwantedIndices(testCase)
+            % Verify COMSOL backend emits array features that support
+            % unwanted element pruning.
+            ctx = core.GeometrySession.with_shared_comsol( ...
+                enable_gds=true, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            p_nx = types.Parameter(4, "arr_cut_nx", unit="");
+            p_ny = types.Parameter(3, "arr_cut_ny", unit="");
+            p_pitch_x = types.Parameter(200, "arr_cut_pitch_x");
+            p_pitch_y = types.Parameter(140, "arr_cut_pitch_y");
+
+            base = primitives.Rectangle(ctx, center=[0 0], width=80, height=40, layer="m1");
+            a1 = ops.Array1D(ctx, base, ncopies=p_nx, ...
+                delta=types.Vertices([1, 0], p_pitch_x), ...
+                unwanted_indices=[2], layer="m1");
+            a2 = ops.Array2D(ctx, base, ncopies_x=p_nx, ncopies_y=p_ny, ...
+                delta_x=types.Vertices([1, 0], p_pitch_x), delta_y=types.Vertices([0, 1], p_pitch_y), ...
+                unwanted_array_elements=[1, 1; 3, 2], layer="m1");
+
+            ctx.build_comsol();
+
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(a1.id)));
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(a2.id)));
+            t1 = string(ctx.comsol_backend.feature_tags(int32(a1.id)));
+            t2 = string(ctx.comsol_backend.feature_tags(int32(a2.id)));
+            testCase.verifyTrue(startsWith(t1, "dif"));
+            testCase.verifyTrue(startsWith(t2, "dif"));
+        end
+
         function emitPolygonPrimitive(testCase)
             % Verify COMSOL backend emits primitives.Polygon primitive and dependencies.
             ctx = core.GeometrySession.with_shared_comsol( ...

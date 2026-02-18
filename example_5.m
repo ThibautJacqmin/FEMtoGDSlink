@@ -40,7 +40,7 @@ cpw_wide = components.cpw.spec( ...
 
 %% Demo A: components.cpw.routed_line (uses routing.connect under the hood).
 pA1 = components.cpw.port("A_in", Vertices([-320, -40], p_um), [1, 0], cpw);
-pA2 = components.cpw.port("A_out", Vertices([320, 40], p_um), [-1, 0], cpw);
+pA2 = components.cpw.port("A_out", Vertices([320, 40], p_um), [1, 0], cpw);
 components.cpw.markers(pA1, ctx=ctx, layer="portmark");
 components.cpw.markers(pA2, ctx=ctx, layer="portmark");
 rA = components.cpw.routed_line(ctx, pA1, pA2, ...

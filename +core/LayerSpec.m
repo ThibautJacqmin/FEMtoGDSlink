@@ -27,7 +27,9 @@ classdef LayerSpec < handle
                 args.gds_datatype double = 0
                 args.comsol_workplane {mustBeTextScalar} = ""
                 args.comsol_selection {mustBeTextScalar} = ""
-                args.comsol_selection_state {mustBeTextScalar} = "all"
+                args.comsol_selection_state {mustBeTextScalar} ...
+                    { mustBeMember(lower(string(comsol_selection_state)), ...
+                    ["all","domain","boundary","edge","point","off"]) }
                 args.comsol_enable_selection logical = true
                 args.comsol_emit = []
             end
@@ -45,17 +47,6 @@ classdef LayerSpec < handle
                 obj.comsol_emit = strlength(strtrim(obj.comsol_workplane)) > 0;
             else
                 obj.comsol_emit = logical(args.comsol_emit);
-            end
-        end
-    end
-    methods (Static, Access=private)
-        function state = normalize_selection_state(raw_state)
-            % Validate and normalize selection scope aliases.
-            state = lower(string(raw_state));
-            allowed = ["all", "domain", "domains", "dom", "boundary", "boundaries", ...
-                "bnd", "edge", "edges", "edg", "point", "points", "pnt", "off", "none"];
-            if ~any(state == allowed)
-                error("Unknown comsol_selection_state '%s'.", char(state));
             end
         end
     end

@@ -214,11 +214,15 @@ classdef GdsModeler < handle
                     "Could not find a KLayout desktop executable from configured paths.");
             end
 
-            % Python preview bridge is maintained under +python/.
+            % Python preview bridge is maintained under python/.
             repo_root = fileparts(core.GdsModeler.get_folder());
-            script_path = fullfile(repo_root, "+python", "klayout_preview_bridge.py");
+            script_path = fullfile(repo_root, "python", "klayout_preview_bridge.py");
             if ~isfile(script_path)
                 % Backward-compatible fallback for older tree layouts.
+                script_path = fullfile(repo_root, "+python", "klayout_preview_bridge.py");
+            end
+            if ~isfile(script_path)
+                % Legacy fallback when the script lived directly under +core.
                 script_path = fullfile(core.GdsModeler.get_folder(), "klayout_preview_bridge.py");
             end
             if ~isfile(script_path)

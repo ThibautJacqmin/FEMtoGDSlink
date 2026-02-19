@@ -1,8 +1,11 @@
 classdef DependentParameter < types.Parameter
     % Backward-compatible wrapper; prefer types.Parameter directly.
     properties
+        % Legacy function handle used to compute value from dependency inputs.
         anonymous_function function_handle
+        % Legacy single dependency parameter.
         dependency types.Parameter
+        % Optional explicit COMSOL modeler handle (legacy API).
         comsol_modeler
     end
     methods

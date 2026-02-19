@@ -6,13 +6,18 @@ classdef Vertices < handle
         prefactor types.Parameter = types.Parameter(1, "")
     end
     properties (Dependent)
+        % Physical coordinates in base length unit after prefactor scaling.
         value
+        % X components of `value`.
         xvalue
+        % Y components of `value`.
         yvalue
+        % Number of vertices (rows in `array`).
         nvertices
     end
     methods
         function obj = Vertices(array, prefactor)
+            % Construct a vertex container from coefficient array + prefactor.
             arguments
                 array {mustBeReal, mustBeFinite} = [0, 0]
                 prefactor = types.Parameter(1, "")
@@ -22,48 +27,59 @@ classdef Vertices < handle
         end
 
         function y = get.value(obj)
+            % Resolve full coordinates from coefficients and prefactor value.
             y = obj.array .* obj.prefactor.value;
         end
 
         function y = get.xvalue(obj)
+            % Return X-coordinate vector in physical units.
             y = obj.array(:, 1) .* obj.prefactor.value;
         end
 
         function y = get.yvalue(obj)
+            % Return Y-coordinate vector in physical units.
             y = obj.array(:, 2) .* obj.prefactor.value;
         end
 
         function y = get.nvertices(obj)
+            % Return number of vertices.
             y = size(obj.array, 1);
         end
 
         function y = isobarycentre(obj)
+            % Return centroid in normalized coefficient coordinates.
             y = mean(obj.array);
         end
 
         function s = comsol_string(obj)
+            % Return COMSOL-friendly coordinate token list {"x1,y1", ...}.
             x = string(obj.comsol_string_x());
             y = string(obj.comsol_string_y());
             s = cellstr(x + "," + y);
         end
 
         function s = comsol_string_x(obj)
+            % Return COMSOL expression tokens for X coordinates.
             s = obj.expr_components(obj.array(:, 1));
         end
 
         function s = comsol_string_y(obj)
+            % Return COMSOL expression tokens for Y coordinates.
             s = obj.expr_components(obj.array(:, 2));
         end
 
         function s = klayout_string(obj)
+            % Return KLayout `DPolygon.from_s(...)` compatible vertex string.
             s = core.KlayoutCodec.vertices_to_klayout_string(obj.value);
         end
 
         function y = get_sub_vertex(obj, vertex_index)
+            % Return one vertex as a new Vertices object sharing prefactor.
             y = types.Vertices(obj.array(vertex_index, :), obj.prefactor);
         end
 
         function y = concat(obj, vertices_object)
+            % Concatenate two Vertices objects with identical prefactors.
             if ~isa(vertices_object, "types.Vertices")
                 error("Vertices.concat expects a types.Vertices input.");
             end
@@ -74,6 +90,7 @@ classdef Vertices < handle
         end
 
         function y = plus(obj, vertices_to_add)
+            % Add another Vertices/numeric operand with size checks.
             rhs = types.Vertices.coerce_add_sub_operand(vertices_to_add, obj.nvertices, "plus");
             if isequal(obj.prefactor, rhs.prefactor)
                 y = types.Vertices(obj.array + rhs.array, obj.prefactor);
@@ -83,6 +100,7 @@ classdef Vertices < handle
         end
 
         function y = minus(obj, vertices_to_subtract)
+            % Subtract another Vertices/numeric operand with size checks.
             rhs = types.Vertices.coerce_add_sub_operand(vertices_to_subtract, obj.nvertices, "minus");
             if isequal(obj.prefactor, rhs.prefactor)
                 y = types.Vertices(obj.array - rhs.array, obj.prefactor);
@@ -92,6 +110,7 @@ classdef Vertices < handle
         end
 
         function y = times(lhs, rhs)
+            % Scale Vertices by scalar numeric or types.Parameter factor.
             if isa(lhs, "types.Vertices")
                 scale = types.Vertices.coerce_scale(rhs, "times");
                 pref = types.Vertices.scale_prefactor(lhs.prefactor, scale, "times");
@@ -104,10 +123,12 @@ classdef Vertices < handle
         end
 
         function y = mtimes(lhs, rhs)
+            % `*` alias of `times` for scalar-style scaling use.
             y = times(lhs, rhs);
         end
 
         function y = mrdivide(lhs, rhs)
+            % Divide Vertices by scalar numeric or dimensionless Parameter.
             if ~isa(lhs, "types.Vertices")
                 error("Division by Vertices is not supported.");
             end
@@ -117,6 +138,7 @@ classdef Vertices < handle
         end
 
         function y = rdivide(lhs, rhs)
+            % `./` alias of `mrdivide`.
             y = mrdivide(lhs, rhs);
         end
 

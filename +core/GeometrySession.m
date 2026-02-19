@@ -1,28 +1,51 @@
 classdef GeometrySession < handle
     % GeometrySession coordinates COMSOL and GDS backends and layer mapping.
     properties
+        % Active COMSOL modeler instance (LiveLink or MPh) or [].
         comsol
+        % Active in-memory GDS/KLayout modeler or [].
         gds
+        % Dictionary: layer name -> core.LayerSpec.
         layers
+        % Ordered geometry feature graph nodes.
         nodes
+        % Dictionary: workplane tag -> {workplane handle}.
         comsol_workplanes
+        % Dictionary: COMSOL feature prefix -> next integer counter.
         comsol_counters
+        % Lazily-created COMSOL emitter backend.
         comsol_backend
+        % Lazily-created KLayout/GDS emitter backend.
         gds_backend
+        % Last assigned graph node id.
         node_counter
+        % If true, emit COMSOL features incrementally on node creation.
         emit_on_create
+        % Enable/disable grid snapping of length values.
         snap_on_grid
+        % GDS database unit resolution in nm.
         gds_resolution_nm
+        % Backward-compatible alias of gds_resolution_nm.
         snap_grid_nm
+        % Warn once per context when values are snapped.
         warn_on_snap
+        % Dictionary tracking whether warning already emitted per snap context.
         snap_warned
+        % Dictionary accumulating snap statistics per context.
         snap_stats
+        % If true, enable live external KLayout preview updates.
         preview_klayout
+        % Preview scope policy token ("all" or "final").
         preview_scope
+        % Apply zoom-fit behavior in preview launcher.
         preview_zoom_fit
+        % Toggle show-all-cells behavior in preview launcher/reload.
         preview_show_all_cells
+        % True once preview process has been launched and acknowledged.
         preview_live_active
+        % Temporary GDS file path watched by external preview.
         preview_live_filename
+        % Ready-flag file path used for preview startup handshake.
         preview_live_readyfile
     end
     methods

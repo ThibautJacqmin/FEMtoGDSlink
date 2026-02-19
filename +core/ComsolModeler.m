@@ -1,13 +1,21 @@
 classdef (Abstract) ComsolModeler < handle
     % Shared COMSOL modeler utilities for LiveLink and MPh backends.
     properties
+        % Top-level COMSOL model tag.
         model_tag
+        % COMSOL model handle/proxy object.
         model
+        % Default COMSOL component handle.
         component
+        % Default COMSOL geometry handle.
         geometry
+        % Default 2D workplane feature handle (`wp1`).
         workplane
+        % Optional mesh handle if configured by higher-level code.
         mesh
+        % Optional shell/physics handle if configured by higher-level code.
         shell
+        % Optional study handle if configured by higher-level code.
         study
     end
 

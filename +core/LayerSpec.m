@@ -1,17 +1,26 @@
 classdef LayerSpec < handle
     % LayerSpec maps a logical layer to GDS and COMSOL workplane settings.
     properties
+        % Logical layer name used in feature constructors.
         name
+        % GDS layer number for stream export.
         gds_layer
+        % GDS datatype number for stream export.
         gds_datatype
+        % COMSOL workplane tag (empty means GDS-only layer).
         comsol_workplane
+        % Cumulative COMSOL selection label/tag base for this layer.
         comsol_selection
+        % COMSOL selection visibility/entity scope token (all/dom/bnd/edg/pnt/off).
         comsol_selection_state
+        % Whether cumulative selections are created/updated in COMSOL.
         comsol_enable_selection logical = true
+        % Whether features on this layer are emitted to COMSOL.
         comsol_emit logical = false
     end
     methods
         function obj = LayerSpec(name, args)
+            % Construct one layer mapping record for GDS + optional COMSOL.
             arguments
                 name {mustBeTextScalar}
                 args.gds_layer double = 1
@@ -41,6 +50,7 @@ classdef LayerSpec < handle
     end
     methods (Static, Access=private)
         function state = normalize_selection_state(raw_state)
+            % Validate and normalize selection scope aliases.
             state = lower(string(raw_state));
             allowed = ["all", "domain", "domains", "dom", "boundary", "boundaries", ...
                 "bnd", "edge", "edges", "edg", "point", "points", "pnt", "off", "none"];

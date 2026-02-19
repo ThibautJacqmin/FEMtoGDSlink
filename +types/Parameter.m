@@ -1,10 +1,15 @@
 classdef Parameter
     % Expression-aware scalar parameter used by geometry features.
     properties
+        % Numeric scalar value used for immediate MATLAB-side computations.
         value double = 0
+        % Symbolic parameter name used for COMSOL expression emission.
         name string = ""
+        % Unit token (nm, um, mm, ..., or empty for dimensionless).
         unit string = "nm"
+        % Expression token used when unnamed or explicitly overridden.
         expr string = ""
+        % Flattened dependency provenance records for deterministic registration.
         dependency_records struct = struct('name', {}, 'value', {}, 'unit', {}, 'expr', {})
     end
     methods

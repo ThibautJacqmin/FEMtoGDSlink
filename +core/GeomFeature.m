@@ -1,16 +1,23 @@
 classdef GeomFeature < handle
     % Base class for geometry features in the feature graph.
     properties (Dependent)
+        % Resolved layer spec associated with this feature node.
         layer
     end
     properties
+        % Monotonic graph node id assigned by GeometrySession.register.
         id
+        % Upstream dependencies used to build this feature.
         inputs
+        % Generic name/value payload used by concrete feature subclasses.
         params
+        % True after constructor/factory finished populating this node.
         is_initialized logical = false
     end
     properties (Access=protected)
+        % Owning geometry session context.
         ctx
+        % Backing storage for dependent `layer` property.
         layer_
     end
     methods

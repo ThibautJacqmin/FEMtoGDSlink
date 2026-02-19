@@ -1,16 +1,25 @@
 classdef GdsModeler < handle
     properties
+        % Imported KLayout geometry module (`pya`/`klayout.db`).
         pya
+        % KLayout `Layout` instance holding current in-memory design.
         pylayout
+        % Main top cell used for default shape insertion.
         pycell
+        % MATLAB-side bookkeeping of inserted shapes by layer.
         shapes
+        % Database unit resolution in nanometers.
         dbu_nm
+        % Imported KLayout Application API module for GUI features (`klayout.lay`).
         pylay
+        % Optional GUI LayoutView handle for embedded preview mode.
         pyview
+        % Cellview index currently displayed in `pyview`.
         pyview_cellview_index
     end
     methods
         function obj = GdsModeler(args)
+            % Construct an in-memory KLayout layout wrapper.
             arguments
                 args.dbu_nm double = 1
             end
@@ -35,6 +44,7 @@ classdef GdsModeler < handle
             obj.pyview_cellview_index = int32(-1);
         end
         function py_layer = create_layer(obj, number, datatype)
+            % Create/resolve one layout layer handle from number/datatype.
             if nargin < 3
                 py_layer = obj.pylayout.layer(string(number));
             else
@@ -42,9 +52,9 @@ classdef GdsModeler < handle
             end
         end
         function add_to_layer(obj, layer, shape, klayout_cell)
-            % Last argument allows to add to a different cell than the main
-            % one. Useful for arrays, for which an intermediate cell
-            % is needed.
+            % Insert one shape region into a layer of the target cell.
+            % Last argument allows insertion into a non-main cell, useful
+            % for array helper cells.
             arguments
                 obj
                 layer
@@ -57,9 +67,11 @@ classdef GdsModeler < handle
             obj.shapes{end}.shape = shape;
         end
         function delete_layer(obj, layer)
+            % Remove one layer and its shapes from the in-memory layout.
             obj.pylayout.delete_layer(layer);
         end
         function write(obj, filename)
+            % Serialize current layout to a GDS file on disk.
             obj.pylayout.write(filename);
         end
 
@@ -251,6 +263,7 @@ classdef GdsModeler < handle
             end
         end
         function mark = add_alignment_mark(obj, args)
+            % Load one packaged alignment mark polygon from library files.
             arguments
                 obj
                 args.type = 1
@@ -264,6 +277,7 @@ classdef GdsModeler < handle
             mark.vertices = types.Vertices(core.KlayoutCodec.get_vertices_from_klayout(mark.pgon_py));
         end
         function two_inch_wafer = add_two_inch_wafer(obj)
+            % Load packaged two-inch wafer edge polygon from library file.
             arguments
                 obj
             end

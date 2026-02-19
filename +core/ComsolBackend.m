@@ -1,14 +1,23 @@
 classdef ComsolBackend < handle
     % COMSOL backend for emitting feature graph into a COMSOL model.
     properties
+        % Owning geometry session with layers, nodes, and modeler handles.
         session
+        % Active COMSOL modeler adapter (LiveLink or MPh proxy).
         modeler
+        % Dictionary of already-defined COMSOL parameters by name.
         defined_params
+        % Dictionary: graph node id -> emitted COMSOL feature tag.
         feature_tags
+        % Dictionary for in-flight emission cycle detection.
         emitting
+        % Dictionary: workplane|selection_name -> cumulative selection tag.
         selection_tags
+        % Cache mapping raw length tokens to snapped COMSOL expression names.
         snapped_length_tokens
+        % Usage count per source input node id (for copy-on-consume logic).
         input_use_counts
+        % Remaining usage count per source input node id during one emit pass.
         input_remaining_counts
     end
     methods

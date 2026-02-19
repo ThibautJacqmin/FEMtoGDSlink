@@ -515,7 +515,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             c = primitives.Circle(ctx, center=[200 0], radius=40, layer="m1");
 
             out_all = fullfile(tempdir, "test_preview_all.gds");
-            ctx.preview_gds_build(scope="all", reset_layout=true, step_delay_s=0, ...
+            ctx.preview_gds_build(scope="all", reset_layout=true, ...
                 zoom_fit=false, show_all_cells=true, output_filename=out_all, launch_external=false);
 
             keys_all = keys(ctx.gds_backend.emitted);
@@ -525,7 +525,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyTrue(isfile(out_all));
 
             out_final = fullfile(tempdir, "test_preview_final.gds");
-            ctx.preview_gds_build(scope="final", reset_layout=true, step_delay_s=0, ...
+            ctx.preview_gds_build(scope="final", reset_layout=true, ...
                 zoom_fit=false, show_all_cells=true, output_filename=out_final, launch_external=false);
             keys_final = keys(ctx.gds_backend.emitted);
             actual_final = sort(double(keys_final(:)));
@@ -534,7 +534,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyTrue(isfile(out_final));
 
             out_all_finalized = fullfile(tempdir, "test_preview_all_then_final.gds");
-            ctx.preview_gds_build(scope="all", final_scope="final", reset_layout=true, step_delay_s=0, ...
+            ctx.preview_gds_build(scope="all", final_scope="final", reset_layout=true, ...
                 zoom_fit=false, show_all_cells=true, output_filename=out_all_finalized, launch_external=false);
             keys_all_finalized = keys(ctx.gds_backend.emitted);
             actual_all_finalized = sort(double(keys_all_finalized(:)));

@@ -191,7 +191,6 @@ classdef GdsModeler < handle
             arguments
                 obj
                 gds_filename {mustBeTextScalar}
-                args.refresh_interval_ms double = 120
                 args.zoom_fit logical = true
                 args.show_all_cells logical = true
                 args.ready_file {mustBeTextScalar} = ""
@@ -215,7 +214,9 @@ classdef GdsModeler < handle
                     "Cannot launch KLayout preview: file does not exist (%s).", char(target));
             end
 
-            refresh_ms = max(20, round(double(args.refresh_interval_ms)));
+            % Preview bridge polling interval: keep small and fixed so updates
+            % are responsive without exposing a timing knob to end users.
+            refresh_ms = 20;
             zoom_flag = core.GdsModeler.bool_flag(args.zoom_fit);
             show_all_flag = core.GdsModeler.bool_flag(args.show_all_cells);
             ready_file = string(args.ready_file);

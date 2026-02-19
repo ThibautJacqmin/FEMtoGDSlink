@@ -19,7 +19,6 @@ classdef GeometrySession < handle
         snap_stats
         preview_klayout
         preview_scope
-        preview_step_delay_s
         preview_zoom_fit
         preview_show_all_cells
         preview_live_active
@@ -41,8 +40,7 @@ classdef GeometrySession < handle
                 args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
                 args.preview_klayout logical = false
-                args.preview_scope {mustBeTextScalar} = "all"
-                args.preview_step_delay_s double = 0.08
+                args.preview_scope {mustBeTextScalar} = "auto"
                 args.preview_zoom_fit logical = true
                 args.preview_show_all_cells logical = true
                 args.reuse_comsol_gui logical = false
@@ -114,8 +112,14 @@ classdef GeometrySession < handle
             obj.snap_stats = dictionary(string.empty(0,1), ...
                 struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.gds_resolution_nm));
             obj.preview_klayout = args.preview_klayout;
-            obj.preview_scope = core.GeometrySession.normalize_gds_scope(args.preview_scope);
-            obj.preview_step_delay_s = double(args.preview_step_delay_s);
+            % Preview scope policy:
+            % - live preview enabled  -> default to "final" (terminal nodes only)
+            %   so consumed/intermediate nodes do not linger in the view.
+            % - live preview disabled -> default to "all" for exhaustive
+            %   non-interactive preview/export helpers.
+            % Callers can still pass preview_scope="all"/"final" explicitly.
+            obj.preview_scope = core.GeometrySession.resolve_preview_scope( ...
+                obj.preview_klayout, args.preview_scope);
             obj.preview_zoom_fit = args.preview_zoom_fit;
             obj.preview_show_all_cells = args.preview_show_all_cells;
             obj.preview_live_active = false;
@@ -149,20 +153,23 @@ classdef GeometrySession < handle
                 name {mustBeTextScalar}
                 args.gds_layer double = 1
                 args.gds_datatype double = 0
-                args.comsol_workplane {mustBeTextScalar} = "wp1"
+                args.comsol_workplane {mustBeTextScalar} = ""
                 args.comsol_selection {mustBeTextScalar} = ""
                 args.comsol_selection_state {mustBeTextScalar} = "all"
                 args.comsol_enable_selection logical = true
-                args.emit_to_comsol logical = true
             end
+            % End-user API simplification: COMSOL emission is inferred from
+            % whether a COMSOL workplane tag is provided on this layer.
+            comsol_wp = string(args.comsol_workplane);
+            comsol_emit = strlength(strtrim(comsol_wp)) > 0;
             layer = core.LayerSpec(name, ...
                 gds_layer=args.gds_layer, ...
                 gds_datatype=args.gds_datatype, ...
-                comsol_workplane=args.comsol_workplane, ...
+                comsol_workplane=comsol_wp, ...
                 comsol_selection=args.comsol_selection, ...
                 comsol_selection_state=args.comsol_selection_state, ...
                 comsol_enable_selection=args.comsol_enable_selection, ...
-                comsol_emit=args.emit_to_comsol);
+                comsol_emit=comsol_emit);
             obj.layers(string(layer.name)) = layer;
         end
 
@@ -258,6 +265,10 @@ classdef GeometrySession < handle
                 return;
             end
             tag = string(layer.comsol_workplane);
+            if strlength(strtrim(tag)) == 0
+                error("Layer '%s' has no comsol_workplane; COMSOL emission is disabled for this layer.", ...
+                    char(string(layer.name)));
+            end
             if isKey(obj.comsol_workplanes, tag)
                 cached_wp = obj.comsol_workplanes(tag);
                 wp = cached_wp{1};
@@ -313,7 +324,6 @@ classdef GeometrySession < handle
                     obj.preview_gds_build( ...
                         scope=obj.preview_scope, ...
                         reset_layout=true, ...
-                        step_delay_s=obj.preview_step_delay_s, ...
                         zoom_fit=obj.preview_zoom_fit, ...
                         show_all_cells=obj.preview_show_all_cells, ...
                         output_filename=filename, ...
@@ -417,7 +427,6 @@ classdef GeometrySession < handle
                 obj core.GeometrySession
                 args.scope {mustBeTextScalar} = "all"
                 args.reset_layout logical = true
-                args.step_delay_s double = 0.15
                 args.zoom_fit logical = true
                 args.show_all_cells logical = true
                 args.output_filename {mustBeTextScalar} = ""
@@ -448,13 +457,11 @@ classdef GeometrySession < handle
             obj.gds.write(output_filename);
 
             if args.launch_external
-                refresh_ms = max(20, round(max(args.step_delay_s, 0.02) * 1000));
                 ready_file = fullfile(tempdir, "femtogds_klayout_ready.flag");
                 if isfile(ready_file)
                     delete(ready_file);
                 end
                 obj.gds.launch_external_preview(output_filename, ...
-                    refresh_interval_ms=refresh_ms, ...
                     zoom_fit=args.zoom_fit, ...
                     show_all_cells=args.show_all_cells, ...
                     ready_file=ready_file);
@@ -471,9 +478,7 @@ classdef GeometrySession < handle
             for i = 1:numel(nodes_to_emit)
                 obj.gds_backend.emit(nodes_to_emit{i});
                 obj.gds.write(output_filename);
-                if args.step_delay_s > 0
-                    pause(args.step_delay_s);
-                end
+                % Intentionally no pause: rely on file-based reload in KLayout.
             end
 
             if strlength(final_scope_local) > 0 && final_scope_local ~= preview_scope_local
@@ -690,8 +695,7 @@ classdef GeometrySession < handle
                 args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
                 args.preview_klayout logical = false
-                args.preview_scope {mustBeTextScalar} = "all"
-                args.preview_step_delay_s double = 0.08
+                args.preview_scope {mustBeTextScalar} = "auto"
                 args.preview_zoom_fit logical = true
                 args.preview_show_all_cells logical = true
                 args.reset_model logical = true
@@ -741,7 +745,6 @@ classdef GeometrySession < handle
                 warn_on_snap=args.warn_on_snap, ...
                 preview_klayout=args.preview_klayout, ...
                 preview_scope=args.preview_scope, ...
-                preview_step_delay_s=args.preview_step_delay_s, ...
                 preview_zoom_fit=args.preview_zoom_fit, ...
                 preview_show_all_cells=args.preview_show_all_cells, ...
                 comsol_api=api, ...
@@ -914,6 +917,23 @@ classdef GeometrySession < handle
             n = sum(vals);
         end
 
+        function scope = resolve_preview_scope(preview_klayout, raw_scope)
+            % Resolve preview scope from user token or auto policy.
+            % "auto" means:
+            % - preview_klayout=true  -> "final"
+            % - preview_klayout=false -> "all"
+            token = lower(strtrim(string(raw_scope)));
+            if strlength(token) == 0 || any(token == ["auto", "__auto__"])
+                if logical(preview_klayout)
+                    scope = "final";
+                else
+                    scope = "all";
+                end
+                return;
+            end
+            scope = core.GeometrySession.normalize_gds_scope(token);
+        end
+
         function scope = normalize_gds_scope(raw_scope)
             % Normalize and validate one GDS node selection scope.
             scope = lower(string(raw_scope));
@@ -1041,9 +1061,7 @@ classdef GeometrySession < handle
             end
 
             obj.gds.write(obj.preview_live_filename);
-            if obj.preview_step_delay_s > 0
-                pause(obj.preview_step_delay_s);
-            end
+            % Intentionally no pause: keep live preview updates unthrottled.
         end
 
         function ensure_preview_live_started(obj)
@@ -1066,9 +1084,7 @@ classdef GeometrySession < handle
             end
 
             obj.gds.write(obj.preview_live_filename);
-            refresh_ms = max(20, round(max(obj.preview_step_delay_s, 0.02) * 1000));
             obj.gds.launch_external_preview(obj.preview_live_filename, ...
-                refresh_interval_ms=refresh_ms, ...
                 zoom_fit=obj.preview_zoom_fit, ...
                 show_all_cells=obj.preview_show_all_cells, ...
                 ready_file=obj.preview_live_readyfile);

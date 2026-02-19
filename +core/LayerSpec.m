@@ -8,7 +8,7 @@ classdef LayerSpec < handle
         comsol_selection
         comsol_selection_state
         comsol_enable_selection logical = true
-        comsol_emit logical = true
+        comsol_emit logical = false
     end
     methods
         function obj = LayerSpec(name, args)
@@ -16,11 +16,11 @@ classdef LayerSpec < handle
                 name {mustBeTextScalar}
                 args.gds_layer double = 1
                 args.gds_datatype double = 0
-                args.comsol_workplane {mustBeTextScalar} = "wp1"
+                args.comsol_workplane {mustBeTextScalar} = ""
                 args.comsol_selection {mustBeTextScalar} = ""
                 args.comsol_selection_state {mustBeTextScalar} = "all"
                 args.comsol_enable_selection logical = true
-                args.comsol_emit logical = true
+                args.comsol_emit = []
             end
             obj.name = string(name);
             obj.gds_layer = args.gds_layer;
@@ -32,7 +32,11 @@ classdef LayerSpec < handle
             end
             obj.comsol_selection_state = core.LayerSpec.normalize_selection_state(args.comsol_selection_state);
             obj.comsol_enable_selection = args.comsol_enable_selection;
-            obj.comsol_emit = args.comsol_emit;
+            if isempty(args.comsol_emit)
+                obj.comsol_emit = strlength(strtrim(obj.comsol_workplane)) > 0;
+            else
+                obj.comsol_emit = logical(args.comsol_emit);
+            end
         end
     end
     methods (Static, Access=private)

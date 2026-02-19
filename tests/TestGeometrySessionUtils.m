@@ -7,6 +7,45 @@ classdef TestGeometrySessionUtils < matlab.unittest.TestCase
     end
 
     methods (Test)
+        function addLayerInfersComsolEmitFromWorkplane(testCase)
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+
+            gds_only = ctx.add_layer("gds_only", gds_layer=7, gds_datatype=0);
+            comsol_layer = ctx.add_layer("m2", gds_layer=8, gds_datatype=0, ...
+                comsol_workplane="wp2");
+            blank_wp = ctx.add_layer("blank_wp", gds_layer=9, gds_datatype=0, ...
+                comsol_workplane="   ");
+
+            testCase.verifyFalse(gds_only.comsol_emit);
+            testCase.verifyEqual(string(gds_only.comsol_workplane), "");
+            testCase.verifyTrue(comsol_layer.comsol_emit);
+            testCase.verifyFalse(blank_wp.comsol_emit);
+        end
+
+        function previewScopeAutoDefaultsFollowPreviewMode(testCase)
+            ctx_live = core.GeometrySession( ...
+                enable_comsol=false, enable_gds=false, ...
+                preview_klayout=true, snap_on_grid=false);
+            ctx_batch = core.GeometrySession( ...
+                enable_comsol=false, enable_gds=false, ...
+                preview_klayout=false, snap_on_grid=false);
+
+            testCase.verifyEqual(string(ctx_live.preview_scope), "final");
+            testCase.verifyEqual(string(ctx_batch.preview_scope), "all");
+        end
+
+        function previewScopeAllowsExplicitOverride(testCase)
+            ctx_live_all = core.GeometrySession( ...
+                enable_comsol=false, enable_gds=false, ...
+                preview_klayout=true, preview_scope="all", snap_on_grid=false);
+            ctx_batch_final = core.GeometrySession( ...
+                enable_comsol=false, enable_gds=false, ...
+                preview_klayout=false, preview_scope="final", snap_on_grid=false);
+
+            testCase.verifyEqual(string(ctx_live_all.preview_scope), "all");
+            testCase.verifyEqual(string(ctx_batch_final.preview_scope), "final");
+        end
+
         function nodeKeepsInputsReadsFeatureFlag(testCase)
             ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             rect = primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="default");

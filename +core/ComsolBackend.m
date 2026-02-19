@@ -74,7 +74,7 @@ classdef ComsolBackend < handle
                 return;
             end
             if isa(node.layer, 'core.LayerSpec') && ~node.layer.comsol_emit
-                error("Layer '%s' is configured with emit_to_comsol=false, cannot emit '%s'.", ...
+                error("Layer '%s' is not configured for COMSOL emission (no comsol_workplane), cannot emit '%s'.", ...
                     char(string(node.layer.name)), char(string(class(node))));
             end
             if isKey(obj.emitting, id)

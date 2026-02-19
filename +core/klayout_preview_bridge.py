@@ -1,6 +1,5 @@
 import os
 import time
-
 import pya
 
 
@@ -20,7 +19,7 @@ def _get_int(name, default):
 
 
 gds_file = str(globals().get("preview_gds_file", ""))
-refresh_ms = max(20, _get_int("preview_refresh_ms", 120))
+refresh_ms = max(20, _get_int("preview_refresh_ms", 20))
 zoom_fit = _get_bool("preview_zoom_fit", True)
 show_all = _get_bool("preview_show_all", True)
 ready_file = str(globals().get("preview_ready_file", ""))

@@ -215,7 +215,7 @@ classdef GdsModeler < handle
             end
 
             % Python preview bridge is maintained under python/.
-            repo_root = fileparts(core.GdsModeler.get_folder());
+            repo_root = core.GdsModeler.get_repo_root();
             script_path = fullfile(repo_root, "python", "klayout_preview_bridge.py");
             if ~isfile(script_path)
                 % Backward-compatible fallback for older tree layouts.
@@ -576,6 +576,15 @@ classdef GdsModeler < handle
             s = string(mfilename('fullpath'));
             m = mfilename;
             y = s.erase(m);
+        end
+
+        function y = get_repo_root
+            % Resolve repository root robustly from +core package folder.
+            core_dir = char(core.GdsModeler.get_folder());
+            if ~isempty(core_dir) && (core_dir(end) == filesep || core_dir(end) == '/' || core_dir(end) == '\')
+                core_dir = core_dir(1:end-1);
+            end
+            y = string(fileparts(core_dir));
         end
 
         function y = bool_flag(tf)

@@ -41,7 +41,7 @@ classdef LayerSpec < handle
             if strlength(obj.comsol_selection) == 0
                 obj.comsol_selection = obj.name;
             end
-            obj.comsol_selection_state = core.LayerSpec.normalize_selection_state(args.comsol_selection_state);
+            obj.comsol_selection_state = args.comsol_selection_state;
             obj.comsol_enable_selection = args.comsol_enable_selection;
             if isempty(args.comsol_emit)
                 obj.comsol_emit = strlength(strtrim(obj.comsol_workplane)) > 0;

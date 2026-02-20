@@ -10,13 +10,13 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
 
     methods (Test)
         function bootstrapLoadsInstalledMph(testCase)
-            % Verify strict bootstrap resolves mph from site-packages, not local repo.
-            mph_mod = core.ComsolMphModeler.ensure_ready(strict_installed=true);
+            % Verify bootstrap resolves mph from site-packages, not local repo.
+            mph_mod = core.ComsolMphModeler.ensure_ready();
             mod_file = string(char(py.getattr(mph_mod, "__file__")));
             local_repo = lower(string(fullfile(pwd, "MPh")));
 
             testCase.verifyFalse(startsWith(lower(mod_file), local_repo), ...
-                "Strict mph bootstrap loaded local MPh folder.");
+                "mph bootstrap loaded local MPh folder.");
             testCase.verifyTrue(contains(lower(mod_file), "site-packages"), ...
                 "mph module path does not look like an installed package.");
         end
@@ -108,7 +108,7 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             end
 
             try
-                core.ComsolMphModeler.ensure_ready(strict_installed=true);
+                core.ComsolMphModeler.ensure_ready();
             catch ex
                 reason = "mph import/bootstrap failed: " + string(ex.message);
                 cached_tf = tf;

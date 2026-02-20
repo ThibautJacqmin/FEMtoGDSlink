@@ -91,8 +91,7 @@ classdef GeometrySession < handle
                 elseif args.reuse_comsol_gui
                     if api == "mph"
                         obj.comsol = core.ComsolMphModeler.shared( ...
-                            reset=true, comsol_host=conn.host, comsol_port=conn.port, ...
-                            strict_installed=true);
+                            reset=true, comsol_host=conn.host, comsol_port=conn.port);
                     else
                         obj.comsol = core.ComsolLivelinkModeler.shared( ...
                             reset=true, comsol_host=conn.host, comsol_port=conn.port, ...
@@ -101,7 +100,7 @@ classdef GeometrySession < handle
                 else
                     if api == "mph"
                         obj.comsol = core.ComsolMphModeler( ...
-                            comsol_host=conn.host, comsol_port=conn.port, strict_installed=true);
+                            comsol_host=conn.host, comsol_port=conn.port);
                     else
                         obj.comsol = core.ComsolLivelinkModeler( ...
                             comsol_host=conn.host, comsol_port=conn.port, ...
@@ -323,6 +322,52 @@ classdef GeometrySession < handle
             nodes_to_emit = obj.nodes;
             nodes_to_emit = nodes_to_emit(cellfun(@(n) n.layer.comsol_emit, nodes_to_emit));
             obj.comsol_backend.emit_all(nodes_to_emit);
+        end
+
+        function out = build(obj, args)
+            % Build enabled backends in one call.
+            %
+            % Behavior:
+            % - If GDS backend is enabled, export GDS.
+            % - If COMSOL backend is enabled, emit COMSOL geometry.
+            % - If report=true, print/return diagnostic report.
+            %
+            % When gds_filename is omitted, the default is:
+            %   <caller_m_file_basename>.gds
+            % and falls back to:
+            %   <pwd>/femtogds_output.gds
+            arguments
+                obj core.GeometrySession
+                args.gds_filename {mustBeTextScalar} = ""
+                args.gds_scope {mustBeTextScalar} = "final"
+                args.report logical = true
+                args.report_display logical = true
+            end
+
+            out = struct();
+            out.built_gds = false;
+            out.built_comsol = false;
+            out.gds_filename = "";
+            out.report = struct();
+
+            if obj.has_gds()
+                gds_filename = string(args.gds_filename);
+                if strlength(strtrim(gds_filename)) == 0
+                    gds_filename = core.GeometrySession.default_gds_filename();
+                end
+                obj.export_gds(gds_filename, scope=args.gds_scope);
+                out.built_gds = true;
+                out.gds_filename = gds_filename;
+            end
+
+            if obj.has_comsol()
+                obj.build_comsol();
+                out.built_comsol = true;
+            end
+
+            if args.report
+                out.report = obj.build_report(display=args.report_display);
+            end
         end
 
         function export_gds(obj, filename, args)
@@ -743,8 +788,7 @@ classdef GeometrySession < handle
                     shared_modeler = core.ComsolMphModeler.shared( ...
                         reset=args.reset_model, ...
                         comsol_host=conn.host, ...
-                        comsol_port=conn.port, ...
-                        strict_installed=true);
+                        comsol_port=conn.port);
                 else
                     shared_modeler = core.ComsolLivelinkModeler.shared( ...
                         reset=args.reset_model, ...
@@ -969,6 +1013,35 @@ classdef GeometrySession < handle
             end
             error("GeometrySession:InvalidGdsScope", ...
                 "Invalid GDS scope '%s'. Use 'final' or 'all'.", char(scope));
+        end
+
+        function filename = default_gds_filename()
+            % Derive default GDS filename from caller stack.
+            %
+            % Prefer the first non-core MATLAB file in the call stack and map:
+            %   <path>/<name>.m -> <path>/<name>.gds
+            % If no suitable file is found, fallback to current folder.
+            fallback_name = "femtogds_output.gds";
+            filename = string(fullfile(pwd, fallback_name));
+
+            try
+                st = dbstack("-completenames");
+            catch
+                return;
+            end
+
+            for i = 2:numel(st)
+                file_i = string(st(i).file);
+                if strlength(file_i) == 0 || ~endsWith(lower(file_i), ".m")
+                    continue;
+                end
+                if contains(file_i, filesep + "+core" + filesep)
+                    continue;
+                end
+                [folder_i, base_i, ~] = fileparts(char(file_i));
+                filename = string(fullfile(folder_i, base_i + ".gds"));
+                return;
+            end
         end
     end
     methods (Access=private)

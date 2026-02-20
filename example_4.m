@@ -52,6 +52,4 @@ tangent_circle = Circle(center=Vertices([30, 220], p_um), ...
 Tangent(tangent_circle, type="coord", coord=Vertices([95, 250], p_um), ...
     start=0.7, edge_index=1, width=p_tangent_w, layer="metal1");
 
-ctx.export_gds("example_4.gds");
-ctx.build_comsol();
-ctx.build_report();
+ctx.build();

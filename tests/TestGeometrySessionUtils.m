@@ -90,5 +90,29 @@ classdef TestGeometrySessionUtils < matlab.unittest.TestCase
             sf = s.get_fillets(fillet_width=1.5, fillet_height=1.5, npoints=8);
             testCase.verifyEqual(numel(sf), 4);
         end
+
+        function buildSkipsDisabledBackends(testCase)
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            out = ctx.build(report=false);
+
+            testCase.verifyFalse(out.built_gds);
+            testCase.verifyFalse(out.built_comsol);
+            testCase.verifyEqual(string(out.gds_filename), "");
+        end
+
+        function buildInfersDefaultGdsFilenameFromCallerFile(testCase)
+            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
+                preview_klayout=false, snap_on_grid=false);
+            primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="default");
+
+            out = ctx.build(report=false);
+            gds_path = string(out.gds_filename);
+            testCase.verifyTrue(endsWith(gds_path, "TestGeometrySessionUtils.gds"));
+            testCase.verifyTrue(isfile(gds_path));
+
+            if isfile(gds_path)
+                delete(gds_path);
+            end
+        end
     end
 end

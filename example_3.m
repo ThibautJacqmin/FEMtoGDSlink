@@ -77,6 +77,4 @@ p_s2max = Parameter(2*pi, "pc2_smax", unit="");
 ParametricCurve(coord={"pc2_r*cos(s)", "pc2_r*sin(s)"}, parname="s", ...
     parmin=p_s2min, parmax=p_s2max, type="closed", npoints=128, width=p_curve_w, layer="metal1");
 
-ctx.export_gds("example_3.gds");
-ctx.build_comsol();
-ctx.build_report();
+ctx.build();

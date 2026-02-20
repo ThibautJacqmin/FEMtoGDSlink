@@ -4,7 +4,7 @@ import primitives.*
 import ops.*
 
 % Example 1: tower composition with transforms + boolean operations + fillet.
-ctx = GeometrySession.with_shared_comsol(use_comsol=true, use_gds=true, ...
+ctx = GeometrySession.with_shared_comsol(use_comsol=false, use_gds=true, ...
     comsol_api="mph", ...
     preview_klayout=true, ...
     snap_on_grid=false, gds_resolution_nm=1, warn_on_snap=true, reset_model=true);
@@ -59,6 +59,4 @@ towers_cut = Difference(towers_in_envelope, {trench}, layer="metal1");
 Fillet(towers_cut, radius=p_fillet_r, npoints=p_fillet_n, ...
     points="all", layer="metal1");
 
-ctx.export_gds("example_1.gds");
-ctx.build_comsol();
-ctx.build_report();
+ctx.build();

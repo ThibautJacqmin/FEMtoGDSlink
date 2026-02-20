@@ -14,10 +14,9 @@ classdef ComsolMphModeler < core.ComsolModeler
             arguments
                 args.comsol_host {mustBeTextScalar} = "localhost"
                 args.comsol_port double = 2036
-                args.strict_installed logical = true
             end
 
-            core.ComsolMphModeler.ensure_mph_ready(strict_installed=args.strict_installed);
+            core.ComsolMphModeler.ensure_mph_ready();
             obj.comsol_host = string(args.comsol_host);
             obj.comsol_port = double(args.comsol_port);
             obj.feature_counters = dictionary(string.empty(0,1), int32.empty(0,1));
@@ -158,13 +157,9 @@ classdef ComsolMphModeler < core.ComsolModeler
     end
 
     methods (Static)
-        function mph_mod = ensure_ready(args)
+        function mph_mod = ensure_ready()
             % Ensure Python runtime and installed MPh package are available.
-            arguments
-                args.strict_installed logical = true
-            end
-            mph_mod = core.ComsolMphModeler.ensure_mph_ready( ...
-                strict_installed=args.strict_installed);
+            mph_mod = core.ComsolMphModeler.ensure_mph_ready();
         end
 
         function obj = shared(args)
@@ -173,15 +168,13 @@ classdef ComsolMphModeler < core.ComsolModeler
                 args.reset logical = true
                 args.comsol_host {mustBeTextScalar} = "localhost"
                 args.comsol_port double = 2036
-                args.strict_installed logical = true
             end
 
             obj = core.ComsolMphModeler.shared_store();
             if isempty(obj) || ~isvalid(obj)
                 obj = core.ComsolMphModeler( ...
                     comsol_host=args.comsol_host, ...
-                    comsol_port=args.comsol_port, ...
-                    strict_installed=args.strict_installed);
+                    comsol_port=args.comsol_port);
             else
                 host_changed = obj.comsol_host ~= string(args.comsol_host);
                 port_changed = obj.comsol_port ~= double(args.comsol_port);
@@ -190,8 +183,7 @@ classdef ComsolMphModeler < core.ComsolModeler
                 if host_changed || port_changed || ~client_ok
                     obj = core.ComsolMphModeler( ...
                         comsol_host=args.comsol_host, ...
-                        comsol_port=args.comsol_port, ...
-                        strict_installed=args.strict_installed);
+                        comsol_port=args.comsol_port);
                 elseif args.reset
                     try
                         obj.reset_workspace();
@@ -199,8 +191,7 @@ classdef ComsolMphModeler < core.ComsolModeler
                         if contains(lower(string(ex.message)), "not connected to a server")
                             obj = core.ComsolMphModeler( ...
                                 comsol_host=args.comsol_host, ...
-                                comsol_port=args.comsol_port, ...
-                                strict_installed=args.strict_installed);
+                                comsol_port=args.comsol_port);
                         else
                             rethrow(ex);
                         end
@@ -324,11 +315,8 @@ classdef ComsolMphModeler < core.ComsolModeler
     end
 
     methods (Static, Access=private)
-        function mph_mod = ensure_mph_ready(args)
-            % Ensure Python and installed MPh are available.
-            arguments
-                args.strict_installed logical = true
-            end
+        function mph_mod = ensure_mph_ready()
+            % Ensure Python and installed MPh package are available.
 
             try
                 pe = pyenv();
@@ -349,14 +337,12 @@ classdef ComsolMphModeler < core.ComsolModeler
                     pe.Executable, ex.message);
             end
 
-            if args.strict_installed
-                module_file = string(char(py.getattr(mph_mod, "__file__")));
-                local_repo = string(fullfile(pwd, "MPh"));
-                if startsWith(lower(module_file), lower(local_repo))
-                    error("ComsolMphModeler:LocalMphForbidden", ...
-                        "Loaded local repo copy (%s). Install/use official Python package 'mph' instead.", ...
-                        char(module_file));
-                end
+            module_file = string(char(py.getattr(mph_mod, "__file__")));
+            local_repo = string(fullfile(pwd, "MPh"));
+            if startsWith(lower(module_file), lower(local_repo))
+                error("ComsolMphModeler:LocalMphForbidden", ...
+                    "Loaded local repo copy (%s). Install/use official Python package 'mph' instead.", ...
+                    char(module_file));
             end
         end
 
@@ -385,7 +371,7 @@ classdef ComsolMphModeler < core.ComsolModeler
             end
 
             if needs_new
-                mph_mod = core.ComsolMphModeler.ensure_mph_ready(strict_installed=true);
+                mph_mod = core.ComsolMphModeler.ensure_mph_ready();
                 try
                     client = mph_mod.Client(pyargs('host', char(host), 'port', int32(port)));
                 catch ex

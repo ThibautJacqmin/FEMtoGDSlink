@@ -82,6 +82,4 @@ seed_honey_B = Rectangle(center=p_hex_seed_center, width=p_honey_seed_B_w, ...
     a=p_lattice_a.value, nw=4, nh=3, seedA=seed_honey_A, seedB=seed_honey_B, ...
     sublattice="AB", a_parameter=p_lattice_a, layer="metal1");
 
-ctx.export_gds("example_2.gds");
-ctx.build_comsol();
-ctx.build_report();
+ctx.build();

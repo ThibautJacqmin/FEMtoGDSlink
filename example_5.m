@@ -140,6 +140,4 @@ rG = routing.connect(ctx, pG1, pG2, ...
     name="demoG_masked", fillet=16, start_straight=22, bend="auto");
 fprintf("Demo G masked length: %.3f um\n", rG.length_nm / 1000);
 
-ctx.export_gds("example_5.gds");
-ctx.build_comsol();
-ctx.build_report();
+ctx.build();

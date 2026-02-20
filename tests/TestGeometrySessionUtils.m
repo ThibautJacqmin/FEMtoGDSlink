@@ -30,7 +30,7 @@ classdef TestGeometrySessionUtils < matlab.unittest.TestCase
                 enable_comsol=false, enable_gds=false, ...
                 preview_klayout=false, snap_on_grid=false);
 
-            testCase.verifyEqual(string(ctx_live.preview_scope), "final");
+            testCase.verifyEqual(string(ctx_live.preview_scope), "all");
             testCase.verifyEqual(string(ctx_batch.preview_scope), "all");
         end
 

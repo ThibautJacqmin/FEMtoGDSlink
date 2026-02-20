@@ -2,7 +2,7 @@
 
 This script is launched by `core.GdsModeler.launch_external_preview(...)` using
 KLayout's `-rr` option. It opens the provided GDS file in the desktop view and
-keeps reloading when the file timestamp changes.
+keeps reloading when the file content changes.
 
 Runtime globals (passed via `-rd`) expected by this script:
 - `preview_gds_file` (required): path to the GDS file to watch.
@@ -33,6 +33,20 @@ def _get_int(name, default):
         return int(float(raw))
     except Exception:
         return int(default)
+
+
+def _file_signature(path):
+    """Return one high-resolution signature tuple for change detection."""
+    try:
+        st = os.stat(path)
+    except Exception:
+        return None
+
+    # Prefer nanosecond precision where available. Include size to catch
+    # changes on filesystems with coarse timestamp granularity.
+    mtime_ns = getattr(st, "st_mtime_ns", int(st.st_mtime * 1e9))
+    ctime_ns = getattr(st, "st_ctime_ns", int(st.st_ctime * 1e9))
+    return (int(mtime_ns), int(ctime_ns), int(st.st_size))
 
 
 # Launch/runtime options injected by GdsModeler.
@@ -71,10 +85,8 @@ if ready_file != "":
     except Exception:
         pass
 
-# Track modification timestamp so we only reload on updates.
-last_mtime = -1.0
-if os.path.isfile(gds_file):
-    last_mtime = os.path.getmtime(gds_file)
+# Track file signature so we only reload on content updates.
+last_sig = _file_signature(gds_file)
 
 # Main watch loop: keep the GUI responsive and reload on file change.
 while True:
@@ -84,10 +96,12 @@ while True:
     if not os.path.isfile(gds_file):
         continue
 
-    mtime = os.path.getmtime(gds_file)
-    if mtime <= last_mtime:
+    sig = _file_signature(gds_file)
+    if sig is None:
         continue
-    last_mtime = mtime
+    if sig == last_sig:
+        continue
+    last_sig = sig
 
     # Reuse current view when possible, otherwise load a fresh layout.
     try:
@@ -100,8 +114,17 @@ while True:
             view.reload_layout(cv_index)
         if show_all:
             view.show_all_cells()
+        if zoom_fit:
+            # Keep camera synced with new content, especially when the
+            # initial file was empty and geometry appears later.
+            view.zoom_fit()
     except Exception:
         # Last-resort recovery path if reload API shape differs by version.
         cv = mw.load_layout(gds_file, opts, "", 0)
         view = mw.current_view()
         cv_index = cv.index()
+        if view is not None:
+            if show_all:
+                view.show_all_cells()
+            if zoom_fit:
+                view.zoom_fit()

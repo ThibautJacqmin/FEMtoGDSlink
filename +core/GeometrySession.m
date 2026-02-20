@@ -135,8 +135,8 @@ classdef GeometrySession < handle
                 struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.gds_resolution_nm));
             obj.preview_klayout = args.preview_klayout;
             % Preview scope policy:
-            % - live preview enabled  -> default to "final" (terminal nodes only)
-            %   so consumed/intermediate nodes do not linger in the view.
+            % - live preview enabled  -> default to "all" for explicit
+            %   step-by-step updates while building geometry.
             % - live preview disabled -> default to "all" for exhaustive
             %   non-interactive preview/export helpers.
             % Callers can still pass preview_scope="all"/"final" explicitly.
@@ -987,12 +987,12 @@ classdef GeometrySession < handle
         function scope = resolve_preview_scope(preview_klayout, raw_scope)
             % Resolve preview scope from user token or auto policy.
             % "auto" means:
-            % - preview_klayout=true  -> "final"
+            % - preview_klayout=true  -> "all"  (step-by-step live preview)
             % - preview_klayout=false -> "all"
             token = lower(strtrim(string(raw_scope)));
             if strlength(token) == 0 || any(token == ["auto", "__auto__"])
                 if logical(preview_klayout)
-                    scope = "final";
+                    scope = "all";
                 else
                     scope = "all";
                 end

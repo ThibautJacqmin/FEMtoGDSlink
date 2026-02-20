@@ -115,7 +115,7 @@ classdef TestRouting < matlab.unittest.TestCase
                 testCase.verifyTrue(isa(cable.features{i}, "core.GeomFeature"));
             end
 
-            terminal_nodes = ctx.gds_nodes_for_export();
+            terminal_nodes = ctx.terminal_nodes();
             terminal_ids = cellfun(@(n) int32(n.id), terminal_nodes);
             cable_ids = cellfun(@(n) int32(n.id), cable.features);
             testCase.verifyEqual(sort(terminal_ids), sort(cable_ids));

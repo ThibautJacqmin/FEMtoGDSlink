@@ -22,28 +22,21 @@ classdef TestGeometrySessionUtils < matlab.unittest.TestCase
             testCase.verifyFalse(blank_wp.comsol_emit);
         end
 
-        function previewScopeAutoDefaultsFollowPreviewMode(testCase)
+        function previewFlagsAreStoredInSession(testCase)
             ctx_live = core.GeometrySession( ...
                 enable_comsol=false, enable_gds=false, ...
-                preview_klayout=true, snap_on_grid=false);
+                preview_klayout=true, ...
+                snap_on_grid=false);
             ctx_batch = core.GeometrySession( ...
                 enable_comsol=false, enable_gds=false, ...
-                preview_klayout=false, snap_on_grid=false);
+                preview_klayout=false, ...
+                snap_on_grid=false);
 
-            testCase.verifyEqual(string(ctx_live.preview_scope), "all");
-            testCase.verifyEqual(string(ctx_batch.preview_scope), "all");
-        end
+            testCase.verifyTrue(ctx_live.preview_klayout);
+            testCase.verifyFalse(ctx_live.preview_live_active);
+            testCase.verifyEqual(string(ctx_live.preview_live_filename), "");
 
-        function previewScopeAllowsExplicitOverride(testCase)
-            ctx_live_all = core.GeometrySession( ...
-                enable_comsol=false, enable_gds=false, ...
-                preview_klayout=true, preview_scope="all", snap_on_grid=false);
-            ctx_batch_final = core.GeometrySession( ...
-                enable_comsol=false, enable_gds=false, ...
-                preview_klayout=false, preview_scope="final", snap_on_grid=false);
-
-            testCase.verifyEqual(string(ctx_live_all.preview_scope), "all");
-            testCase.verifyEqual(string(ctx_batch_final.preview_scope), "final");
+            testCase.verifyFalse(ctx_batch.preview_klayout);
         end
 
         function nodeKeepsInputsReadsFeatureFlag(testCase)

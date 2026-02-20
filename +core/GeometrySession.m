@@ -25,8 +25,6 @@ classdef GeometrySession < handle
         snap_on_grid
         % GDS database unit resolution in nm.
         gds_resolution_nm
-        % Backward-compatible alias of gds_resolution_nm.
-        snap_grid_nm
         % Warn once per context when values are snapped.
         warn_on_snap
         % Dictionary tracking whether warning already emitted per snap context.
@@ -35,12 +33,6 @@ classdef GeometrySession < handle
         snap_stats
         % If true, enable live external KLayout preview updates.
         preview_klayout
-        % Preview scope policy token ("all" or "final").
-        preview_scope
-        % Apply zoom-fit behavior in preview launcher.
-        preview_zoom_fit
-        % Toggle show-all-cells behavior in preview launcher/reload.
-        preview_show_all_cells
         % True once preview process has been launched and acknowledged.
         preview_live_active
         % Temporary GDS file path watched by external preview.
@@ -54,58 +46,30 @@ classdef GeometrySession < handle
             arguments
                 args.enable_comsol logical = true
                 args.enable_gds logical = true
-                args.use_comsol logical = true
-                args.use_gds logical = true
-                args.emit_on_create logical = false
-                args.set_as_current logical = true
+                args.comsol_emit_on_create logical = false
                 args.snap_on_grid logical = true
                 args.gds_resolution_nm double = NaN
-                args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
                 args.preview_klayout logical = false
-                args.preview_scope {mustBeTextScalar} = "auto"
-                args.preview_zoom_fit logical = true
-                args.preview_show_all_cells logical = true
-                args.reuse_comsol_gui logical = false
                 args.launch_comsol_gui logical = false
                 args.comsol_api {mustBeTextScalar} = "mph"
-                args.comsol_host {mustBeTextScalar} = ""
-                args.comsol_port double = NaN
-                args.comsol_root {mustBeTextScalar} = ""
-                args.comsol_modeler = []
             end
 
-            enable_comsol = args.enable_comsol && args.use_comsol;
-            enable_gds = args.enable_gds && args.use_gds;
+            enable_comsol = args.enable_comsol;
+            enable_gds = args.enable_gds;
             api = core.GeometrySession.normalize_comsol_api(args.comsol_api);
-            conn = core.GeometrySession.resolve_comsol_connection( ...
-                comsol_host=args.comsol_host, ...
-                comsol_port=args.comsol_port, ...
-                comsol_root=args.comsol_root);
+            cfg = core.ComsolModeler.connection_defaults();
             resolved_gds_nm = core.GeometrySession.resolve_gds_resolution( ...
-                args.gds_resolution_nm, args.snap_grid_nm);
+                args.gds_resolution_nm);
 
             if enable_comsol
-                if ~isempty(args.comsol_modeler)
-                    obj.comsol = args.comsol_modeler;
-                elseif args.reuse_comsol_gui
-                    if api == "mph"
-                        obj.comsol = core.ComsolMphModeler.shared( ...
-                            reset=true, comsol_host=conn.host, comsol_port=conn.port);
-                    else
-                        obj.comsol = core.ComsolLivelinkModeler.shared( ...
-                            reset=true, comsol_host=conn.host, comsol_port=conn.port, ...
-                            comsol_root=conn.root);
-                    end
+                if api == "mph"
+                    obj.comsol = core.ComsolMphModeler( ...
+                        comsol_host=cfg.host, comsol_port=cfg.port);
                 else
-                    if api == "mph"
-                        obj.comsol = core.ComsolMphModeler( ...
-                            comsol_host=conn.host, comsol_port=conn.port);
-                    else
-                        obj.comsol = core.ComsolLivelinkModeler( ...
-                            comsol_host=conn.host, comsol_port=conn.port, ...
-                            comsol_root=conn.root);
-                    end
+                    obj.comsol = core.ComsolLivelinkModeler( ...
+                        comsol_host=cfg.host, comsol_port=cfg.port, ...
+                        comsol_root=cfg.root);
                 end
             else
                 obj.comsol = [];
@@ -124,33 +88,20 @@ classdef GeometrySession < handle
             obj.comsol_backend = [];
             obj.gds_backend = [];
             obj.node_counter = int32(0);
-            obj.emit_on_create = args.emit_on_create;
+            obj.emit_on_create = args.comsol_emit_on_create;
             obj.snap_on_grid = logical(args.snap_on_grid);
             obj.gds_resolution_nm = resolved_gds_nm;
-            % Backward-compatible alias: keep snap_grid_nm tied to GDS DBU resolution.
-            obj.snap_grid_nm = resolved_gds_nm;
             obj.warn_on_snap = args.warn_on_snap;
             obj.snap_warned = dictionary(string.empty(0,1), false(0,1));
             obj.snap_stats = dictionary(string.empty(0,1), ...
                 struct('count', 0, 'max_delta_nm', 0, 'grid_nm', obj.gds_resolution_nm));
             obj.preview_klayout = args.preview_klayout;
-            % Preview scope policy:
-            % - live preview enabled  -> default to "all" for explicit
-            %   step-by-step updates while building geometry.
-            % - live preview disabled -> default to "all" for exhaustive
-            %   non-interactive preview/export helpers.
-            % Callers can still pass preview_scope="all"/"final" explicitly.
-            obj.preview_scope = core.GeometrySession.resolve_preview_scope( ...
-                obj.preview_klayout, args.preview_scope);
-            obj.preview_zoom_fit = args.preview_zoom_fit;
-            obj.preview_show_all_cells = args.preview_show_all_cells;
             obj.preview_live_active = false;
             obj.preview_live_filename = "";
             obj.preview_live_readyfile = "";
 
-            if args.set_as_current
-                core.GeometrySession.set_current(obj);
-            end
+            % Always keep the latest session as process-global current context.
+            core.GeometrySession.set_current(obj);
 
             % Default layer mapping (layer 1 on workplane wp1).
             obj.add_layer("default", gds_layer=1, comsol_workplane="wp1");
@@ -339,7 +290,6 @@ classdef GeometrySession < handle
             arguments
                 obj core.GeometrySession
                 args.gds_filename {mustBeTextScalar} = ""
-                args.gds_scope {mustBeTextScalar} = "final"
                 args.report logical = true
                 args.report_display logical = true
             end
@@ -355,7 +305,7 @@ classdef GeometrySession < handle
                 if strlength(strtrim(gds_filename)) == 0
                     gds_filename = core.GeometrySession.default_gds_filename();
                 end
-                obj.export_gds(gds_filename, scope=args.gds_scope);
+                obj.export_gds(gds_filename);
                 out.built_gds = true;
                 out.gds_filename = gds_filename;
             end
@@ -370,13 +320,12 @@ classdef GeometrySession < handle
             end
         end
 
-        function export_gds(obj, filename, args)
+        function export_gds(obj, filename)
             % Emit graph to GDS backend and write layout to disk.
             % By default, only terminal (final) nodes are exported.
             arguments
                 obj core.GeometrySession
                 filename {mustBeTextScalar}
-                args.scope {mustBeTextScalar} = "final"
             end
             if ~obj.has_gds()
                 error("GDS backend disabled.");
@@ -385,46 +334,26 @@ classdef GeometrySession < handle
             if obj.preview_klayout
                 if obj.preview_live_active
                     obj.reset_and_init_gds_backend();
-                    nodes_to_emit = obj.gds_nodes_for_export(scope=args.scope);
+                    nodes_to_emit = obj.nodes;
                     obj.gds_backend.emit_all(nodes_to_emit);
                     obj.gds.write(filename);
                 else
                     obj.preview_gds_build( ...
-                        scope=obj.preview_scope, ...
                         reset_layout=true, ...
-                        zoom_fit=obj.preview_zoom_fit, ...
-                        show_all_cells=obj.preview_show_all_cells, ...
+                        zoom_fit=true, ...
+                        show_all_cells=true, ...
                         output_filename=filename, ...
-                        final_scope=args.scope, ...
                         launch_external=true);
                 end
                 return;
             end
 
             obj.ensure_gds_backend();
-            nodes_to_emit = obj.gds_nodes_for_export(scope=args.scope);
+            nodes_to_emit = obj.terminal_nodes;
             obj.gds_backend.emit_all(nodes_to_emit);
             obj.gds.write(filename);
         end
 
-        function nodes = gds_nodes_for_export(obj, args)
-            % Select which nodes are emitted in GDS export.
-            arguments
-                obj core.GeometrySession
-                args.scope {mustBeTextScalar} = "final"
-            end
-            scope = lower(string(args.scope));
-            if scope == "all"
-                nodes = obj.nodes;
-                return;
-            end
-            if any(scope == ["final", "terminal", "sinks", "leaf"])
-                nodes = obj.terminal_nodes();
-                return;
-            end
-            error("GeometrySession:InvalidGdsScope", ...
-                "Invalid GDS export scope '%s'. Use 'final' or 'all'.", char(scope));
-        end
 
         function nodes = terminal_nodes(obj)
             % Return graph sink nodes (nodes not used as input by others).
@@ -493,22 +422,14 @@ classdef GeometrySession < handle
             % Emit GDS geometry step-by-step and optionally launch KLayout preview.
             arguments
                 obj core.GeometrySession
-                args.scope {mustBeTextScalar} = "all"
                 args.reset_layout logical = true
                 args.zoom_fit logical = true
                 args.show_all_cells logical = true
                 args.output_filename {mustBeTextScalar} = ""
-                args.final_scope {mustBeTextScalar} = ""
                 args.launch_external logical = false
             end
             if ~obj.has_gds()
                 error("GDS backend disabled.");
-            end
-
-            preview_scope_local = core.GeometrySession.normalize_gds_scope(args.scope);
-            final_scope_local = string(args.final_scope);
-            if strlength(final_scope_local) > 0
-                final_scope_local = core.GeometrySession.normalize_gds_scope(final_scope_local);
             end
 
             output_filename = string(args.output_filename);
@@ -521,7 +442,11 @@ classdef GeometrySession < handle
             end
             obj.ensure_gds_backend();
 
-            nodes_to_emit = obj.gds_nodes_for_export(scope=preview_scope_local);
+            if obj.preview_klayout
+                nodes_to_emit = obj.nodes;
+            else
+                nodes_to_emit = obj.terminal_nodes();
+            end
             obj.gds.write(output_filename);
 
             if args.launch_external
@@ -549,9 +474,9 @@ classdef GeometrySession < handle
                 % Intentionally no pause: rely on file-based reload in KLayout.
             end
 
-            if strlength(final_scope_local) > 0 && final_scope_local ~= preview_scope_local
+            if obj.preview_klayout
                 obj.reset_and_init_gds_backend();
-                final_nodes = obj.gds_nodes_for_export(scope=final_scope_local);
+                final_nodes = nodes_to_emit;
                 obj.gds_backend.emit_all(final_nodes);
                 obj.gds.write(output_filename);
             end
@@ -655,7 +580,6 @@ classdef GeometrySession < handle
                 "gds_enabled", obj.has_gds(), ...
                 "snap_on_grid", logical(obj.snap_on_grid), ...
                 "gds_resolution_nm", obj.gds_resolution_nm, ...
-                "snap_grid_nm", obj.snap_grid_nm, ...
                 "warn_on_snap", obj.warn_on_snap);
 
             report.nodes = obj.node_report();
@@ -753,73 +677,62 @@ classdef GeometrySession < handle
             % - "livelink": MATLAB LiveLink modeler.
             % - "mph": Python MPh modeler (no LiveLink).
             arguments
+                args.enable_comsol logical = true
                 args.enable_gds logical = true
-                args.use_comsol logical = true
-                args.use_gds logical = true
                 args.emit_on_create logical = false
-                args.set_as_current logical = true
                 args.snap_on_grid logical = true
                 args.gds_resolution_nm double = NaN
-                args.snap_grid_nm double = NaN
                 args.warn_on_snap logical = true
                 args.preview_klayout logical = false
-                args.preview_scope {mustBeTextScalar} = "auto"
-                args.preview_zoom_fit logical = true
-                args.preview_show_all_cells logical = true
                 args.reset_model logical = true
                 args.launch_comsol_gui logical = false
                 args.clean_on_reset logical = false
                 args.comsol_api {mustBeTextScalar} = "mph"
-                args.comsol_host {mustBeTextScalar} = ""
-                args.comsol_port double = NaN
-                args.comsol_root {mustBeTextScalar} = ""
             end
 
             api = core.GeometrySession.normalize_comsol_api(args.comsol_api);
-            conn = core.GeometrySession.resolve_comsol_connection( ...
-                comsol_host=args.comsol_host, ...
-                comsol_port=args.comsol_port, ...
-                comsol_root=args.comsol_root);
-            if args.use_comsol
+            cfg = core.ComsolModeler.connection_defaults();
+            shared_modeler = [];
+            if args.enable_comsol
                 if args.reset_model && args.clean_on_reset
                     core.GeometrySession.clean_comsol_server();
                 end
                 if api == "mph"
                     shared_modeler = core.ComsolMphModeler.shared( ...
                         reset=args.reset_model, ...
-                        comsol_host=conn.host, ...
-                        comsol_port=conn.port);
+                        comsol_host=cfg.host, ...
+                        comsol_port=cfg.port);
                 else
                     shared_modeler = core.ComsolLivelinkModeler.shared( ...
                         reset=args.reset_model, ...
-                        comsol_host=conn.host, ...
-                        comsol_port=conn.port, ...
-                        comsol_root=conn.root);
+                        comsol_host=cfg.host, ...
+                        comsol_port=cfg.port, ...
+                        comsol_root=cfg.root);
                 end
-            else
-                shared_modeler = [];
             end
             ctx = core.GeometrySession( ...
-                enable_comsol=args.use_comsol, ...
-                enable_gds=args.enable_gds && args.use_gds, ...
-                use_comsol=args.use_comsol, ...
-                use_gds=args.use_gds, ...
+                enable_comsol=false, ...
+                enable_gds=args.enable_gds, ...
                 emit_on_create=args.emit_on_create, ...
-                set_as_current=args.set_as_current, ...
                 snap_on_grid=args.snap_on_grid, ...
                 gds_resolution_nm=args.gds_resolution_nm, ...
-                snap_grid_nm=args.snap_grid_nm, ...
                 warn_on_snap=args.warn_on_snap, ...
                 preview_klayout=args.preview_klayout, ...
-                preview_scope=args.preview_scope, ...
-                preview_zoom_fit=args.preview_zoom_fit, ...
-                preview_show_all_cells=args.preview_show_all_cells, ...
                 comsol_api=api, ...
-                comsol_host=conn.host, ...
-                comsol_port=conn.port, ...
-                comsol_root=conn.root, ...
-                launch_comsol_gui=args.launch_comsol_gui, ...
-                comsol_modeler=shared_modeler);
+                launch_comsol_gui=false);
+
+            if args.enable_comsol
+                ctx.comsol = shared_modeler;
+                ctx.comsol_workplanes("wp1") = {ctx.comsol.workplane};
+                if args.launch_comsol_gui
+                    try
+                        ctx.comsol.start_gui();
+                    catch
+                        warning("GeometrySession:GuiLaunch", ...
+                            "Failed to launch/attach COMSOL Desktop automatically.");
+                    end
+                end
+            end
         end
 
         function clear_shared_comsol()
@@ -877,37 +790,6 @@ classdef GeometrySession < handle
             end
         end
 
-        function conn = resolve_comsol_connection(args)
-            % Resolve COMSOL host/port/root from args with config fallback.
-            arguments
-                args.comsol_host {mustBeTextScalar}
-                args.comsol_port double
-                args.comsol_root {mustBeTextScalar}
-            end
-
-            cfg = core.ComsolModeler.connection_defaults();
-            cfg_host = string(cfg.host);
-            cfg_port = double(cfg.port);
-            cfg_root = string(cfg.root);
-
-            host = string(args.comsol_host);
-            if strlength(host) == 0
-                host = cfg_host;
-            end
-
-            port = double(args.comsol_port);
-            if ~(isscalar(port) && isfinite(port) && port > 0)
-                port = cfg_port;
-            end
-
-            root = string(args.comsol_root);
-            if strlength(root) == 0
-                root = cfg_root;
-            end
-
-            conn = struct("host", host, "port", port, "root", root);
-        end
-
         function grid = validate_length_grid(raw_grid, arg_name)
             % Validate a length grid/resolution scalar expressed in nm.
             grid = double(raw_grid);
@@ -916,30 +798,12 @@ classdef GeometrySession < handle
             end
         end
 
-        function grid = resolve_gds_resolution(raw_resolution, raw_snap_grid)
-            % Resolve resolution argument from new/legacy aliases.
+        function grid = resolve_gds_resolution(raw_resolution)
+            % Resolve GDS resolution argument.
             has_resolution = isscalar(raw_resolution) && isfinite(raw_resolution);
-            has_snap_grid = isscalar(raw_snap_grid) && isfinite(raw_snap_grid);
-
-            if has_resolution && has_snap_grid
-                resolution = core.GeometrySession.validate_length_grid(raw_resolution, "gds_resolution_nm");
-                snap_grid = core.GeometrySession.validate_length_grid(raw_snap_grid, "snap_grid_nm");
-                if abs(resolution - snap_grid) > 1e-12
-                    warning("GeometrySession:GridAliasConflict", ...
-                        "Both gds_resolution_nm (%.12g) and snap_grid_nm (%.12g) set; using gds_resolution_nm.", ...
-                        resolution, snap_grid);
-                end
-                grid = resolution;
-                return;
-            end
 
             if has_resolution
                 grid = core.GeometrySession.validate_length_grid(raw_resolution, "gds_resolution_nm");
-                return;
-            end
-
-            if has_snap_grid
-                grid = core.GeometrySession.validate_length_grid(raw_snap_grid, "snap_grid_nm");
                 return;
             end
 
@@ -982,37 +846,6 @@ classdef GeometrySession < handle
                 return;
             end
             n = sum(vals);
-        end
-
-        function scope = resolve_preview_scope(preview_klayout, raw_scope)
-            % Resolve preview scope from user token or auto policy.
-            % "auto" means:
-            % - preview_klayout=true  -> "all"  (step-by-step live preview)
-            % - preview_klayout=false -> "all"
-            token = lower(strtrim(string(raw_scope)));
-            if strlength(token) == 0 || any(token == ["auto", "__auto__"])
-                if logical(preview_klayout)
-                    scope = "all";
-                else
-                    scope = "all";
-                end
-                return;
-            end
-            scope = core.GeometrySession.normalize_gds_scope(token);
-        end
-
-        function scope = normalize_gds_scope(raw_scope)
-            % Normalize and validate one GDS node selection scope.
-            scope = lower(string(raw_scope));
-            if scope == "all"
-                return;
-            end
-            if any(scope == ["final", "terminal", "sinks", "leaf"])
-                scope = "final";
-                return;
-            end
-            error("GeometrySession:InvalidGdsScope", ...
-                "Invalid GDS scope '%s'. Use 'final' or 'all'.", char(scope));
         end
 
         function filename = default_gds_filename()
@@ -1147,14 +980,8 @@ classdef GeometrySession < handle
                 return;
             end
 
-            if obj.preview_scope == "all"
-                obj.ensure_gds_backend();
-                obj.gds_backend.emit(feature);
-            else
-                obj.reset_and_init_gds_backend();
-                final_nodes = obj.gds_nodes_for_export(scope="final");
-                obj.gds_backend.emit_all(final_nodes);
-            end
+            obj.ensure_gds_backend();
+            obj.gds_backend.emit(feature);
 
             obj.gds.write(obj.preview_live_filename);
             % Intentionally no pause: keep live preview updates unthrottled.
@@ -1181,8 +1008,8 @@ classdef GeometrySession < handle
 
             obj.gds.write(obj.preview_live_filename);
             obj.gds.launch_external_preview(obj.preview_live_filename, ...
-                zoom_fit=obj.preview_zoom_fit, ...
-                show_all_cells=obj.preview_show_all_cells, ...
+                zoom_fit=true, ...
+                show_all_cells=true, ...
                 ready_file=obj.preview_live_readyfile);
 
             t0 = tic;
@@ -1196,10 +1023,3 @@ classdef GeometrySession < handle
         end
     end
 end
-
-
-
-
-
-
-

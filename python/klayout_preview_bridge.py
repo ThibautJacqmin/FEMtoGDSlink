@@ -55,6 +55,9 @@ refresh_ms = max(20, _get_int("preview_refresh_ms", 20))
 zoom_fit = _get_bool("preview_zoom_fit", True)
 show_all = _get_bool("preview_show_all", True)
 ready_file = str(globals().get("preview_ready_file", ""))
+# Require this many identical signatures before reloading.
+# This avoids reloading while the writer is still flushing a new file.
+stable_samples_required = 2
 
 if gds_file == "":
     raise RuntimeError("preview_gds_file is required.")
@@ -66,7 +69,17 @@ if mw is None:
 
 # Initial load into current KLayout desktop window.
 opts = pya.LoadLayoutOptions()
-cv = mw.load_layout(gds_file, opts, "", 1)
+# Initial load can race with writer startup on some systems.
+initial_deadline = time.time() + 2.0
+while True:
+    try:
+        cv = mw.load_layout(gds_file, opts, "", 1)
+        break
+    except Exception:
+        if time.time() >= initial_deadline:
+            raise
+        app.process_events()
+        time.sleep(max(0.05, refresh_ms / 1000.0))
 view = mw.current_view()
 cv_index = cv.index()
 
@@ -85,8 +98,10 @@ if ready_file != "":
     except Exception:
         pass
 
-# Track file signature so we only reload on content updates.
-last_sig = _file_signature(gds_file)
+# Track file signature state so we only reload settled content updates.
+last_applied_sig = _file_signature(gds_file)
+pending_sig = last_applied_sig
+pending_count = 0
 
 # Main watch loop: keep the GUI responsive and reload on file change.
 while True:
@@ -99,9 +114,17 @@ while True:
     sig = _file_signature(gds_file)
     if sig is None:
         continue
-    if sig == last_sig:
+
+    if sig == pending_sig:
+        pending_count += 1
+    else:
+        pending_sig = sig
+        pending_count = 1
+
+    if pending_sig == last_applied_sig:
         continue
-    last_sig = sig
+    if pending_count < stable_samples_required:
+        continue
 
     # Reuse current view when possible, otherwise load a fresh layout.
     try:
@@ -118,13 +141,20 @@ while True:
             # Keep camera synced with new content, especially when the
             # initial file was empty and geometry appears later.
             view.zoom_fit()
+        last_applied_sig = pending_sig
     except Exception:
         # Last-resort recovery path if reload API shape differs by version.
-        cv = mw.load_layout(gds_file, opts, "", 0)
-        view = mw.current_view()
-        cv_index = cv.index()
-        if view is not None:
-            if show_all:
-                view.show_all_cells()
-            if zoom_fit:
-                view.zoom_fit()
+        # If both reload paths fail, assume we hit an in-flight write and
+        # retry on the next loop once the file stabilizes.
+        try:
+            cv = mw.load_layout(gds_file, opts, "", 0)
+            view = mw.current_view()
+            cv_index = cv.index()
+            if view is not None:
+                if show_all:
+                    view.show_all_cells()
+                if zoom_fit:
+                    view.zoom_fit()
+            last_applied_sig = pending_sig
+        except Exception:
+            continue

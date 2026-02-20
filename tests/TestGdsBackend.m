@@ -453,7 +453,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(ints, [1, 2, 3]);
         end
 
-        function gdsNodesForExportUsesTerminalNodesByDefault(testCase)
+        function terminalNodesReturnSinkNodesByDefault(testCase)
             ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
@@ -461,8 +461,8 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             m = ops.Move(ctx, r, delta=[20 0], layer="m1");
             c = primitives.Circle(ctx, center=[250 0], radius=40, layer="m1");
 
-            default_nodes = ctx.gds_nodes_for_export();
-            all_nodes = ctx.gds_nodes_for_export(scope="all");
+            default_nodes = ctx.terminal_nodes();
+            all_nodes = ctx.nodes;
 
             default_ids = cellfun(@(n) int32(n.id), default_nodes);
             all_ids = cellfun(@(n) int32(n.id), all_nodes);
@@ -471,14 +471,14 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(sort(all_ids), sort(int32([r.id, m.id, c.id])));
         end
 
-        function gdsNodesForExportRespectsKeepInputObjects(testCase)
+        function terminalNodesRespectKeepInputObjects(testCase)
             ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
             r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
             m = ops.Move(ctx, r, delta=[20 0], keep_input_objects=true, layer="m1");
 
-            default_nodes = ctx.gds_nodes_for_export();
+            default_nodes = ctx.terminal_nodes();
             default_ids = cellfun(@(n) int32(n.id), default_nodes);
             testCase.verifyEqual(sort(default_ids), sort(int32([r.id, m.id])));
         end
@@ -505,41 +505,37 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             ctx.gds.close_gui();
         end
 
-        function previewGdsBuildAllVsFinalScope(testCase)
+        function previewGdsBuildFollowsPreviewMode(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
-            ctx = TestGdsBackend.newContext();
-            r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
-            m = ops.Move(ctx, r, delta=[20 0], layer="m1");
-            c = primitives.Circle(ctx, center=[200 0], radius=40, layer="m1");
-
-            out_all = fullfile(tempdir, "test_preview_all.gds");
-            ctx.preview_gds_build(scope="all", reset_layout=true, ...
-                zoom_fit=false, show_all_cells=true, output_filename=out_all, launch_external=false);
-
-            keys_all = keys(ctx.gds_backend.emitted);
-            actual_all = sort(double(keys_all(:)));
-            expected_all = sort(double(int32([r.id; m.id; c.id])));
-            testCase.verifyEqual(actual_all, expected_all);
-            testCase.verifyTrue(isfile(out_all));
-
+            ctx_final = TestGdsBackend.newContext();
+            r_final = primitives.Rectangle(ctx_final, center=[0 0], width=100, height=60, layer="m1");
+            m_final = ops.Move(ctx_final, r_final, delta=[20 0], layer="m1");
+            c_final = primitives.Circle(ctx_final, center=[200 0], radius=40, layer="m1");
             out_final = fullfile(tempdir, "test_preview_final.gds");
-            ctx.preview_gds_build(scope="final", reset_layout=true, ...
+            ctx_final.preview_gds_build(reset_layout=true, ...
                 zoom_fit=false, show_all_cells=true, output_filename=out_final, launch_external=false);
-            keys_final = keys(ctx.gds_backend.emitted);
+            keys_final = keys(ctx_final.gds_backend.emitted);
             actual_final = sort(double(keys_final(:)));
-            expected_final = sort(double(int32([m.id; c.id])));
+            expected_final = sort(double(int32([m_final.id; c_final.id])));
             testCase.verifyEqual(actual_final, expected_final);
             testCase.verifyTrue(isfile(out_final));
 
-            out_all_finalized = fullfile(tempdir, "test_preview_all_then_final.gds");
-            ctx.preview_gds_build(scope="all", final_scope="final", reset_layout=true, ...
-                zoom_fit=false, show_all_cells=true, output_filename=out_all_finalized, launch_external=false);
-            keys_all_finalized = keys(ctx.gds_backend.emitted);
-            actual_all_finalized = sort(double(keys_all_finalized(:)));
-            testCase.verifyEqual(actual_all_finalized, expected_final);
-            testCase.verifyTrue(isfile(out_all_finalized));
+            ctx_all = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
+                preview_klayout=true, snap_on_grid=false);
+            ctx_all.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+            r_all = primitives.Rectangle(ctx_all, center=[0 0], width=100, height=60, layer="m1");
+            m_all = ops.Move(ctx_all, r_all, delta=[20 0], layer="m1");
+            c_all = primitives.Circle(ctx_all, center=[200 0], radius=40, layer="m1");
+            out_all = fullfile(tempdir, "test_preview_all.gds");
+            ctx_all.preview_gds_build(reset_layout=true, ...
+                zoom_fit=false, show_all_cells=true, output_filename=out_all, launch_external=false);
+            keys_all = keys(ctx_all.gds_backend.emitted);
+            actual_all = sort(double(keys_all(:)));
+            expected_all = sort(double(int32([r_all.id; m_all.id; c_all.id])));
+            testCase.verifyEqual(actual_all, expected_all);
+            testCase.verifyTrue(isfile(out_all));
         end
     end
 

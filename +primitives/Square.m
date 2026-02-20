@@ -8,7 +8,7 @@ classdef Square < primitives.Rectangle
         function obj = Square(ctx, args)
             % Create a square from center/corner and one side length.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.center = [0, 0]
                 args.corner = []
                 args.base {mustBeTextScalar} = "center"

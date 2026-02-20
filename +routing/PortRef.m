@@ -87,13 +87,13 @@ classdef PortRef
             % Emit triangular launch markers as Polygon primitives.
             arguments
                 obj
-                args.ctx core.GeometrySession = core.GeometrySession.empty
+                args.ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.layer = "port"
                 args.tip_length = []
                 args.tip_scale double = 1/3
             end
             if isempty(args.ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             else
                 ctx = args.ctx;
             end

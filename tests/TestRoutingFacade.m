@@ -1,7 +1,7 @@
 classdef TestRoutingFacade < matlab.unittest.TestCase
     methods (Test)
         function connectReturnsResult(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             spec = routing.PortSpec(widths=10, offsets=0, layers="m1", subnames="sig");
             p1 = routing.PortRef(name="a", pos=[0,0], ori=[1,0], spec=spec);
@@ -13,7 +13,7 @@ classdef TestRoutingFacade < matlab.unittest.TestCase
         end
 
         function connectAutoDetoursWhenCornerTooTight(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             spec = routing.PortSpec(widths=10, offsets=0, layers="m1", subnames="sig");
             p1 = routing.PortRef(name="in", pos=[0,0], ori=[1,0], spec=spec);
@@ -29,7 +29,7 @@ classdef TestRoutingFacade < matlab.unittest.TestCase
         end
 
         function connectTargetAutoMeanderTuning(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             spec = routing.PortSpec(widths=12, offsets=0, layers="m1", subnames="sig");
             p1 = routing.PortRef(name="a", pos=[0,0], ori=[1,0], spec=spec);
@@ -51,7 +51,7 @@ classdef TestRoutingFacade < matlab.unittest.TestCase
         end
 
         function connectMismatchBuildsLinearAdaptors(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
 

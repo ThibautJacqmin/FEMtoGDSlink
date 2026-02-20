@@ -8,13 +8,13 @@ classdef Point < core.GeomFeature
         function obj = Point(ctx, args)
             % Create point primitive from one or more 2D coordinates.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.p = [0, 0]
                 args.marker_size = 1
                 args.layer = "default"
             end
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
             obj.p = args.p;

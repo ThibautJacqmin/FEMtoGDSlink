@@ -14,7 +14,7 @@ classdef Circle < core.GeomFeature
         function obj = Circle(ctx, args)
             % Create a circle from center/corner, radius, and layer settings.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.center = [0, 0]
                 args.corner = []
                 args.base {mustBeTextScalar} = "center"
@@ -25,7 +25,7 @@ classdef Circle < core.GeomFeature
                 args.layer = "default"
             end
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
             obj.radius = args.radius;

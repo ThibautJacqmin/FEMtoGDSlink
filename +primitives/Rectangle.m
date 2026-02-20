@@ -23,7 +23,7 @@ classdef Rectangle < core.GeomFeature
         function obj = Rectangle(ctx, args)
             % Create a rectangle from center/corner, size, and optional rotation.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.center = [0, 0]
                 args.corner = []
                 args.base {mustBeTextScalar} = "center"
@@ -35,7 +35,7 @@ classdef Rectangle < core.GeomFeature
                 args.fillet_height = 1
             end
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
             obj.width = args.width;

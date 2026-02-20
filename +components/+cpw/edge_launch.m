@@ -1,6 +1,6 @@
 function out = edge_launch(ctx, narrow_port, opts)
 arguments
-    ctx core.GeometrySession
+    ctx core.GeometryPipeline
     narrow_port routing.PortRef
     opts.name {mustBeTextScalar} = "edge_launch_0"
     opts.length_nm double = 120

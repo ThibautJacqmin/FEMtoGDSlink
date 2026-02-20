@@ -9,14 +9,14 @@ classdef LineSegment < core.GeomFeature
         function obj = LineSegment(ctx, args)
             % Create line segment from p1 to p2.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.p1 = [0, 0]
                 args.p2 = [1, 0]
                 args.width = 1
                 args.layer = "default"
             end
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
             obj.p1 = args.p1;

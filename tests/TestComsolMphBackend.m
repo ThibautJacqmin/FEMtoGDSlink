@@ -3,8 +3,8 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
     methods (TestMethodTeardown)
         function cleanupSharedComsol(~)
             % Ensure shared state does not leak across tests.
-            core.GeometrySession.clear_shared_comsol();
-            core.GeometrySession.set_current([]);
+            core.GeometryPipeline.clear_shared_comsol();
+            core.GeometryPipeline.set_current([]);
         end
     end
 
@@ -22,11 +22,11 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
         end
 
         function withSharedComsolUsesMphModelerAndBuilds(testCase)
-            % Verify GeometrySession can emit basic features through comsol_api="mph".
+            % Verify GeometryPipeline can emit basic features through comsol_api="mph".
             [ok, reason] = TestComsolMphBackend.hasMphServer();
             testCase.assumeTrue(ok, "Skipping MPh integration test: " + reason);
 
-            ctx = core.GeometrySession.with_shared_comsol( ...
+            ctx = core.GeometryPipeline.with_shared_comsol( ...
                 enable_gds=false, emit_on_create=false, ...
                 snap_on_grid=false, reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
@@ -54,14 +54,14 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             [ok, reason] = TestComsolMphBackend.hasMphServer();
             testCase.assumeTrue(ok, "Skipping MPh integration test: " + reason);
 
-            core.GeometrySession.clear_shared_comsol();
-            ctx1 = core.GeometrySession.with_shared_comsol( ...
+            core.GeometryPipeline.clear_shared_comsol();
+            ctx1 = core.GeometryPipeline.with_shared_comsol( ...
                 enable_gds=false, snap_on_grid=false, ...
                 reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
             tag1 = string(ctx1.comsol.model_tag);
 
-            ctx2 = core.GeometrySession.with_shared_comsol( ...
+            ctx2 = core.GeometryPipeline.with_shared_comsol( ...
                 enable_gds=false, snap_on_grid=false, ...
                 reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
@@ -70,8 +70,8 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             testCase.verifyEqual(tag2, tag1);
             testCase.verifyTrue(isequal(ctx1.comsol, ctx2.comsol));
 
-            core.GeometrySession.clear_shared_comsol();
-            ctx3 = core.GeometrySession.with_shared_comsol( ...
+            core.GeometryPipeline.clear_shared_comsol();
+            ctx3 = core.GeometryPipeline.with_shared_comsol( ...
                 enable_gds=false, snap_on_grid=false, ...
                 reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");

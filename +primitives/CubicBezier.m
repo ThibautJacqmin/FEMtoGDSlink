@@ -13,7 +13,7 @@ classdef CubicBezier < core.GeomFeature
         function obj = CubicBezier(ctx, args)
             % Create a cubic Bezier from four control points.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.p0 = [0, 0]
                 args.p1 = [1/3, 1]
                 args.p2 = [2/3, -1]
@@ -24,7 +24,7 @@ classdef CubicBezier < core.GeomFeature
                 args.layer = "default"
             end
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
             obj.p0 = args.p0;

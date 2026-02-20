@@ -2,7 +2,7 @@ classdef Polygon < core.GeomFeature
     % Polygon primitive represented by an ordered list of 2D vertices.
     %
     % The class has two modes:
-    % 1) Feature mode (with a core.GeometrySession): registers as a graph node.
+    % 1) Feature mode (with a core.GeometryPipeline): registers as a graph node.
     % 2) Lightweight mode (no active session): plain container used by
     %    legacy GDS helper utilities that only need `pgon_py` and `vertices`.
     properties (Dependent)
@@ -87,11 +87,11 @@ classdef Polygon < core.GeomFeature
     end
     methods (Static, Access=private)
         function [ctx, args] = parse_inputs(varargin)
-            if ~isempty(varargin) && isa(varargin{1}, 'core.GeometrySession')
+            if ~isempty(varargin) && isa(varargin{1}, 'core.GeometryPipeline')
                 ctx = varargin{1};
                 nv = varargin(2:end);
             else
-                ctx = core.GeometrySession.get_current();
+                ctx = core.GeometryPipeline.get_current();
                 nv = varargin;
             end
             args = primitives.Polygon.parse_options(nv{:});

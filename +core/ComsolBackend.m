@@ -22,7 +22,7 @@ classdef ComsolBackend < handle
     end
     methods
         function obj = ComsolBackend(session)
-            % Initialize a COMSOL emitter bound to one core.GeometrySession.
+            % Initialize a COMSOL emitter bound to one core.GeometryPipeline.
             obj.session = session;
             obj.modeler = session.comsol;
             obj.defined_params = dictionary(string.empty(0,1), false(0,1));
@@ -357,7 +357,7 @@ classdef ComsolBackend < handle
 
         function emit_Move(obj, node)
             % Emit a COMSOL Move operation.
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             [layer, feature, tag, ~] = obj.start_unary_feature(node, "mov", "Move", keep_input);
             delta = obj.length_vector(node.delta, "Move delta");
             obj.set_scalar(feature, 'displx', delta(1));
@@ -367,7 +367,7 @@ classdef ComsolBackend < handle
 
         function emit_Rotate(obj, node)
             % Emit a COMSOL Rotate operation.
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             [layer, feature, tag, ~] = obj.start_unary_feature(node, "rot", "Rotate", keep_input);
             obj.set_scalar(feature, 'rot', obj.raw_component(node.angle));
             origin = obj.length_vector(node.origin, "Rotate origin");
@@ -377,7 +377,7 @@ classdef ComsolBackend < handle
 
         function emit_Scale(obj, node)
             % Emit a COMSOL Scale operation.
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             [layer, feature, tag, ~] = obj.start_unary_feature(node, "sca", "Scale", keep_input);
             obj.set_scalar(feature, 'factor', obj.raw_component(node.factor));
             origin = obj.length_vector(node.origin, "Scale origin");
@@ -387,7 +387,7 @@ classdef ComsolBackend < handle
 
         function emit_Mirror(obj, node)
             % Emit a COMSOL Mirror operation.
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             [layer, feature, tag, ~] = obj.start_unary_feature(node, "mir", "Mirror", keep_input);
             point = obj.length_vector(node.point, "Mirror point");
             obj.set_pair(feature, 'pos', point(1), point(2));
@@ -398,7 +398,7 @@ classdef ComsolBackend < handle
         function emit_Union(obj, node)
             % Emit a COMSOL Union operation.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             tags = strings(1, numel(node.inputs));
             for i = 1:numel(node.inputs)
                 tags(i) = string(obj.resolve_input_tag(layer, node.inputs{i}, keep_input));
@@ -413,7 +413,7 @@ classdef ComsolBackend < handle
         function emit_Difference(obj, node)
             % Emit a COMSOL Difference operation.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             base_tag = obj.resolve_input_tag(layer, node.base, keep_input);
             tool_tags = strings(1, numel(node.tools));
             for i = 1:numel(node.tools)
@@ -432,7 +432,7 @@ classdef ComsolBackend < handle
         function emit_Intersection(obj, node)
             % Emit a COMSOL Intersection operation.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             tags = strings(1, numel(node.inputs));
             for i = 1:numel(node.inputs)
                 tags(i) = string(obj.resolve_input_tag(layer, node.inputs{i}, keep_input));
@@ -447,7 +447,7 @@ classdef ComsolBackend < handle
         function emit_Array1D(obj, node)
             % Emit a COMSOL 1D Array operation.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             source_tag = string(obj.tag_for(node.target));
             input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
             [~, arr_feature, arr_tag] = obj.start_feature(node, "arr", "Array");
@@ -475,7 +475,7 @@ classdef ComsolBackend < handle
         function emit_Array2D(obj, node)
             % Emit a COMSOL 2D rectangular Array operation.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             source_tag = string(obj.tag_for(node.target));
             input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
             [~, arr_feature, arr_tag] = obj.start_feature(node, "arr", "Array");
@@ -513,7 +513,7 @@ classdef ComsolBackend < handle
         function emit_Fillet(obj, node)
             % Emit a COMSOL Fillet operation with explicit point selection.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             base_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature(node, "fil", "Fillet");
             obj.set_keep_input(feature, keep_input);
@@ -556,7 +556,7 @@ classdef ComsolBackend < handle
         function emit_Chamfer(obj, node)
             % Emit a COMSOL Chamfer operation with explicit point selection.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             base_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature(node, "cha", "Chamfer");
             obj.set_keep_input(feature, keep_input);
@@ -598,7 +598,7 @@ classdef ComsolBackend < handle
         function emit_Offset(obj, node)
             % Emit a COMSOL Offset operation.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             input_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature_with_fallback( ...
                 node, "off", ["Offset", "Offset2D"], "Offset");
@@ -629,7 +629,7 @@ classdef ComsolBackend < handle
         function emit_Tangent(obj, node)
             % Emit a COMSOL Tangent feature.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             edge_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             if lower(string(node.type)) == "edge"
                 if isempty(node.edge2)
@@ -674,7 +674,7 @@ classdef ComsolBackend < handle
         function emit_Thicken(obj, node)
             % Emit a COMSOL Thicken operation (2D) from a target curve/object.
             layer = node.layer;
-            keep_input = core.GeometrySession.node_keeps_inputs(node);
+            keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             input_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature_with_fallback( ...
                 node, "thk", ["Thicken2D", "Thicken"], "Thicken");

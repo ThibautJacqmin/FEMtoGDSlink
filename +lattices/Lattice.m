@@ -230,7 +230,7 @@ classdef Lattice < handle
                 args.a {mustBeNumeric, mustBeReal, mustBeFinite, mustBePositive}
                 args.nw {mustBeInteger, mustBePositive}
                 args.nh {mustBeInteger, mustBePositive}
-                args.ctx core.GeometrySession = core.GeometrySession.empty
+                args.ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.seed = []
                 args.seedA = []
                 args.seedB = []

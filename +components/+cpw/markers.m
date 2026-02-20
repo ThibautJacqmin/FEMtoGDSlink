@@ -1,7 +1,7 @@
 function feats = markers(p, opts)
 arguments
     p routing.PortRef
-    opts.ctx core.GeometrySession = core.GeometrySession.empty
+    opts.ctx core.GeometryPipeline = core.GeometryPipeline.empty
     opts.layer = "portmark"
     opts.tip_length = []
     opts.tip_scale double = 1/3

@@ -207,7 +207,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=true, ...
                 snap_on_grid=false, gds_resolution_nm=2);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
@@ -441,20 +441,20 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
 
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=true, ...
                 snap_on_grid=false, gds_resolution_nm=5);
             testCase.verifyEqual(double(ctx.gds.pylayout.dbu), 0.005, AbsTol=1e-12);
         end
 
         function gdsIntegerUsesResolutionWhenSnapOff(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, ...
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, ...
                 snap_on_grid=false, gds_resolution_nm=2);
             ints = ctx.gds_integer([1, 3, 5], "resolution-test");
             testCase.verifyEqual(ints, [1, 2, 3]);
         end
 
         function terminalNodesReturnSinkNodesByDefault(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
             r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
@@ -472,7 +472,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
         end
 
         function terminalNodesRespectKeepInputObjects(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
             r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
@@ -522,7 +522,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(actual_final, expected_final);
             testCase.verifyTrue(isfile(out_final));
 
-            ctx_all = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
+            ctx_all = core.GeometryPipeline(enable_comsol=false, enable_gds=true, ...
                 preview_klayout=true, snap_on_grid=false);
             ctx_all.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             r_all = primitives.Rectangle(ctx_all, center=[0 0], width=100, height=60, layer="m1");
@@ -542,7 +542,7 @@ classdef TestGdsBackend < matlab.unittest.TestCase
     methods (Static, Access=private)
         function ctx = newContext()
             % Build a standard GDS-only context used by all tests.
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=true, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
         end
 

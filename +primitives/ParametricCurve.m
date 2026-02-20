@@ -14,7 +14,7 @@ classdef ParametricCurve < core.GeomFeature
         function obj = ParametricCurve(ctx, args)
             % Create a parametric curve from coordinate expressions.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.coord = {"cos(s)", "sin(s)"}
                 args.parname {mustBeTextScalar} = "s"
                 args.parmin = 0
@@ -26,7 +26,7 @@ classdef ParametricCurve < core.GeomFeature
                 args.layer = "default"
             end
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
             obj.coord = args.coord;

@@ -61,7 +61,7 @@ classdef HoneyCombLattice < lattices.Lattice
             % Replicate feature(s) on selected honeycomb site families.
             arguments
                 obj
-                args.ctx core.GeometrySession = core.GeometrySession.empty
+                args.ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.seed = []
                 args.seedA = []
                 args.seedB = []
@@ -118,7 +118,7 @@ classdef HoneyCombLattice < lattices.Lattice
                 ctx = args.ctx;
             end
             if isempty(ctx)
-                error("HoneyCombLattice latticeFromFeature requires a valid GeometrySession context.");
+                error("HoneyCombLattice latticeFromFeature requires a valid GeometryPipeline context.");
             end
 
             seeds = {seedA, seedB, seedCenters};

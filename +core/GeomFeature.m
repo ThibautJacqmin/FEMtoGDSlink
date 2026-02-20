@@ -5,7 +5,7 @@ classdef GeomFeature < handle
         layer
     end
     properties
-        % Monotonic graph node id assigned by GeometrySession.register.
+        % Monotonic graph node id assigned by GeometryPipeline.register.
         id
         % Upstream dependencies used to build this feature.
         inputs
@@ -22,7 +22,7 @@ classdef GeomFeature < handle
     end
     methods
         function obj = GeomFeature(ctx, layer)
-            % Construct a graph node bound to a core.GeometrySession context.
+            % Construct a graph node bound to a core.GeometryPipeline context.
             if nargin < 1
                 return;
             end
@@ -44,7 +44,7 @@ classdef GeomFeature < handle
         end
 
         function ctx = context(obj)
-            % Return owning core.GeometrySession.
+            % Return owning core.GeometryPipeline.
             ctx = obj.ctx;
         end
 
@@ -86,7 +86,7 @@ classdef GeomFeature < handle
         function initialize_feature(obj, ctx, layer)
             % Initialize context/layer/parameter storage and register node.
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj.ctx = ctx;
             obj.inputs = {};
@@ -135,7 +135,7 @@ classdef GeomFeature < handle
                 error("%s requires a target feature.", char(op));
             end
 
-            if isa(varargin{1}, 'core.GeometrySession')
+            if isa(varargin{1}, 'core.GeometryPipeline')
                 ctx = varargin{1};
                 if numel(varargin) < 2
                     error("%s requires a target feature.", char(op));
@@ -147,7 +147,7 @@ classdef GeomFeature < handle
                 if isa(target, 'core.GeomFeature')
                     ctx = target.context();
                 else
-                    ctx = core.GeometrySession.require_current();
+                    ctx = core.GeometryPipeline.require_current();
                 end
                 nv = varargin(2:end);
             end
@@ -164,7 +164,7 @@ classdef GeomFeature < handle
                 error("%s requires member features.", char(op));
             end
 
-            if isa(varargin{1}, 'core.GeometrySession')
+            if isa(varargin{1}, 'core.GeometryPipeline')
                 ctx = varargin{1};
                 if numel(varargin) < 2
                     error("%s requires member features.", char(op));
@@ -177,7 +177,7 @@ classdef GeomFeature < handle
                 if ~isempty(members)
                     ctx = members{1}.context();
                 else
-                    ctx = core.GeometrySession.require_current();
+                    ctx = core.GeometryPipeline.require_current();
                 end
                 nv = varargin(2:end);
             end
@@ -192,7 +192,7 @@ classdef GeomFeature < handle
                 error("%s requires base and tool features.", char(op));
             end
 
-            if isa(varargin{1}, 'core.GeometrySession')
+            if isa(varargin{1}, 'core.GeometryPipeline')
                 ctx = varargin{1};
                 base = varargin{2};
                 if numel(varargin) < 3
@@ -206,7 +206,7 @@ classdef GeomFeature < handle
                 if isa(base, 'core.GeomFeature')
                     ctx = base.context();
                 else
-                    ctx = core.GeometrySession.require_current();
+                    ctx = core.GeometryPipeline.require_current();
                 end
                 nv = varargin(3:end);
             end

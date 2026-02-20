@@ -1,6 +1,6 @@
 function out = connect_auto(ctx, port_in, port_out, opts)
 arguments
-    ctx core.GeometrySession
+    ctx core.GeometryPipeline
     port_in routing.PortRef
     port_out routing.PortRef
     opts.name {mustBeTextScalar} = "conn_auto_0"

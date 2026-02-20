@@ -13,7 +13,7 @@ classdef CircularArc < core.GeomFeature
         function obj = CircularArc(ctx, args)
             % Create a circular arc primitive.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.center = [0, 0]
                 args.radius = 1
                 args.start_angle = 0
@@ -24,7 +24,7 @@ classdef CircularArc < core.GeomFeature
                 args.layer = "default"
             end
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
             obj.center = args.center;

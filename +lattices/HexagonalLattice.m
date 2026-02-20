@@ -49,7 +49,7 @@ classdef HexagonalLattice < lattices.Lattice
             arguments
                 obj
                 args.seed core.GeomFeature
-                args.ctx core.GeometrySession = core.GeometrySession.empty
+                args.ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.layer = []
                 args.a_parameter = []
                 args.offset = [0, 0] % coefficient in units of lattice constant
@@ -117,7 +117,7 @@ classdef HexagonalLattice < lattices.Lattice
             end
 
             if isempty(ctx)
-                error("HexagonalLattice arrayFromFeature requires a valid GeometrySession context.");
+                error("HexagonalLattice arrayFromFeature requires a valid GeometryPipeline context.");
             end
             if ~isequal(seed.context(), ctx)
                 error("HexagonalLattice seed feature context must match provided ctx.");

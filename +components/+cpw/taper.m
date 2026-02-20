@@ -1,6 +1,6 @@
 function feat = taper(ctx, p, layer, width0_nm, width1_nm, opts)
 arguments
-    ctx core.GeometrySession
+    ctx core.GeometryPipeline
     p routing.PortRef
     layer {mustBeTextScalar}
     width0_nm double

@@ -1,5 +1,5 @@
-classdef GeometrySession < handle
-    % GeometrySession coordinates COMSOL and GDS backends and layer mapping.
+classdef GeometryPipeline < handle
+    % GeometryPipeline coordinates COMSOL and GDS backends and layer mapping.
     properties
         % Active COMSOL modeler instance (LiveLink or MPh) or [].
         comsol
@@ -41,7 +41,7 @@ classdef GeometrySession < handle
         preview_live_readyfile
     end
     methods
-        function obj = GeometrySession(args)
+        function obj = GeometryPipeline(args)
             % Build a geometry session and initialize enabled backends.
             arguments
                 args.enable_comsol logical = true
@@ -57,9 +57,9 @@ classdef GeometrySession < handle
 
             enable_comsol = args.enable_comsol;
             enable_gds = args.enable_gds;
-            api = core.GeometrySession.normalize_comsol_api(args.comsol_api);
+            api = core.GeometryPipeline.normalize_comsol_api(args.comsol_api);
             cfg = core.ComsolModeler.connection_defaults();
-            resolved_gds_nm = core.GeometrySession.resolve_gds_resolution( ...
+            resolved_gds_nm = core.GeometryPipeline.resolve_gds_resolution( ...
                 args.gds_resolution_nm);
 
             if enable_comsol
@@ -101,7 +101,7 @@ classdef GeometrySession < handle
             obj.preview_live_readyfile = "";
 
             % Always keep the latest session as process-global current context.
-            core.GeometrySession.set_current(obj);
+            core.GeometryPipeline.set_current(obj);
 
             % Default layer mapping (layer 1 on workplane wp1).
             obj.add_layer("default", gds_layer=1, comsol_workplane="wp1");
@@ -113,7 +113,7 @@ classdef GeometrySession < handle
                 try
                     obj.comsol.start_gui();
                 catch
-                    warning("GeometrySession:GuiLaunch", ...
+                    warning("GeometryPipeline:GuiLaunch", ...
                         "Failed to launch/attach COMSOL Desktop automatically.");
                 end
             end
@@ -206,7 +206,7 @@ classdef GeometrySession < handle
             end
 
             if ~obj.has_comsol()
-                error("GeometrySession:ComsolDisabled", ...
+                error("GeometryPipeline:ComsolDisabled", ...
                     "Cannot register parameter: COMSOL backend disabled.");
             end
 
@@ -219,7 +219,7 @@ classdef GeometrySession < handle
             else
                 name = string(args.name);
                 if strlength(name) == 0
-                    error("GeometrySession:MissingParameterName", ...
+                    error("GeometryPipeline:MissingParameterName", ...
                         "register_parameter requires a name when input is not a Parameter object.");
                 end
                 param_obj = types.Parameter(p, name, unit=args.unit, auto_register=false);
@@ -288,7 +288,7 @@ classdef GeometrySession < handle
             % and falls back to:
             %   <pwd>/femtogds_output.gds
             arguments
-                obj core.GeometrySession
+                obj core.GeometryPipeline
                 args.gds_filename {mustBeTextScalar} = ""
                 args.report logical = true
                 args.report_display logical = true
@@ -303,7 +303,7 @@ classdef GeometrySession < handle
             if obj.has_gds()
                 gds_filename = string(args.gds_filename);
                 if strlength(strtrim(gds_filename)) == 0
-                    gds_filename = core.GeometrySession.default_gds_filename();
+                    gds_filename = core.GeometryPipeline.default_gds_filename();
                 end
                 obj.export_gds(gds_filename);
                 out.built_gds = true;
@@ -324,7 +324,7 @@ classdef GeometrySession < handle
             % Emit graph to GDS backend and write layout to disk.
             % By default, only terminal (final) nodes are exported.
             arguments
-                obj core.GeometrySession
+                obj core.GeometryPipeline
                 filename {mustBeTextScalar}
             end
             if ~obj.has_gds()
@@ -365,7 +365,7 @@ classdef GeometrySession < handle
             used = dictionary(int32.empty(0,1), false(0,1));
             for i = 1:numel(obj.nodes)
                 node = obj.nodes{i};
-                keeps_inputs = core.GeometrySession.node_keeps_inputs(node);
+                keeps_inputs = core.GeometryPipeline.node_keeps_inputs(node);
                 for j = 1:numel(node.inputs)
                     in = node.inputs{j};
                     if keeps_inputs
@@ -395,7 +395,7 @@ classdef GeometrySession < handle
         function open_klayout_gui(obj, args)
             % Open KLayout view for current in-memory GDS layout.
             arguments
-                obj core.GeometrySession
+                obj core.GeometryPipeline
                 args.zoom_fit logical = true
                 args.show_all_cells logical = true
             end
@@ -408,7 +408,7 @@ classdef GeometrySession < handle
         function refresh_klayout_gui(obj, args)
             % Refresh KLayout view for current in-memory GDS layout.
             arguments
-                obj core.GeometrySession
+                obj core.GeometryPipeline
                 args.zoom_fit logical = false
                 args.show_all_cells logical = true
             end
@@ -421,7 +421,7 @@ classdef GeometrySession < handle
         function preview_gds_build(obj, args)
             % Emit GDS geometry step-by-step and optionally launch KLayout preview.
             arguments
-                obj core.GeometrySession
+                obj core.GeometryPipeline
                 args.reset_layout logical = true
                 args.zoom_fit logical = true
                 args.show_all_cells logical = true
@@ -485,7 +485,7 @@ classdef GeometrySession < handle
         function snapped = snap_length(obj, values, context)
             % Snap lengths to grid when snap_on_grid is enabled.
             arguments
-                obj core.GeometrySession
+                obj core.GeometryPipeline
                 values
                 context {mustBeTextScalar} = "geometry"
             end
@@ -502,7 +502,7 @@ classdef GeometrySession < handle
                     key = string(context);
                     obj.record_snap(key, delta);
                     if ~isKey(obj.snap_warned, key)
-                        warning("GeometrySession:Snap", ...
+                        warning("GeometryPipeline:Snap", ...
                             "Snapped %s to %.12g nm grid (max delta %.6g nm).", ...
                             char(context), grid, max(delta(:)));
                         obj.snap_warned(key) = true;
@@ -514,7 +514,7 @@ classdef GeometrySession < handle
         function ints = gds_integer(obj, values, context)
             % Snap and convert nm values into integer GDS database units.
             arguments
-                obj core.GeometrySession
+                obj core.GeometryPipeline
                 values
                 context {mustBeTextScalar} = "gds"
             end
@@ -531,7 +531,7 @@ classdef GeometrySession < handle
         function report = snap_report(obj, args)
             % Build tabular report of snap events by context.
             arguments
-                obj core.GeometrySession
+                obj core.GeometryPipeline
                 args.display logical = true
             end
             keys_list = keys(obj.snap_stats);
@@ -569,7 +569,7 @@ classdef GeometrySession < handle
         function report = build_report(obj, args)
             % Return consolidated diagnostic report for session/backends.
             arguments
-                obj core.GeometrySession
+                obj core.GeometryPipeline
                 args.display logical = true
             end
 
@@ -690,12 +690,12 @@ classdef GeometrySession < handle
                 args.comsol_api {mustBeTextScalar} = "mph"
             end
 
-            api = core.GeometrySession.normalize_comsol_api(args.comsol_api);
+            api = core.GeometryPipeline.normalize_comsol_api(args.comsol_api);
             cfg = core.ComsolModeler.connection_defaults();
             shared_modeler = [];
             if args.enable_comsol
                 if args.reset_model && args.clean_on_reset
-                    core.GeometrySession.clean_comsol_server();
+                    core.GeometryPipeline.clean_comsol_server();
                 end
                 if api == "mph"
                     shared_modeler = core.ComsolMphModeler.shared( ...
@@ -710,10 +710,10 @@ classdef GeometrySession < handle
                         comsol_root=cfg.root);
                 end
             end
-            ctx = core.GeometrySession( ...
+            ctx = core.GeometryPipeline( ...
                 enable_comsol=false, ...
                 enable_gds=args.enable_gds, ...
-                emit_on_create=args.emit_on_create, ...
+                comsol_emit_on_create=args.emit_on_create, ...
                 snap_on_grid=args.snap_on_grid, ...
                 gds_resolution_nm=args.gds_resolution_nm, ...
                 warn_on_snap=args.warn_on_snap, ...
@@ -728,7 +728,7 @@ classdef GeometrySession < handle
                     try
                         ctx.comsol.start_gui();
                     catch
-                        warning("GeometrySession:GuiLaunch", ...
+                        warning("GeometryPipeline:GuiLaunch", ...
                             "Failed to launch/attach COMSOL Desktop automatically.");
                     end
                 end
@@ -758,13 +758,13 @@ classdef GeometrySession < handle
         end
 
         function set_current(ctx)
-            % Set process-global active GeometrySession.
-            core.GeometrySession.current_context_store(ctx);
+            % Set process-global active GeometryPipeline.
+            core.GeometryPipeline.current_context_store(ctx);
         end
 
         function ctx = get_current()
-            % Get process-global active GeometrySession if any.
-            current_ctx = core.GeometrySession.current_context_store();
+            % Get process-global active GeometryPipeline if any.
+            current_ctx = core.GeometryPipeline.current_context_store();
             if isempty(current_ctx)
                 ctx = [];
             else
@@ -773,10 +773,10 @@ classdef GeometrySession < handle
         end
 
         function ctx = require_current()
-            % Get active GeometrySession or raise an explicit error.
-            ctx = core.GeometrySession.get_current();
+            % Get active GeometryPipeline or raise an explicit error.
+            ctx = core.GeometryPipeline.get_current();
             if isempty(ctx)
-                error("No active GeometrySession. Create one or call GeometrySession.set_current(ctx).");
+                error("No active GeometryPipeline. Create one or call GeometryPipeline.set_current(ctx).");
             end
         end
     end
@@ -785,7 +785,7 @@ classdef GeometrySession < handle
             % Validate COMSOL API selector.
             api = lower(string(raw_api));
             if ~any(api == ["mph", "livelink"])
-                error("GeometrySession:InvalidComsolApi", ...
+                error("GeometryPipeline:InvalidComsolApi", ...
                     "comsol_api must be 'mph' or 'livelink'.");
             end
         end
@@ -803,7 +803,7 @@ classdef GeometrySession < handle
             has_resolution = isscalar(raw_resolution) && isfinite(raw_resolution);
 
             if has_resolution
-                grid = core.GeometrySession.validate_length_grid(raw_resolution, "gds_resolution_nm");
+                grid = core.GeometryPipeline.validate_length_grid(raw_resolution, "gds_resolution_nm");
                 return;
             end
 
@@ -811,7 +811,7 @@ classdef GeometrySession < handle
         end
 
         function ctx = current_context_store(varargin)
-            % Persistent storage for current GeometrySession singleton.
+            % Persistent storage for current GeometryPipeline singleton.
             persistent current_ctx
             if nargin == 1
                 current_ctx = varargin{1};
@@ -913,8 +913,8 @@ classdef GeometrySession < handle
 
             report = struct();
             report.total = n;
-            report.by_type = core.GeometrySession.count_table(classes, "Type");
-            report.by_layer = core.GeometrySession.count_table(layer_names, "Layer");
+            report.by_type = core.GeometryPipeline.count_table(classes, "Type");
+            report.by_layer = core.GeometryPipeline.count_table(layer_names, "Layer");
         end
 
         function report = gds_report(obj)
@@ -926,8 +926,8 @@ classdef GeometrySession < handle
             if ~report.initialized
                 return;
             end
-            report.cached_regions = core.GeometrySession.map_count(obj.gds_backend.regions);
-            report.emitted_nodes = core.GeometrySession.true_value_count(obj.gds_backend.emitted);
+            report.cached_regions = core.GeometryPipeline.map_count(obj.gds_backend.regions);
+            report.emitted_nodes = core.GeometryPipeline.true_value_count(obj.gds_backend.emitted);
         end
 
         function report = comsol_report(obj)
@@ -941,10 +941,10 @@ classdef GeometrySession < handle
             if ~report.initialized
                 return;
             end
-            report.emitted_features = core.GeometrySession.map_count(obj.comsol_backend.feature_tags);
-            report.selections = core.GeometrySession.map_count(obj.comsol_backend.selection_tags);
-            report.snapped_expr_params = core.GeometrySession.map_count(obj.comsol_backend.snapped_length_tokens);
-            report.defined_params = core.GeometrySession.map_count(obj.comsol_backend.defined_params);
+            report.emitted_features = core.GeometryPipeline.map_count(obj.comsol_backend.feature_tags);
+            report.selections = core.GeometryPipeline.map_count(obj.comsol_backend.selection_tags);
+            report.snapped_expr_params = core.GeometryPipeline.map_count(obj.comsol_backend.snapped_length_tokens);
+            report.defined_params = core.GeometryPipeline.map_count(obj.comsol_backend.defined_params);
         end
 
         function reset_gds_layout(obj)

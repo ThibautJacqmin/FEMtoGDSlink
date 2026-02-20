@@ -487,7 +487,7 @@ classdef KlayoutBackend < handle
 
         function value_nm = parameter_length_nm(~, p, context)
             % Resolve one types.Parameter length value into nm.
-            [scale_nm, is_length] = core.GeometrySession.unit_scale_to_nm(string(p.unit));
+            [scale_nm, is_length] = core.GeometryPipeline.unit_scale_to_nm(string(p.unit));
             if ~is_length
                 error("%s expects a length parameter; unsupported unit '%s'.", ...
                     char(string(context)), char(string(p.unit)));

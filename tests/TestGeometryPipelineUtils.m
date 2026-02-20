@@ -1,14 +1,14 @@
-classdef TestGeometrySessionUtils < matlab.unittest.TestCase
-    % Unit tests for GeometrySession static utility behavior.
+classdef TestGeometryPipelineUtils < matlab.unittest.TestCase
+    % Unit tests for GeometryPipeline static utility behavior.
     methods (TestMethodTeardown)
         function clearCurrentContext(~)
-            core.GeometrySession.set_current([]);
+            core.GeometryPipeline.set_current([]);
         end
     end
 
     methods (Test)
         function addLayerInfersComsolEmitFromWorkplane(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
 
             gds_only = ctx.add_layer("gds_only", gds_layer=7, gds_datatype=0);
             comsol_layer = ctx.add_layer("m2", gds_layer=8, gds_datatype=0, ...
@@ -23,11 +23,11 @@ classdef TestGeometrySessionUtils < matlab.unittest.TestCase
         end
 
         function previewFlagsAreStoredInSession(testCase)
-            ctx_live = core.GeometrySession( ...
+            ctx_live = core.GeometryPipeline( ...
                 enable_comsol=false, enable_gds=false, ...
                 preview_klayout=true, ...
                 snap_on_grid=false);
-            ctx_batch = core.GeometrySession( ...
+            ctx_batch = core.GeometryPipeline( ...
                 enable_comsol=false, enable_gds=false, ...
                 preview_klayout=false, ...
                 snap_on_grid=false);
@@ -40,19 +40,19 @@ classdef TestGeometrySessionUtils < matlab.unittest.TestCase
         end
 
         function nodeKeepsInputsReadsFeatureFlag(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             rect = primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="default");
 
             keep_node = ops.Move(ctx, rect, delta=[10 0], keep_input_objects=true, layer="default");
             consume_node = ops.Move(ctx, rect, delta=[20 0], keep_input_objects=false, layer="default");
 
-            testCase.verifyTrue(core.GeometrySession.node_keeps_inputs(keep_node));
-            testCase.verifyFalse(core.GeometrySession.node_keeps_inputs(consume_node));
-            testCase.verifyFalse(core.GeometrySession.node_keeps_inputs(rect));
+            testCase.verifyTrue(core.GeometryPipeline.node_keeps_inputs(keep_node));
+            testCase.verifyFalse(core.GeometryPipeline.node_keeps_inputs(consume_node));
+            testCase.verifyFalse(core.GeometryPipeline.node_keeps_inputs(rect));
         end
 
         function rectangleAndSquareExposeBezierFilletHelpers(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
 
             r = primitives.Rectangle(ctx, center=[10 5], width=8, height=4, layer="default");
             testCase.verifyEqual(r.left.value, 6, AbsTol=1e-12);
@@ -85,7 +85,7 @@ classdef TestGeometrySessionUtils < matlab.unittest.TestCase
         end
 
         function buildSkipsDisabledBackends(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             out = ctx.build(report=false);
 
             testCase.verifyFalse(out.built_gds);
@@ -94,13 +94,13 @@ classdef TestGeometrySessionUtils < matlab.unittest.TestCase
         end
 
         function buildInfersDefaultGdsFilenameFromCallerFile(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, ...
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=true, ...
                 preview_klayout=false, snap_on_grid=false);
             primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="default");
 
             out = ctx.build(report=false);
             gds_path = string(out.gds_filename);
-            testCase.verifyTrue(endsWith(gds_path, "TestGeometrySessionUtils.gds"));
+            testCase.verifyTrue(endsWith(gds_path, "TestGeometryPipelineUtils.gds"));
             testCase.verifyTrue(isfile(gds_path));
 
             if isfile(gds_path)

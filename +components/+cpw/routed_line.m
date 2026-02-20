@@ -1,6 +1,6 @@
 function out = routed_line(ctx, p1, p2, opts)
 arguments
-    ctx core.GeometrySession
+    ctx core.GeometryPipeline
     p1 routing.PortRef
     p2 routing.PortRef
     opts.name {mustBeTextScalar} = "cpw_line_0"

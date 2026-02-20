@@ -1,6 +1,6 @@
 function out = connector(ctx, p_edge, p_target, opts)
 arguments
-    ctx core.GeometrySession
+    ctx core.GeometryPipeline
     p_edge routing.PortRef
     p_target routing.PortRef
     opts.name {mustBeTextScalar} = "connector_0"

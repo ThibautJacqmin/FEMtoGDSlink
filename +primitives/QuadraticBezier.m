@@ -12,7 +12,7 @@ classdef QuadraticBezier < core.GeomFeature
         function obj = QuadraticBezier(ctx, args)
             % Create a quadratic Bezier from three control points.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.p0 = [0, 0]
                 args.p1 = [0.5, 1]
                 args.p2 = [1, 0]
@@ -22,7 +22,7 @@ classdef QuadraticBezier < core.GeomFeature
                 args.layer = "default"
             end
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
             obj.p0 = args.p0;

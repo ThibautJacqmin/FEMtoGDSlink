@@ -1,7 +1,7 @@
 classdef TestComponentsCpw < matlab.unittest.TestCase
     methods (Test)
         function edgeLaunchBuilds(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
 
@@ -14,7 +14,7 @@ classdef TestComponentsCpw < matlab.unittest.TestCase
         end
 
         function meanderLineReachesTarget(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
 
@@ -31,7 +31,7 @@ classdef TestComponentsCpw < matlab.unittest.TestCase
         end
 
         function connectorAndRoutedLineBuild(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("metal1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
 

@@ -9,14 +9,14 @@ classdef InterpolationCurve < core.GeomFeature
         function obj = InterpolationCurve(ctx, args)
             % Create interpolation curve from a sequence of points.
             arguments
-                ctx core.GeometrySession = core.GeometrySession.empty
+                ctx core.GeometryPipeline = core.GeometryPipeline.empty
                 args.points = [0, 0; 1, 0; 1, 1]
                 args.type {mustBeTextScalar} = "open"
                 args.width = 1
                 args.layer = "default"
             end
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
             obj.points = args.points;

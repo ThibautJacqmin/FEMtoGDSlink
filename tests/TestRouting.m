@@ -51,7 +51,7 @@ classdef TestRouting < matlab.unittest.TestCase
         end
 
         function portRefMarkersBondAndSplit(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("port", gds_layer=10, gds_datatype=0, comsol_workplane="wp1");
@@ -92,7 +92,7 @@ classdef TestRouting < matlab.unittest.TestCase
         end
 
         function cableBuildsFeaturesWithoutBackends(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
 
@@ -122,7 +122,7 @@ classdef TestRouting < matlab.unittest.TestCase
         end
 
         function cableKeepsFilletConvexModeWhenRouteFilleted(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
 
@@ -144,7 +144,7 @@ classdef TestRouting < matlab.unittest.TestCase
         end
 
         function cableRaisesTooSmallFilletForWideTracks(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
 
@@ -164,7 +164,7 @@ classdef TestRouting < matlab.unittest.TestCase
         end
 
         function cableRejectsMismatchedSpecs(testCase)
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
             s1 = routing.PortSpec(widths=10, offsets=0, layers="m1", subnames="sig");
@@ -179,7 +179,7 @@ classdef TestRouting < matlab.unittest.TestCase
             testCase.assumeTrue(TestRouting.hasKLayout(), ...
                 "Skipping: KLayout Python bindings not available.");
 
-            ctx = core.GeometrySession(enable_comsol=false, enable_gds=true, snap_on_grid=false);
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=true, snap_on_grid=false);
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
             ctx.add_layer("gap", gds_layer=2, gds_datatype=0, comsol_workplane="wp1");
 

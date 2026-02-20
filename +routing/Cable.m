@@ -15,7 +15,7 @@ classdef Cable
         function obj = Cable(varargin)
             [ctx, port_in, port_out, args] = routing.Cable.parse_inputs(varargin{:});
             if isempty(ctx)
-                ctx = core.GeometrySession.require_current();
+                ctx = core.GeometryPipeline.require_current();
             end
             obj.ctx = ctx;
             obj.name = string(args.name);
@@ -151,7 +151,7 @@ classdef Cable
                     "Cable requires at least port_in and port_out.");
             end
 
-            if isa(varargin{1}, 'core.GeometrySession')
+            if isa(varargin{1}, 'core.GeometryPipeline')
                 if numel(varargin) < 3
                     error("routing:Cable:MissingInputs", ...
                         "Cable(ctx, port_in, port_out, ...) requires port_in and port_out.");
@@ -165,7 +165,7 @@ classdef Cable
                     error("routing:Cable:MissingInputs", ...
                         "Cable(port_in, port_out, ...) requires two ports.");
                 end
-                ctx = core.GeometrySession.get_current();
+                ctx = core.GeometryPipeline.get_current();
                 port_in = varargin{1};
                 port_out = varargin{2};
                 nv = varargin(3:end);

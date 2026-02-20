@@ -213,7 +213,7 @@ classdef Parameter
                 return;
             end
             try
-                ctx = core.GeometrySession.get_current();
+                ctx = core.GeometryPipeline.get_current();
             catch
                 return;
             end

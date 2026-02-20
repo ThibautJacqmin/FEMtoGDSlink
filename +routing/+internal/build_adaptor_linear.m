@@ -2,7 +2,7 @@ function [adaptor_in, adaptor_out, route_port_in, route_port_out] = ...
     build_adaptor_linear(ctx, port_in, port_out, adaptor_spec)
 % Build linear transition polygons and shifted route-side ports.
 arguments
-    ctx core.GeometrySession
+    ctx core.GeometryPipeline
     port_in routing.PortRef
     port_out routing.PortRef
     adaptor_spec routing.AdaptorSpec
@@ -86,7 +86,7 @@ end
 
 function feats = build_linear_set(ctx, port, args)
 arguments
-    ctx core.GeometrySession
+    ctx core.GeometryPipeline
     port routing.PortRef
     args.width_start (1, :) double
     args.offset_start (1, :) double

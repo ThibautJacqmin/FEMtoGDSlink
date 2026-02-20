@@ -1,6 +1,7 @@
 *.asv
 *.gds
 .codex_cache/
+.vscode/
 docs/agent-memory
 AGENTS.md
 femtogds_config.m

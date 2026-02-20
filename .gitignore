@@ -1,6 +1,8 @@
 *.asv
 *.gds
 .codex_cache/
+.vscode/
+__pycache__/
 docs/agent-memory
 AGENTS.md
 femtogds_config.m

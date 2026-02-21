@@ -2,9 +2,9 @@ classdef GeometryPipeline < handle
     % GeometryPipeline coordinates COMSOL and GDS backends and layer mapping.
     properties
         % Active COMSOL modeler instance (LiveLink or MPh) or [].
-        comsol
+        comsol = []
         % Active in-memory GDS/KLayout modeler or [].
-        gds
+        gds = []
         % Dictionary: layer name -> core.LayerSpec.
         layers
         % Ordered geometry feature graph nodes.
@@ -48,37 +48,36 @@ classdef GeometryPipeline < handle
                 args.enable_gds logical = true
                 args.comsol_emit_on_create logical = false
                 args.snap_on_grid logical = true
-                args.gds_resolution_nm double = NaN
+                args.gds_resolution_nm (1,1) {mustBeInteger, mustBePositive} = 1
                 args.warn_on_snap logical = true
                 args.preview_klayout logical = false
                 args.launch_comsol_gui logical = false
-                args.comsol_api {mustBeTextScalar} = "mph"
+                args.comsol_api {mustBeTextScalar, mustBeMember(args.comsol_api, ["mph", "livelink"])} = "mph"
             end
 
-            enable_comsol = args.enable_comsol;
-            enable_gds = args.enable_gds;
-            api = core.GeometryPipeline.normalize_comsol_api(args.comsol_api);
             cfg = core.ComsolModeler.connection_defaults();
-            resolved_gds_nm = core.GeometryPipeline.resolve_gds_resolution( ...
-                args.gds_resolution_nm);
 
-            if enable_comsol
-                if api == "mph"
-                    obj.comsol = core.ComsolMphModeler( ...
-                        comsol_host=cfg.host, comsol_port=cfg.port);
-                else
-                    obj.comsol = core.ComsolLivelinkModeler( ...
-                        comsol_host=cfg.host, comsol_port=cfg.port, ...
+            if args.enable_comsol      
+                try 
+                    ctx.comsol.clear_generate_models;
+                catch                    
+                end
+                switch args.comsol_api 
+                    case "mph"
+                    obj.comsol = core.ComsolMphModeler.shared(...
+                        comsol_host=cfg.host, ...
+                        comsol_port=cfg.port);
+                    case"livelink"
+                    obj.comsol = core.ComsolLivelinkModeler.shared( ...
+                        comsol_host=cfg.host, ...
+                        comsol_port=cfg.port, ...
                         comsol_root=cfg.root);
                 end
-            else
-                obj.comsol = [];
             end
-
-            if enable_gds
-                obj.gds = core.GdsModeler(dbu_nm=resolved_gds_nm);
-            else
-                obj.gds = [];
+            
+            obj.gds_resolution_nm = args.gds_resolution_nm;
+            if args.enable_gds
+                obj.gds = core.GdsModeler(dbu_nm=args.gds_resolution_nm);
             end
 
             obj.layers = dictionary(string.empty(0,1), core.LayerSpec.empty(0,1));
@@ -90,7 +89,6 @@ classdef GeometryPipeline < handle
             obj.node_counter = int32(0);
             obj.emit_on_create = args.comsol_emit_on_create;
             obj.snap_on_grid = logical(args.snap_on_grid);
-            obj.gds_resolution_nm = resolved_gds_nm;
             obj.warn_on_snap = args.warn_on_snap;
             obj.snap_warned = dictionary(string.empty(0,1), false(0,1));
             obj.snap_stats = dictionary(string.empty(0,1), ...
@@ -671,91 +669,6 @@ classdef GeometryPipeline < handle
             end
         end
 
-        function ctx = with_shared_comsol(args)
-            % Create a session using process-wide shared COMSOL modeler.
-            % comsol_api:
-            % - "livelink": MATLAB LiveLink modeler.
-            % - "mph": Python MPh modeler (no LiveLink).
-            arguments
-                args.enable_comsol logical = true
-                args.enable_gds logical = true
-                args.emit_on_create logical = false
-                args.snap_on_grid logical = true
-                args.gds_resolution_nm double = NaN
-                args.warn_on_snap logical = true
-                args.preview_klayout logical = false
-                args.reset_model logical = true
-                args.launch_comsol_gui logical = false
-                args.clean_on_reset logical = false
-                args.comsol_api {mustBeTextScalar} = "mph"
-            end
-
-            api = core.GeometryPipeline.normalize_comsol_api(args.comsol_api);
-            cfg = core.ComsolModeler.connection_defaults();
-            shared_modeler = [];
-            if args.enable_comsol
-                if args.reset_model && args.clean_on_reset
-                    core.GeometryPipeline.clean_comsol_server();
-                end
-                if api == "mph"
-                    shared_modeler = core.ComsolMphModeler.shared( ...
-                        reset=args.reset_model, ...
-                        comsol_host=cfg.host, ...
-                        comsol_port=cfg.port);
-                else
-                    shared_modeler = core.ComsolLivelinkModeler.shared( ...
-                        reset=args.reset_model, ...
-                        comsol_host=cfg.host, ...
-                        comsol_port=cfg.port, ...
-                        comsol_root=cfg.root);
-                end
-            end
-            ctx = core.GeometryPipeline( ...
-                enable_comsol=false, ...
-                enable_gds=args.enable_gds, ...
-                comsol_emit_on_create=args.emit_on_create, ...
-                snap_on_grid=args.snap_on_grid, ...
-                gds_resolution_nm=args.gds_resolution_nm, ...
-                warn_on_snap=args.warn_on_snap, ...
-                preview_klayout=args.preview_klayout, ...
-                comsol_api=api, ...
-                launch_comsol_gui=false);
-
-            if args.enable_comsol
-                ctx.comsol = shared_modeler;
-                ctx.comsol_workplanes("wp1") = {ctx.comsol.workplane};
-                if args.launch_comsol_gui
-                    try
-                        ctx.comsol.start_gui();
-                    catch
-                        warning("GeometryPipeline:GuiLaunch", ...
-                            "Failed to launch/attach COMSOL Desktop automatically.");
-                    end
-                end
-            end
-        end
-
-        function clear_shared_comsol()
-            % Dispose and clear shared COMSOL model used by helper API.
-            core.ComsolLivelinkModeler.clear_shared();
-            try
-                core.ComsolMphModeler.clear_shared();
-            catch
-            end
-        end
-
-        function removed = clean_comsol_server(args)
-            % Remove generated COMSOL models from the server.
-            % This intentionally does not clear the shared modeler handle.
-            arguments
-                args.prefix (1,1) string = "Model_"
-            end
-            removed = core.ComsolLivelinkModeler.clear_generated_models(prefix=args.prefix);
-            try
-                removed = removed + core.ComsolMphModeler.clear_generated_models(prefix=args.prefix);
-            catch
-            end
-        end
 
         function set_current(ctx)
             % Set process-global active GeometryPipeline.
@@ -781,34 +694,6 @@ classdef GeometryPipeline < handle
         end
     end
     methods (Static, Access=private)
-        function api = normalize_comsol_api(raw_api)
-            % Validate COMSOL API selector.
-            api = lower(string(raw_api));
-            if ~any(api == ["mph", "livelink"])
-                error("GeometryPipeline:InvalidComsolApi", ...
-                    "comsol_api must be 'mph' or 'livelink'.");
-            end
-        end
-
-        function grid = validate_length_grid(raw_grid, arg_name)
-            % Validate a length grid/resolution scalar expressed in nm.
-            grid = double(raw_grid);
-            if ~(isscalar(grid) && isfinite(grid) && grid > 0)
-                error("%s must be a finite positive scalar in nm.", string(arg_name));
-            end
-        end
-
-        function grid = resolve_gds_resolution(raw_resolution)
-            % Resolve GDS resolution argument.
-            has_resolution = isscalar(raw_resolution) && isfinite(raw_resolution);
-
-            if has_resolution
-                grid = core.GeometryPipeline.validate_length_grid(raw_resolution, "gds_resolution_nm");
-                return;
-            end
-
-            grid = 1;
-        end
 
         function ctx = current_context_store(varargin)
             % Persistent storage for current GeometryPipeline singleton.

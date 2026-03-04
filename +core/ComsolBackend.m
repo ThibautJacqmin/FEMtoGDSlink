@@ -19,6 +19,8 @@ classdef ComsolBackend < handle
         input_use_counts
         % Remaining usage count per source input node id during one emit pass.
         input_remaining_counts
+        % Cache: feature-type key -> resolved keep-input set strategy.
+        keep_input_specs
     end
     methods
         function obj = ComsolBackend(session)
@@ -32,6 +34,7 @@ classdef ComsolBackend < handle
             obj.snapped_length_tokens = dictionary(string.empty(0,1), strings(0,1));
             obj.input_use_counts = dictionary(int32.empty(0,1), int32.empty(0,1));
             obj.input_remaining_counts = dictionary(int32.empty(0,1), int32.empty(0,1));
+            obj.keep_input_specs = dictionary(string.empty(0,1), strings(0,1));
         end
 
         function emit_all(obj, nodes)
@@ -408,7 +411,7 @@ classdef ComsolBackend < handle
                 tags(i) = string(obj.resolve_input_tag(layer, node.inputs{i}, keep_input));
             end
             [layer, feature, tag] = obj.start_feature(node, "uni", "Union");
-            obj.set_keep_input(feature, keep_input);
+            obj.set_keep_input(feature, keep_input, feature_type="Union");
 
             feature.selection('input').set(tags);
             obj.finish_feature(node, layer, feature, tag);
@@ -424,7 +427,7 @@ classdef ComsolBackend < handle
                 tool_tags(i) = string(obj.resolve_input_tag(layer, node.tools{i}, keep_input));
             end
             [layer, feature, tag] = obj.start_feature(node, "dif", "Difference");
-            obj.set_keep_input(feature, keep_input);
+            obj.set_keep_input(feature, keep_input, feature_type="Difference");
 
             feature.selection('input').set(base_tag);
             if ~isempty(tool_tags)
@@ -442,7 +445,7 @@ classdef ComsolBackend < handle
                 tags(i) = string(obj.resolve_input_tag(layer, node.inputs{i}, keep_input));
             end
             [layer, feature, tag] = obj.start_feature(node, "int", "Intersection");
-            obj.set_keep_input(feature, keep_input);
+            obj.set_keep_input(feature, keep_input, feature_type="Intersection");
 
             feature.selection('input').set(tags);
             obj.finish_feature(node, layer, feature, tag);
@@ -456,7 +459,7 @@ classdef ComsolBackend < handle
             input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
             [~, arr_feature, arr_tag] = obj.start_feature(node, "arr", "Array");
             obj.set_input_selection(arr_feature, input_tag);
-            obj.set_keep_input(arr_feature, keep_input);
+            obj.set_keep_input(arr_feature, keep_input, feature_type="Array");
             n = obj.copy_count_token(node.ncopies, "Array1D ncopies");
             obj.set_scalar(arr_feature, 'size', n);
             disp_vec = obj.length_vector(node.delta, "Array1D delta");
@@ -484,7 +487,7 @@ classdef ComsolBackend < handle
             input_tag = obj.resolve_input_tag_from_source(layer, source_tag, int32(node.target.id), keep_input);
             [~, arr_feature, arr_tag] = obj.start_feature(node, "arr", "Array");
             obj.set_input_selection(arr_feature, input_tag);
-            obj.set_keep_input(arr_feature, keep_input);
+            obj.set_keep_input(arr_feature, keep_input, feature_type="Array");
             nx = obj.copy_count_token(node.ncopies_x, "Array2D ncopies_x");
             ny = obj.copy_count_token(node.ncopies_y, "Array2D ncopies_y");
             obj.set_pair(arr_feature, 'size', nx, ny);
@@ -520,7 +523,7 @@ classdef ComsolBackend < handle
             keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             base_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature(node, "fil", "Fillet");
-            obj.set_keep_input(feature, keep_input);
+            obj.set_keep_input(feature, keep_input, feature_type="Fillet");
             % Fillet input API differs across COMSOL versions/workplane contexts.
             try
                 feature.selection('input').set(base_tag);
@@ -563,7 +566,7 @@ classdef ComsolBackend < handle
             keep_input = core.GeometryPipeline.node_keeps_inputs(node);
             base_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature(node, "cha", "Chamfer");
-            obj.set_keep_input(feature, keep_input);
+            obj.set_keep_input(feature, keep_input, feature_type="Chamfer");
             try
                 feature.selection('input').set(base_tag);
             catch
@@ -607,7 +610,7 @@ classdef ComsolBackend < handle
             [layer, feature, tag] = obj.start_feature_with_fallback( ...
                 node, "off", ["Offset", "Offset2D"], "Offset");
 
-            obj.set_keep_input(feature, keep_input);
+            obj.set_keep_input(feature, keep_input, feature_type="Offset");
             obj.set_input_selection(feature, input_tag);
             obj.set_scalar(feature, 'distance', obj.length_component(node.distance, "Offset distance"));
             try
@@ -652,7 +655,7 @@ classdef ComsolBackend < handle
                 point_tag = "";
             end
             [layer, feature, tag] = obj.start_feature(node, "tan", "Tangent");
-            obj.set_keep_input(feature, keep_input);
+            obj.set_keep_input(feature, keep_input, feature_type="Tangent");
             type = lower(string(node.type));
             feature.set('type', char(type));
             obj.set_scalar(feature, 'start', obj.raw_component(node.start));
@@ -683,7 +686,7 @@ classdef ComsolBackend < handle
             [layer, feature, tag] = obj.start_feature_with_fallback( ...
                 node, "thk", ["Thicken2D", "Thicken"], "Thicken");
 
-            obj.set_keep_input(feature, keep_input);
+            obj.set_keep_input(feature, keep_input, feature_type="Thicken");
             obj.set_input_selection(feature, input_tag);
             feature.set('offset', char(node.offset));
 
@@ -882,7 +885,7 @@ classdef ComsolBackend < handle
             input_tag = obj.resolve_input_tag(layer, node.target, keep_input);
             [layer, feature, tag] = obj.start_feature(node, prefix, ftype);
             obj.set_input_selection(feature, input_tag);
-            obj.set_keep_input(feature, keep_input);
+            obj.set_keep_input(feature, keep_input, feature_type=string(ftype));
         end
 
         function finish_feature(obj, node, layer, feature, tag)
@@ -1005,22 +1008,38 @@ classdef ComsolBackend < handle
             end
         end
 
-        function set_keep_input(obj, feature, keep_input)
-            % Best effort: set COMSOL keep-input-style flags to on/off.
-            token = obj.bool_token(keep_input);
-            raw = logical(keep_input);
-            props = ["keepinput", "keep", "keepinput2", "keeptool", "keepadd", "keepsubtract"];
-            for i = 1:numel(props)
-                prop = char(props(i));
-                try
-                    feature.set(prop, token);
-                    continue;
-                catch
+        function set_keep_input(obj, feature, keep_input, args)
+            % Best effort: set keep-input-style flags with cached property mapping.
+            arguments
+                obj
+                feature
+                keep_input
+                args.feature_type {mustBeTextScalar} = ""
+            end
+
+            key = obj.keep_input_key(args.feature_type);
+            default_key = "__default__";
+
+            if isKey(obj.keep_input_specs, key)
+                spec = obj.keep_input_specs(key);
+                if obj.apply_keep_input_spec(feature, keep_input, spec)
+                    return;
                 end
-                try
-                    feature.set(prop, raw);
-                catch
+                obj.keep_input_specs = remove(obj.keep_input_specs, key);
+            end
+
+            if key ~= default_key && isKey(obj.keep_input_specs, default_key)
+                spec = obj.keep_input_specs(default_key);
+                if obj.apply_keep_input_spec(feature, keep_input, spec)
+                    obj.keep_input_specs(key) = spec;
+                    return;
                 end
+            end
+
+            spec = obj.discover_keep_input_spec(feature, keep_input);
+            obj.keep_input_specs(key) = spec;
+            if spec ~= "none" && ~isKey(obj.keep_input_specs, default_key)
+                obj.keep_input_specs(default_key) = spec;
             end
         end
 
@@ -1124,7 +1143,7 @@ classdef ComsolBackend < handle
                 dy = obj.scale_component(disp_vec(2), k);
                 [~, mv, mv_tag] = obj.start_feature(node, "mov", "Move");
                 obj.set_input_selection(mv, trim_source_tag);
-                obj.set_keep_input(mv, true);
+                obj.set_keep_input(mv, true, feature_type="Move");
                 obj.set_pair(mv, 'displ', dx, dy);
                 obj.finish_feature(node, layer, mv, mv_tag);
                 move_tags(i) = string(mv_tag);
@@ -1146,7 +1165,7 @@ classdef ComsolBackend < handle
 
                 [~, mv, mv_tag] = obj.start_feature(node, "mov", "Move");
                 obj.set_input_selection(mv, trim_source_tag);
-                obj.set_keep_input(mv, true);
+                obj.set_keep_input(mv, true, feature_type="Move");
                 obj.set_pair(mv, 'displ', dx, dy);
                 obj.finish_feature(node, layer, mv, mv_tag);
                 move_tags(i) = string(mv_tag);
@@ -1162,14 +1181,14 @@ classdef ComsolBackend < handle
                 tool_tag = string(move_tags(1));
             else
                 [~, uni, uni_tag] = obj.start_feature(node, "uni", "Union");
-                obj.set_keep_input(uni, false);
+                obj.set_keep_input(uni, false, feature_type="Union");
                 obj.set_input_selection(uni, move_tags);
                 obj.finish_feature(node, layer, uni, uni_tag);
                 tool_tag = string(uni_tag);
             end
 
             [~, dif, dif_tag] = obj.start_feature(node, "dif", "Difference");
-            obj.set_keep_input(dif, false);
+            obj.set_keep_input(dif, false, feature_type="Difference");
             obj.set_input_selection(dif, arr_tag);
             dif.selection('input2').set(tool_tag);
             obj.finish_feature(node, layer, dif, dif_tag);
@@ -1409,7 +1428,7 @@ classdef ComsolBackend < handle
             obj.set_input_selection(copy_feature, source);
             % In-place duplication keeps branch semantics without translation.
             obj.set_pair(copy_feature, 'displ', 0, 0);
-            obj.set_keep_input(copy_feature, true);
+            obj.set_keep_input(copy_feature, true, feature_type="Copy");
             % Build the copy immediately so downstream input selections
             % resolve against existing geometry objects.
             try
@@ -1494,6 +1513,71 @@ classdef ComsolBackend < handle
             else
                 error("Unknown selection_state '%s'.", char(s));
             end
+        end
+
+        function key = keep_input_key(~, feature_type)
+            % Normalize keep-input cache key from feature type.
+            key = lower(strtrim(string(feature_type)));
+            if strlength(key) == 0
+                key = "__default__";
+            end
+        end
+
+        function tf = apply_keep_input_spec(obj, feature, keep_input, spec)
+            % Apply one cached keep-input strategy; return true on success.
+            tf = false;
+            rule = string(spec);
+            if rule == "none"
+                tf = true;
+                return;
+            end
+
+            parts = split(rule, "|");
+            if numel(parts) ~= 2
+                return;
+            end
+
+            mode = string(parts(1));
+            prop = char(parts(2));
+            if mode == "token"
+                value = obj.bool_token(keep_input);
+            elseif mode == "logical"
+                value = logical(keep_input);
+            else
+                return;
+            end
+
+            try
+                feature.set(prop, value);
+                tf = true;
+            catch
+            end
+        end
+
+        function spec = discover_keep_input_spec(obj, feature, keep_input)
+            % Probe keep-input property mapping once for this feature type.
+            token = obj.bool_token(keep_input);
+            raw = logical(keep_input);
+            props = ["keepinput", "keep", "keepinput2", "keeptool", "keepadd", "keepsubtract"];
+
+            for i = 1:numel(props)
+                prop = char(props(i));
+                try
+                    feature.set(prop, token);
+                    spec = "token|" + string(prop);
+                    return;
+                catch
+                end
+                try
+                    feature.set(prop, raw);
+                    spec = "logical|" + string(prop);
+                    return;
+                catch
+                end
+            end
+
+            % Some features do not expose keep-input controls.
+            spec = "none";
         end
     end
 end

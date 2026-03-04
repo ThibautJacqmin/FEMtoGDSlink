@@ -171,7 +171,7 @@ classdef GeometryPipeline < handle
         function node_initialized(obj, feature)
             % Optionally emit COMSOL feature as soon as node is finalized.
             % COMSOL emission is layer-driven (comsol_emit).
-            if obj.emit_on_create && obj.has_comsol() && feature.layer.comsol_emit
+            if obj.emit_on_create && obj.has_comsol() && feature.layer.comsol_emit && feature.add_to_comsol
                 if isempty(obj.comsol_backend)
                     obj.comsol_backend = core.ComsolBackend(obj);
                 end
@@ -269,7 +269,7 @@ classdef GeometryPipeline < handle
                 obj.comsol_backend = core.ComsolBackend(obj);
             end
             nodes_to_emit = obj.nodes;
-            nodes_to_emit = nodes_to_emit(cellfun(@(n) n.layer.comsol_emit, nodes_to_emit));
+            nodes_to_emit = nodes_to_emit(cellfun(@(n) n.layer.comsol_emit && n.add_to_comsol, nodes_to_emit));
             obj.comsol_backend.emit_all(nodes_to_emit);
         end
 

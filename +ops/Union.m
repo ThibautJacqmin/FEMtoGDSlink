@@ -13,6 +13,7 @@ classdef Union < core.GeomFeature
                 layer = args.layer;
             end
             obj@core.GeomFeature(ctx, layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             for i = 1:numel(members)
                 obj.add_input(members{i});
             end
@@ -43,6 +44,7 @@ classdef Union < core.GeomFeature
                 args.keep_input_objects logical = false
                 args.keep logical = false
                 args.layer = []
+                args.add_to_comsol logical = true
             end
             parsed = args;
         end

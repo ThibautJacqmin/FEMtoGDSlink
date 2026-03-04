@@ -418,6 +418,54 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             testCase.verifyTrue(isKey(ctx.comsol_backend.selection_tags, "wp1|metal1"));
         end
 
+        function featureLevelAddToComsolFlagSkipsEmission(testCase)
+            % Verify per-feature add_to_comsol=false excludes a node from COMSOL.
+            ctx = TestComsolBackend.makeContext( ...
+                enable_gds=true, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            keep = primitives.Rectangle(ctx, center=[0 0], width=120, height=60, ...
+                layer="m1", add_to_comsol=true);
+            skip = primitives.Rectangle(ctx, center=[220 0], width=120, height=60, ...
+                layer="m1", add_to_comsol=false);
+
+            ctx.build_comsol();
+
+            testCase.verifyTrue(isKey(ctx.comsol_backend.feature_tags, int32(keep.id)));
+            testCase.verifyFalse(isKey(ctx.comsol_backend.feature_tags, int32(skip.id)));
+        end
+
+        function addToComsolExcludedDependencyRaisesExplicitError(testCase)
+            % Verify COMSOL build fails clearly when depending on excluded features.
+            ctx = TestComsolBackend.makeContext( ...
+                enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
+                comsol_api="livelink", reset_model=true);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
+                comsol_selection="metal1", comsol_selection_state="all");
+
+            excluded = primitives.Rectangle(ctx, center=[0 0], width=120, height=60, ...
+                layer="m1", add_to_comsol=false);
+            moved = ops.Move(ctx, excluded, delta=[40 0], layer="m1");
+
+            did_throw = false;
+            err_msg = "";
+            try
+                ctx.build_comsol();
+            catch ex
+                did_throw = true;
+                err_msg = string(ex.message);
+            end
+
+            testCase.verifyTrue(did_throw, ...
+                "Expected COMSOL build to fail when depending on add_to_comsol=false feature.");
+            testCase.verifyTrue(contains(lower(err_msg), "explicitly excluded"), ...
+                "Expected explicit add_to_comsol exclusion error, got: " + err_msg);
+            testCase.verifyFalse(isKey(ctx.comsol_backend.feature_tags, int32(excluded.id)));
+            testCase.verifyFalse(isKey(ctx.comsol_backend.feature_tags, int32(moved.id)));
+        end
+
         function registerStandaloneParameter(testCase)
             % Verify standalone Parameter expressions can be registered without ctx.comsol calls.
             ctx = TestComsolBackend.makeContext( ...

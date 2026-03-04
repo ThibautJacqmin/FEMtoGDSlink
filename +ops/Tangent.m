@@ -23,6 +23,7 @@ classdef Tangent < core.GeomFeature
                 layer = args.layer;
             end
             obj@core.GeomFeature(ctx, layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             obj.add_input(target);
             if ~isempty(args.edge2)
                 if ~isa(args.edge2, 'core.GeomFeature')
@@ -202,6 +203,7 @@ classdef Tangent < core.GeomFeature
                 args.keep_input_objects logical = false
                 args.keep logical = false
                 args.layer = []
+                args.add_to_comsol logical = true
             end
             parsed = args;
         end

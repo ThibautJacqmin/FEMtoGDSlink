@@ -86,6 +86,10 @@ classdef ComsolBackend < handle
                 error("Layer '%s' is not configured for COMSOL emission (no comsol_workplane), cannot emit '%s'.", ...
                     char(string(node.layer.name)), char(string(class(node))));
             end
+            if ~logical(node.add_to_comsol)
+                error("Feature '%s' (id=%d) is explicitly excluded from COMSOL emission (add_to_comsol=false).", ...
+                    char(string(class(node))), int32(node.id));
+            end
             if isKey(obj.emitting, id)
                 error("Cycle detected while emitting COMSOL feature graph.");
             end
@@ -1323,6 +1327,9 @@ classdef ComsolBackend < handle
             for i = 1:numel(nodes)
                 node = nodes{i};
                 if isa(node.layer, 'core.LayerSpec') && ~node.layer.comsol_emit
+                    continue;
+                end
+                if ~logical(node.add_to_comsol)
                     continue;
                 end
                 for j = 1:numel(node.inputs)

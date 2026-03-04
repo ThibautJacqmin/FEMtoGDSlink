@@ -23,11 +23,13 @@ classdef Circle < core.GeomFeature
                 args.rotation = 0
                 args.npoints = 128
                 args.layer = "default"
+                args.add_to_comsol logical = true
             end
             if isempty(ctx)
                 ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             obj.radius = args.radius;
             obj.angle = args.angle;
             obj.rotation = args.rotation;

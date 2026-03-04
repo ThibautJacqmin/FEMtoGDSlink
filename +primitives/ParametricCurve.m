@@ -24,11 +24,13 @@ classdef ParametricCurve < core.GeomFeature
                 args.width = 1
                 args.sample_points = []
                 args.layer = "default"
+                args.add_to_comsol logical = true
             end
             if isempty(ctx)
                 ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             obj.coord = args.coord;
             obj.parname = args.parname;
             obj.parmin = args.parmin;

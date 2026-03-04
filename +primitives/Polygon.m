@@ -33,6 +33,7 @@ classdef Polygon < core.GeomFeature
                 obj.inputs = {};
                 obj.params = struct();
                 obj.layer = string(args.layer);
+                obj.add_to_comsol = logical(args.add_to_comsol);
                 if ~isempty(args.vertices)
                     obj.vertices = args.vertices;
                 end
@@ -42,6 +43,7 @@ classdef Polygon < core.GeomFeature
             end
 
             obj.initialize_feature(ctx, args.layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             obj.vertices = args.vertices;
             if isempty(obj.vertices) || obj.vertices.nvertices < 3
                 error("Polygon requires at least 3 vertices.");
@@ -101,6 +103,7 @@ classdef Polygon < core.GeomFeature
             arguments
                 args.vertices = []
                 args.layer = "default"
+                args.add_to_comsol logical = true
                 % Legacy compatibility: accepted but unused in feature mode.
                 args.comsol_modeler = []
             end

@@ -20,6 +20,7 @@ classdef Thicken < core.GeomFeature
                 layer = args.layer;
             end
             obj@core.GeomFeature(ctx, layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             obj.add_input(target);
             obj.offset = args.offset;
             obj.totalthick = args.totalthick;
@@ -130,6 +131,7 @@ classdef Thicken < core.GeomFeature
                 args.keep logical = false
                 args.propagatesel logical = false
                 args.layer = []
+                args.add_to_comsol logical = true
             end
             parsed = args;
         end

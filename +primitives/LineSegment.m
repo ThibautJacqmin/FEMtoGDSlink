@@ -14,11 +14,13 @@ classdef LineSegment < core.GeomFeature
                 args.p2 = [1, 0]
                 args.width = 1
                 args.layer = "default"
+                args.add_to_comsol logical = true
             end
             if isempty(ctx)
                 ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             obj.p1 = args.p1;
             obj.p2 = args.p2;
             obj.width = args.width;

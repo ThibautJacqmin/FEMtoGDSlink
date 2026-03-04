@@ -12,11 +12,13 @@ classdef Point < core.GeomFeature
                 args.p = [0, 0]
                 args.marker_size = 1
                 args.layer = "default"
+                args.add_to_comsol logical = true
             end
             if isempty(ctx)
                 ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             obj.p = args.p;
             obj.marker_size = args.marker_size;
             obj.finalize();

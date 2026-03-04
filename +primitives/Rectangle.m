@@ -31,6 +31,7 @@ classdef Rectangle < core.GeomFeature
                 args.height = 1
                 args.angle = 0
                 args.layer = "default"
+                args.add_to_comsol logical = true
                 args.fillet_width = 1
                 args.fillet_height = 1
             end
@@ -38,6 +39,7 @@ classdef Rectangle < core.GeomFeature
                 ctx = core.GeometryPipeline.require_current();
             end
             obj@core.GeomFeature(ctx, args.layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             obj.width = args.width;
             obj.height = args.height;
             obj.angle = args.angle;

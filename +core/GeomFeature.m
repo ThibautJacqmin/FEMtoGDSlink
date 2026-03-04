@@ -7,6 +7,8 @@ classdef GeomFeature < handle
     properties
         % Monotonic graph node id assigned by GeometryPipeline.register.
         id
+        % Per-feature COMSOL emission override (default true on COMSOL layers).
+        add_to_comsol logical = true
         % Upstream dependencies used to build this feature.
         inputs
         % Generic name/value payload used by concrete feature subclasses.

@@ -483,6 +483,19 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(sort(default_ids), sort(int32([r.id, m.id])));
         end
 
+        function addToComsolFlagDoesNotAffectGdsEmission(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=true, snap_on_grid=false);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+
+            r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, ...
+                layer="m1", add_to_comsol=false);
+            out_file = fullfile(tempdir, "test_add_to_comsol_gds_only.gds");
+            ctx.export_gds(out_file);
+
+            testCase.verifyTrue(isfile(out_file));
+            testCase.verifyTrue(isKey(ctx.gds_backend.emitted, int32(r.id)));
+        end
+
         function openRefreshKlayoutGuiWrappers(testCase)
             testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
                 "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");

@@ -15,6 +15,7 @@ classdef Scale < core.GeomFeature
                 layer = args.layer;
             end
             obj@core.GeomFeature(ctx, layer);
+            obj.add_to_comsol = logical(args.add_to_comsol);
             obj.add_input(target);
             obj.factor = args.factor;
             obj.origin = args.origin;
@@ -63,6 +64,7 @@ classdef Scale < core.GeomFeature
                 args.keep_input_objects logical = false
                 args.keep logical = false
                 args.layer = []
+                args.add_to_comsol logical = true
             end
             parsed = args;
         end

@@ -331,9 +331,10 @@ classdef GeometryPipeline < handle
 
             if obj.preview_klayout
                 if obj.preview_live_active
-                    obj.reset_and_init_gds_backend();
-                    nodes_to_emit = obj.nodes;
-                    obj.gds_backend.emit_all(nodes_to_emit);
+                    % Preview mode already emitted nodes incrementally; avoid
+                    % rebuilding the full layout and only backfill missing tags.
+                    obj.ensure_gds_backend();
+                    obj.emit_missing_gds_nodes(obj.nodes);
                     obj.gds.write(filename);
                 else
                     obj.preview_gds_build( ...
@@ -852,6 +853,21 @@ classdef GeometryPipeline < handle
             % Recreate GDS modeler/backends and ensure backend is ready.
             obj.reset_gds_layout();
             obj.ensure_gds_backend();
+        end
+
+        function emit_missing_gds_nodes(obj, nodes)
+            % Emit only nodes not already present in the GDS backend cache.
+            if isempty(nodes)
+                return;
+            end
+            for i = 1:numel(nodes)
+                node_i = nodes{i};
+                node_id = int32(node_i.id);
+                if isKey(obj.gds_backend.emitted, node_id)
+                    continue;
+                end
+                obj.gds_backend.emit(node_i);
+            end
         end
 
         function preview_live_step(obj, feature)

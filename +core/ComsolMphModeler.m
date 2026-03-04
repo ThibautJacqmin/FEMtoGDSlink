@@ -338,7 +338,9 @@ classdef ComsolMphModeler < core.ComsolModeler
             end
 
             module_file = string(char(py.getattr(mph_mod, "__file__")));
-            local_repo = string(fullfile(pwd, "MPh"));
+            this_dir = fileparts(mfilename("fullpath"));
+            repo_root = string(fileparts(this_dir));
+            local_repo = string(fullfile(repo_root, "MPh"));
             if startsWith(lower(module_file), lower(local_repo))
                 error("ComsolMphModeler:LocalMphForbidden", ...
                     "Loaded local repo copy (%s). Install/use official Python package 'mph' instead.", ...

@@ -537,6 +537,40 @@ classdef TestGdsBackend < matlab.unittest.TestCase
             testCase.verifyEqual(actual_all, expected_all);
             testCase.verifyTrue(isfile(out_all));
         end
+
+        function exportGdsPreviewLiveReusesExistingLayout(testCase)
+            testCase.assumeTrue(TestGdsBackend.hasKLayout(), ...
+                "Skipping: KLayout Python bindings not available (pya/klayout.db/lygadgets).");
+
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=true, ...
+                preview_klayout=true, snap_on_grid=false);
+            ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
+            r = primitives.Rectangle(ctx, center=[0 0], width=100, height=60, layer="m1");
+            m = ops.Move(ctx, r, delta=[20 0], layer="m1");
+            c = primitives.Circle(ctx, center=[200 0], radius=40, layer="m1");
+
+            warmup_file = fullfile(tempdir, "test_preview_live_reuse_warmup.gds");
+            ctx.preview_gds_build(reset_layout=true, ...
+                zoom_fit=false, show_all_cells=true, output_filename=warmup_file, launch_external=false);
+
+            backend_before = ctx.gds_backend;
+            modeler_before = ctx.gds;
+            emitted_before = sort(double(keys(ctx.gds_backend.emitted)));
+            expected_before = sort(double(int32([r.id; m.id; c.id])));
+            testCase.verifyEqual(emitted_before(:), expected_before(:));
+
+            % Simulate active preview session without launching external GUI.
+            ctx.preview_live_active = true;
+
+            out_file = fullfile(tempdir, "test_preview_live_reuse_export.gds");
+            ctx.export_gds(out_file);
+
+            testCase.verifyTrue(isequal(ctx.gds_backend, backend_before), ...
+                "export_gds should not reset backend when preview is already active.");
+            testCase.verifyTrue(isequal(ctx.gds, modeler_before), ...
+                "export_gds should not recreate GdsModeler when preview is already active.");
+            testCase.verifyTrue(isfile(out_file));
+        end
     end
 
     methods (Static, Access=private)

@@ -1,9 +1,20 @@
 classdef TestComsolMphBackend < matlab.unittest.TestCase
     % Integration tests for COMSOL emission through the Python MPh backend.
+    methods (TestMethodSetup)
+        function requireMphEnabled(testCase)
+            % MPh integration tests are opt-in to avoid hard hangs on
+            % machines where MATLAB-Python JVM setup is not stable.
+            enabled = lower(strtrim(string(getenv("FEMTOGDS_RUN_MPH_TESTS"))));
+            tf = any(enabled == ["1", "true", "yes", "on"]);
+            testCase.assumeTrue(tf, ...
+                "Skipping MPh integration tests. Set FEMTOGDS_RUN_MPH_TESTS=1 to enable.");
+        end
+    end
+
     methods (TestMethodTeardown)
         function cleanupSharedComsol(~)
             % Ensure shared state does not leak across tests.
-            core.GeometryPipeline.clear_shared_comsol();
+            TestComsolMphBackend.clearSharedComsol();
             core.GeometryPipeline.set_current([]);
         end
     end
@@ -26,7 +37,7 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             [ok, reason] = TestComsolMphBackend.hasMphServer();
             testCase.assumeTrue(ok, "Skipping MPh integration test: " + reason);
 
-            ctx = core.GeometryPipeline.with_shared_comsol( ...
+            ctx = TestComsolMphBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, ...
                 snap_on_grid=false, reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
@@ -54,14 +65,14 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             [ok, reason] = TestComsolMphBackend.hasMphServer();
             testCase.assumeTrue(ok, "Skipping MPh integration test: " + reason);
 
-            core.GeometryPipeline.clear_shared_comsol();
-            ctx1 = core.GeometryPipeline.with_shared_comsol( ...
+            TestComsolMphBackend.clearSharedComsol();
+            ctx1 = TestComsolMphBackend.makeContext( ...
                 enable_gds=false, snap_on_grid=false, ...
                 reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
             tag1 = string(ctx1.comsol.model_tag);
 
-            ctx2 = core.GeometryPipeline.with_shared_comsol( ...
+            ctx2 = TestComsolMphBackend.makeContext( ...
                 enable_gds=false, snap_on_grid=false, ...
                 reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
@@ -70,8 +81,8 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             testCase.verifyEqual(tag2, tag1);
             testCase.verifyTrue(isequal(ctx1.comsol, ctx2.comsol));
 
-            core.GeometryPipeline.clear_shared_comsol();
-            ctx3 = core.GeometryPipeline.with_shared_comsol( ...
+            TestComsolMphBackend.clearSharedComsol();
+            ctx3 = TestComsolMphBackend.makeContext( ...
                 enable_gds=false, snap_on_grid=false, ...
                 reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
@@ -81,6 +92,42 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
     end
 
     methods (Static, Access=private)
+        function clearSharedComsol()
+            % Clear shared COMSOL modelers for a deterministic test state.
+            try
+                core.ComsolMphModeler.clear_shared();
+            catch
+            end
+            try
+                core.ComsolLivelinkModeler.clear_shared();
+            catch
+            end
+        end
+
+        function ctx = makeContext(args)
+            % Backward-compatible helper for creating MPh-based contexts.
+            arguments
+                args.enable_comsol logical = true
+                args.enable_gds logical = false
+                args.emit_on_create logical = false
+                args.snap_on_grid logical = false
+                args.reset_model logical = true
+                args.clean_on_reset logical = false
+                args.comsol_api {mustBeTextScalar, mustBeMember(args.comsol_api, ["mph", "livelink"])} = "mph"
+            end
+
+            if args.reset_model && args.clean_on_reset
+                TestComsolMphBackend.clearSharedComsol();
+            end
+
+            ctx = core.GeometryPipeline( ...
+                enable_comsol=args.enable_comsol, ...
+                enable_gds=args.enable_gds, ...
+                comsol_emit_on_create=args.emit_on_create, ...
+                snap_on_grid=args.snap_on_grid, ...
+                comsol_api=args.comsol_api);
+        end
+
         function [tf, reason] = hasMphServer()
             % Return true when installed mph is available and server accepts connections.
             persistent cached_tf cached_reason

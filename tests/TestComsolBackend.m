@@ -21,7 +21,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify emitted features, named parameters, and layer selections.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -75,7 +75,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify fillet points="all" works on non-rectangle composite input.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -100,7 +100,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify keep_input_objects=false/true options both emit and build on branched graphs.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -122,16 +122,14 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         end
 
         function sharedModelerIsReusedAcrossSessions(testCase)
-            % Verify with_shared_comsol reuses the same COMSOL model instance.
+            % Verify GeometryPipeline reuses the shared COMSOL model instance.
             TestComsolBackend.clearSharedComsol();
             ctx1 = TestComsolBackend.makeContext(enable_gds=false, ...
-                snap_on_grid=false, comsol_api="livelink", ...
-                reset_model=true, clean_on_reset=false);
+                snap_on_grid=false, comsol_api="livelink");
             tag1 = string(ctx1.comsol.model_tag);
 
             ctx2 = TestComsolBackend.makeContext(enable_gds=false, ...
-                snap_on_grid=false, comsol_api="livelink", ...
-                reset_model=true, clean_on_reset=false);
+                snap_on_grid=false, comsol_api="livelink");
             tag2 = string(ctx2.comsol.model_tag);
 
             testCase.verifyEqual(tag2, tag1);
@@ -142,12 +140,12 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify clearing shared COMSOL forces creation of a new model tag.
             TestComsolBackend.clearSharedComsol();
             ctx1 = TestComsolBackend.makeContext(enable_gds=false, ...
-                snap_on_grid=false, comsol_api="livelink", reset_model=true);
+                snap_on_grid=false, comsol_api="livelink");
             tag1 = string(ctx1.comsol.model_tag);
 
             TestComsolBackend.clearSharedComsol();
             ctx2 = TestComsolBackend.makeContext(enable_gds=false, ...
-                snap_on_grid=false, comsol_api="livelink", reset_model=true);
+                snap_on_grid=false, comsol_api="livelink");
             tag2 = string(ctx2.comsol.model_tag);
 
             testCase.verifyNotEqual(tag1, tag2);
@@ -157,7 +155,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify shared reset clears old snp* parameters.
             ctx1 = TestComsolBackend.makeContext(enable_gds=true, ...
                 snap_on_grid=true, comsol_api="livelink", ...
-                emit_on_create=false, reset_model=true);
+                emit_on_create=false);
             ctx1.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1");
 
             p_w = types.Parameter(120, "w");
@@ -170,7 +168,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
 
             ctx2 = TestComsolBackend.makeContext(enable_gds=true, ...
                 snap_on_grid=false, comsol_api="livelink", ...
-                emit_on_create=false, reset_model=true);
+                emit_on_create=false);
             names_after = TestComsolBackend.paramNames(ctx2.comsol.model);
             testCase.verifyFalse(any(startsWith(names_after, "snp")));
         end
@@ -179,7 +177,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify COMSOL backend emits 1D/2D array features and params.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=true, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -215,7 +213,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % unwanted element pruning.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=true, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -246,7 +244,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify COMSOL backend emits primitives.Polygon primitive and dependencies.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -266,7 +264,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify COMSOL backend emits primitives.Circle/primitives.Ellipse primitives.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -297,7 +295,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify COMSOL backend emits primitives.Square primitive.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -319,7 +317,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify COMSOL backend emits point/curve primitives.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -355,7 +353,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify COMSOL backend emits ops.Thicken feature.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -379,7 +377,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify COMSOL backend emits ops.Chamfer/ops.Offset/ops.Tangent.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -422,7 +420,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify per-feature add_to_comsol=false excludes a node from COMSOL.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=true, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -441,7 +439,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify COMSOL build fails clearly when depending on excluded features.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
             ctx.add_layer("m1", gds_layer=1, gds_datatype=0, comsol_workplane="wp1", ...
                 comsol_selection="metal1", comsol_selection_state="all");
 
@@ -470,7 +468,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify standalone Parameter expressions can be registered without ctx.comsol calls.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
 
             p_num = types.Parameter(8, "line_thk");
             p_den = types.Parameter(10, "off_dist");
@@ -486,7 +484,7 @@ classdef TestComsolBackend < matlab.unittest.TestCase
             % Verify named Parameter(source, name=...) auto-registers in current COMSOL session.
             ctx = TestComsolBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, snap_on_grid=false, ...
-                comsol_api="livelink", reset_model=true);
+                comsol_api="livelink");
 
             p_num = types.Parameter(8, "line_thk");
             p_den = types.Parameter(10, "off_dist");
@@ -513,22 +511,13 @@ classdef TestComsolBackend < matlab.unittest.TestCase
         end
 
         function ctx = makeContext(args)
-            % Backward-compatible test helper for shared COMSOL context creation.
+            % Helper for shared COMSOL context creation in integration tests.
             arguments
                 args.enable_comsol logical = true
                 args.enable_gds logical = false
                 args.emit_on_create logical = false
                 args.snap_on_grid logical = false
                 args.comsol_api {mustBeTextScalar, mustBeMember(args.comsol_api, ["livelink", "mph"])} = "livelink"
-                args.reset_model logical = true
-                args.clean_on_reset logical = false
-            end
-
-            % Legacy reset flags are accepted for compatibility with previous
-            % helper signatures. Current modelers already reset shared state
-            % on every GeometryPipeline creation.
-            if args.reset_model && args.clean_on_reset
-                TestComsolBackend.clearSharedComsol();
             end
 
             ctx = core.GeometryPipeline( ...

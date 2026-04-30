@@ -32,14 +32,14 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
                 "mph module path does not look like an installed package.");
         end
 
-        function withSharedComsolUsesMphModelerAndBuilds(testCase)
+        function geometryPipelineUsesMphModelerAndBuilds(testCase)
             % Verify GeometryPipeline can emit basic features through comsol_api="mph".
             [ok, reason] = TestComsolMphBackend.hasMphServer();
             testCase.assumeTrue(ok, "Skipping MPh integration test: " + reason);
 
             ctx = TestComsolMphBackend.makeContext( ...
                 enable_gds=false, emit_on_create=false, ...
-                snap_on_grid=false, reset_model=true, clean_on_reset=false, ...
+                snap_on_grid=false, ...
                 comsol_api="mph");
             testCase.verifyClass(ctx.comsol, "core.ComsolMphModeler");
 
@@ -68,13 +68,11 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             TestComsolMphBackend.clearSharedComsol();
             ctx1 = TestComsolMphBackend.makeContext( ...
                 enable_gds=false, snap_on_grid=false, ...
-                reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
             tag1 = string(ctx1.comsol.model_tag);
 
             ctx2 = TestComsolMphBackend.makeContext( ...
                 enable_gds=false, snap_on_grid=false, ...
-                reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
             tag2 = string(ctx2.comsol.model_tag);
 
@@ -84,7 +82,6 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
             TestComsolMphBackend.clearSharedComsol();
             ctx3 = TestComsolMphBackend.makeContext( ...
                 enable_gds=false, snap_on_grid=false, ...
-                reset_model=true, clean_on_reset=false, ...
                 comsol_api="mph");
             tag3 = string(ctx3.comsol.model_tag);
             testCase.verifyNotEqual(tag3, tag1);
@@ -105,19 +102,13 @@ classdef TestComsolMphBackend < matlab.unittest.TestCase
         end
 
         function ctx = makeContext(args)
-            % Backward-compatible helper for creating MPh-based contexts.
+            % Helper for creating MPh-based contexts in integration tests.
             arguments
                 args.enable_comsol logical = true
                 args.enable_gds logical = false
                 args.emit_on_create logical = false
                 args.snap_on_grid logical = false
-                args.reset_model logical = true
-                args.clean_on_reset logical = false
                 args.comsol_api {mustBeTextScalar, mustBeMember(args.comsol_api, ["mph", "livelink"])} = "mph"
-            end
-
-            if args.reset_model && args.clean_on_reset
-                TestComsolMphBackend.clearSharedComsol();
             end
 
             ctx = core.GeometryPipeline( ...

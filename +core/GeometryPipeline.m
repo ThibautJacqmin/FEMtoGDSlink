@@ -57,11 +57,7 @@ classdef GeometryPipeline < handle
 
             cfg = core.ComsolModeler.connection_defaults();
 
-            if args.enable_comsol      
-                try 
-                    ctx.comsol.clear_generate_models;
-                catch                    
-                end
+            if args.enable_comsol
                 switch args.comsol_api 
                     case "mph"
                     obj.comsol = core.ComsolMphModeler.shared(...
@@ -159,6 +155,120 @@ classdef GeometryPipeline < handle
                 return;
             end
             error("Layer reference must be a core.LayerSpec or layer name.");
+        end
+
+        function result = merge_layers(obj, layer1, layer2, args)
+            % Merge two layer feature sets with a boolean union.
+            arguments
+                obj core.GeometryPipeline
+                layer1
+                layer2
+                args.output_layer = []
+                args.preserve_sources logical = false
+                args.scope {mustBeTextScalar, mustBeMember(args.scope, ["terminal", "all"])} = "terminal"
+                args.add_to_comsol logical = true
+                args.allow_empty logical = false
+            end
+            result = obj.layer_boolean_op("merge", layer1, layer2, ...
+                output_layer=args.output_layer, ...
+                preserve_sources=args.preserve_sources, ...
+                scope=args.scope, ...
+                add_to_comsol=args.add_to_comsol, ...
+                allow_empty=args.allow_empty);
+        end
+
+        function result = subtract_layers(obj, layer1, layer2, args)
+            % Subtract layer2 feature set from layer1 feature set.
+            arguments
+                obj core.GeometryPipeline
+                layer1
+                layer2
+                args.output_layer = []
+                args.preserve_sources logical = false
+                args.scope {mustBeTextScalar, mustBeMember(args.scope, ["terminal", "all"])} = "terminal"
+                args.add_to_comsol logical = true
+                args.allow_empty logical = false
+            end
+            result = obj.layer_boolean_op("subtract", layer1, layer2, ...
+                output_layer=args.output_layer, ...
+                preserve_sources=args.preserve_sources, ...
+                scope=args.scope, ...
+                add_to_comsol=args.add_to_comsol, ...
+                allow_empty=args.allow_empty);
+        end
+
+        function result = intersect_layers(obj, layer1, layer2, args)
+            % Intersect two layer feature sets.
+            arguments
+                obj core.GeometryPipeline
+                layer1
+                layer2
+                args.output_layer = []
+                args.preserve_sources logical = false
+                args.scope {mustBeTextScalar, mustBeMember(args.scope, ["terminal", "all"])} = "terminal"
+                args.add_to_comsol logical = true
+                args.allow_empty logical = false
+            end
+            result = obj.layer_boolean_op("intersect", layer1, layer2, ...
+                output_layer=args.output_layer, ...
+                preserve_sources=args.preserve_sources, ...
+                scope=args.scope, ...
+                add_to_comsol=args.add_to_comsol, ...
+                allow_empty=args.allow_empty);
+        end
+
+        function result = copy_layer(obj, source_layer, output_layer, args)
+            % Copy one layer feature set onto an existing output layer.
+            arguments
+                obj core.GeometryPipeline
+                source_layer
+                output_layer
+                args.scope {mustBeTextScalar, mustBeMember(args.scope, ["terminal", "all"])} = "terminal"
+                args.preserve_sources logical = false
+                args.add_to_comsol logical = true
+                args.allow_empty logical = false
+                args.merge_output logical = true
+            end
+
+            src = obj.resolve_layer(source_layer);
+            dst = obj.resolve_layer(output_layer);
+
+            obj.validate_layer_boolean_comsol_config(src, src, dst, args.add_to_comsol);
+
+            features = obj.collect_layer_features(src, args.scope);
+            if args.add_to_comsol && obj.has_comsol()
+                obj.validate_layer_boolean_features_for_comsol(features, src);
+            end
+
+            if isempty(features)
+                if ~args.allow_empty
+                    error("GeometryPipeline:LayerCopyEmptyInput", ...
+                        "copy_layer requires non-empty source features on layer '%s' for scope '%s'.", ...
+                        char(string(src.name)), char(string(args.scope)));
+                end
+                result = obj.empty_layer_boolean_result(dst, "copy", args.add_to_comsol);
+                return;
+            end
+
+            copied = cell(1, numel(features));
+            for i = 1:numel(features)
+                copied{i} = ops.Move(obj, features{i}, ...
+                    delta=[0, 0], ...
+                    keep_input_objects=true, ...
+                    layer=dst, ...
+                    add_to_comsol=args.add_to_comsol);
+            end
+
+            if args.merge_output
+                result = ops.Union(obj, copied, ...
+                    layer=dst, ...
+                    keep_input_objects=args.preserve_sources, ...
+                    add_to_comsol=args.add_to_comsol);
+            elseif isscalar(copied)
+                result = copied{1};
+            else
+                result = copied;
+            end
         end
 
         function register(obj, feature)
@@ -764,6 +874,199 @@ classdef GeometryPipeline < handle
         end
     end
     methods (Access=private)
+        function result = layer_boolean_op(obj, op_name, layer1_ref, layer2_ref, args)
+            % Apply one boolean operation between two layer feature sets.
+            arguments
+                obj core.GeometryPipeline
+                op_name {mustBeTextScalar}
+                layer1_ref
+                layer2_ref
+                args.output_layer = []
+                args.preserve_sources logical = false
+                args.scope {mustBeTextScalar, mustBeMember(args.scope, ["terminal", "all"])} = "terminal"
+                args.add_to_comsol logical = true
+                args.allow_empty logical = false
+            end
+
+            layer1 = obj.resolve_layer(layer1_ref);
+            layer2 = obj.resolve_layer(layer2_ref);
+            if isempty(args.output_layer)
+                output_layer = layer1;
+            else
+                output_layer = obj.resolve_layer(args.output_layer);
+            end
+
+            obj.validate_layer_boolean_comsol_config( ...
+                layer1, layer2, output_layer, args.add_to_comsol);
+
+            features1 = obj.collect_layer_features(layer1, args.scope);
+            features2 = obj.collect_layer_features(layer2, args.scope);
+
+            if args.add_to_comsol && obj.has_comsol()
+                obj.validate_layer_boolean_features_for_comsol(features1, layer1);
+                obj.validate_layer_boolean_features_for_comsol(features2, layer2);
+            end
+
+            if ~args.allow_empty && (isempty(features1) || isempty(features2))
+                error("GeometryPipeline:LayerBooleanEmptyInput", ...
+                    "Layer boolean '%s' requires non-empty inputs. Layer '%s': %d, layer '%s': %d.", ...
+                    char(string(op_name)), char(string(layer1.name)), numel(features1), ...
+                    char(string(layer2.name)), numel(features2));
+            end
+
+            collapsed1 = [];
+            if ~isempty(features1)
+                collapsed1 = ops.Union(obj, features1, ...
+                    layer=layer1, ...
+                    keep_input_objects=args.preserve_sources, ...
+                    add_to_comsol=args.add_to_comsol);
+            end
+
+            collapsed2 = [];
+            if ~isempty(features2)
+                collapsed2 = ops.Union(obj, features2, ...
+                    layer=layer2, ...
+                    keep_input_objects=args.preserve_sources, ...
+                    add_to_comsol=args.add_to_comsol);
+            end
+
+            switch lower(string(op_name))
+                case "merge"
+                    if isempty(collapsed1) && isempty(collapsed2)
+                        result = obj.empty_layer_boolean_result(output_layer, op_name, args.add_to_comsol);
+                    elseif isempty(collapsed1)
+                        result = obj.retarget_layer_boolean_feature(collapsed2, output_layer, args.add_to_comsol);
+                    elseif isempty(collapsed2)
+                        result = obj.retarget_layer_boolean_feature(collapsed1, output_layer, args.add_to_comsol);
+                    else
+                        result = ops.Union(obj, {collapsed1, collapsed2}, ...
+                            layer=output_layer, ...
+                            keep_input_objects=false, ...
+                            add_to_comsol=args.add_to_comsol);
+                    end
+
+                case "subtract"
+                    if isempty(collapsed1)
+                        result = obj.empty_layer_boolean_result(output_layer, op_name, args.add_to_comsol);
+                    elseif isempty(collapsed2)
+                        result = obj.retarget_layer_boolean_feature(collapsed1, output_layer, args.add_to_comsol);
+                    else
+                        result = ops.Difference(obj, collapsed1, {collapsed2}, ...
+                            layer=output_layer, ...
+                            keep_input_objects=false, ...
+                            add_to_comsol=args.add_to_comsol);
+                    end
+
+                case "intersect"
+                    if isempty(collapsed1) || isempty(collapsed2)
+                        result = obj.empty_layer_boolean_result(output_layer, op_name, args.add_to_comsol);
+                    else
+                        result = ops.Intersection(obj, {collapsed1, collapsed2}, ...
+                            layer=output_layer, ...
+                            keep_input_objects=false, ...
+                            add_to_comsol=args.add_to_comsol);
+                    end
+
+                otherwise
+                    error("GeometryPipeline:LayerBooleanUnsupportedOp", ...
+                        "Unsupported layer boolean operation '%s'.", char(string(op_name)));
+            end
+        end
+
+        function features = collect_layer_features(obj, layer, scope)
+            % Collect layer features from either terminal nodes or full graph.
+            scope_token = lower(string(scope));
+            if scope_token == "terminal"
+                candidates = obj.terminal_nodes();
+            else
+                candidates = obj.nodes;
+            end
+
+            target_name = string(layer.name);
+            features = {};
+            for i = 1:numel(candidates)
+                node = candidates{i};
+                if ~isa(node, "core.GeomFeature")
+                    continue;
+                end
+                if ~isa(node.layer, "core.LayerSpec")
+                    continue;
+                end
+                if string(node.layer.name) ~= target_name
+                    continue;
+                end
+                features{end+1} = node; %#ok<AGROW>
+            end
+        end
+
+        function validate_layer_boolean_comsol_config(obj, layer1, layer2, output_layer, add_to_comsol)
+            % Validate COMSOL-specific constraints for layer boolean operations.
+            if ~(add_to_comsol && obj.has_comsol())
+                return;
+            end
+
+            layers_to_check = {layer1, layer2, output_layer};
+            for i = 1:numel(layers_to_check)
+                layer_i = layers_to_check{i};
+                if ~logical(layer_i.comsol_emit)
+                    error("GeometryPipeline:LayerBooleanComsolLayer", ...
+                        "Layer boolean with add_to_comsol=true requires COMSOL-enabled layers. Layer '%s' is GDS-only.", ...
+                        char(string(layer_i.name)));
+                end
+            end
+
+            wp1 = strtrim(string(layer1.comsol_workplane));
+            wp2 = strtrim(string(layer2.comsol_workplane));
+            wpo = strtrim(string(output_layer.comsol_workplane));
+            if ~(wp1 == wp2 && wp1 == wpo)
+                error("GeometryPipeline:LayerBooleanWorkplaneMismatch", ...
+                    "Layer boolean with add_to_comsol=true requires a single COMSOL workplane. Got layer1='%s', layer2='%s', output='%s'.", ...
+                    char(wp1), char(wp2), char(wpo));
+            end
+        end
+
+        function validate_layer_boolean_features_for_comsol(~, features, layer)
+            % Require COMSOL-included sources when COMSOL emission is requested.
+            if isempty(features)
+                return;
+            end
+            excluded = cellfun(@(n) ~logical(n.add_to_comsol), features);
+            if any(excluded)
+                error("GeometryPipeline:LayerBooleanInputComsolExcluded", ...
+                    "Layer '%s' has %d source feature(s) with add_to_comsol=false in the selected scope.", ...
+                    char(string(layer.name)), nnz(excluded));
+            end
+        end
+
+        function result = retarget_layer_boolean_feature(obj, feature, output_layer, add_to_comsol)
+            % Re-layer one intermediate feature while preserving geometry.
+            same_layer = isa(feature.layer, "core.LayerSpec") && ...
+                string(feature.layer.name) == string(output_layer.name);
+            if same_layer && logical(feature.add_to_comsol) == logical(add_to_comsol)
+                result = feature;
+                return;
+            end
+
+            result = ops.Move(obj, feature, ...
+                delta=[0, 0], ...
+                keep_input_objects=false, ...
+                layer=output_layer, ...
+                add_to_comsol=add_to_comsol);
+        end
+
+        function result = empty_layer_boolean_result(obj, output_layer, op_name, add_to_comsol)
+            % Create an explicit empty feature result on one output layer.
+            if add_to_comsol
+                warning("GeometryPipeline:LayerBooleanEmptyResult", ...
+                    "Layer boolean '%s' produced an empty result; COMSOL emission is disabled for that empty output.", ...
+                    char(string(op_name)));
+            end
+            result = ops.Union(obj, {}, ...
+                layer=output_layer, ...
+                keep_input_objects=false, ...
+                add_to_comsol=false);
+        end
+
         function record_snap(obj, key, delta)
             % Aggregate snap statistics for one context key.
             changed = delta(delta > 1e-12);

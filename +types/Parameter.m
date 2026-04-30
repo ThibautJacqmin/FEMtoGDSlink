@@ -126,6 +126,13 @@ classdef Parameter
             y = types.Parameter.apply_binary(lhs, rhs, "-");
         end
 
+        function y = uminus(obj)
+            % Overload unary - while preserving unit and dependencies.
+            y = types.Parameter(-obj.value, "", unit=obj.unit, ...
+                expr="-(" + string(obj.expression_token()) + ")");
+            y.dependency_records = obj.dependency_records;
+        end
+
         function y = times(lhs, rhs)
             % Overload .* preserving expression and dependency metadata.
             if isa(rhs, "types.Vertices")

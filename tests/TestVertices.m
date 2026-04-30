@@ -33,6 +33,26 @@ classdef TestVertices < matlab.unittest.TestCase
             testCase.verifyEqual(string(v.comsol_string_y()), "y_bot");
         end
 
+        function unaryMinusParameterWorksInVertices(testCase)
+            x = types.Parameter(12, "x_left", unit="um", auto_register=false);
+            y = types.Parameter(5, "y_mid", unit="um", auto_register=false);
+
+            nx = -x;
+            v = types.Vertices.xy(-x, y);
+            v_array = types.Vertices([-x, y]);
+
+            testCase.verifyEqual(nx.value, -12, AbsTol=1e-12);
+            testCase.verifyEqual(string(nx.unit), "um");
+            testCase.verifyEqual(string(nx.expr), "-(x_left)");
+            testCase.verifyEqual(string(nx.expression_token()), "-(x_left)");
+            testCase.verifyEqual(v.value, [-12, 5], AbsTol=1e-12);
+            testCase.verifyEqual(v.length_value_nm(), [-12000, 5000], AbsTol=1e-12);
+            testCase.verifyEqual(string(v.comsol_string_x()), "-(x_left)");
+            testCase.verifyEqual(string(v.comsol_string_y()), "y_mid");
+            testCase.verifyEqual(v_array.value, v.value, AbsTol=1e-12);
+            testCase.verifyEqual(string(v_array.comsol_string_x()), "-(x_left)");
+        end
+
         function numericMateInheritsComponentUnit(testCase)
             x = types.Parameter(12, "x_um", unit="um", auto_register=false);
 

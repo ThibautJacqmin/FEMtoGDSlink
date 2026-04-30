@@ -987,9 +987,7 @@ classdef ComsolBackend < handle
 
         function [xvals, yvals] = polygon_components(obj, verts, context)
             % Build COMSOL-ready x/y component token lists for Polygon.
-            if isa(verts.prefactor, 'types.Parameter')
-                obj.parameter_token(verts.prefactor);
-            end
+            obj.register_vertices_parameters(verts);
 
             xexpr = string(verts.comsol_string_x());
             yexpr = string(verts.comsol_string_y());
@@ -1265,9 +1263,7 @@ classdef ComsolBackend < handle
                 if val.nvertices ~= 1
                     error("Length vectors must resolve to a single [x y] pair.");
                 end
-                if isa(val.prefactor, 'types.Parameter')
-                    obj.parameter_token(val.prefactor);
-                end
+                obj.register_vertices_parameters(val);
                 xexpr = string(val.comsol_string_x());
                 yexpr = string(val.comsol_string_y());
                 x = obj.length_component(xexpr(1), string(context) + " x");
@@ -1290,6 +1286,14 @@ classdef ComsolBackend < handle
             x = obj.length_component(tok(1), string(context) + " x");
             y = obj.length_component(tok(2), string(context) + " y");
             vec = obj.vector_components(x, y);
+        end
+
+        function register_vertices_parameters(obj, verts)
+            % Register all Parameter objects referenced by a Vertices object.
+            params = verts.parameter_dependencies();
+            for i = 1:numel(params)
+                obj.parameter_token(params{i});
+            end
         end
 
         function token = parameter_token(obj, p)

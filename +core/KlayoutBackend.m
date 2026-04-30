@@ -501,8 +501,7 @@ classdef KlayoutBackend < handle
         function vec_nm = length_points_nm(obj, val, context)
             % Resolve Nx2 points into nm using Vertices prefactor unit when available.
             if isa(val, 'types.Vertices')
-                scale_nm = obj.parameter_length_nm(val.prefactor, string(context) + " prefactor");
-                vec_nm = double(val.array) .* scale_nm;
+                vec_nm = val.length_value_nm();
             else
                 vec_nm = double(val);
             end

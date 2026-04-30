@@ -84,6 +84,154 @@ classdef TestGeometryPipelineUtils < matlab.unittest.TestCase
             testCase.verifyEqual(numel(sf), 4);
         end
 
+        function layerBooleanMergeConsumesSourcesByDefault(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            l1 = ctx.add_layer("m1", gds_layer=10, gds_datatype=0);
+            l2 = ctx.add_layer("m2", gds_layer=11, gds_datatype=0);
+            l3 = ctx.add_layer("m3", gds_layer=12, gds_datatype=0);
+
+            a = primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer=l1);
+            b = primitives.Rectangle(ctx, center=[8 0], width=20, height=10, layer=l2);
+            out = ctx.merge_layers(l1, l2, output_layer=l3);
+
+            testCase.verifyClass(out, "ops.Union");
+            testCase.verifyEqual(string(out.layer.name), "m3");
+
+            terminal_ids = cellfun(@(n) int32(n.id), ctx.terminal_nodes());
+            testCase.verifyEqual(sort(terminal_ids), int32(out.id));
+            testCase.verifyFalse(ismember(int32(a.id), terminal_ids));
+            testCase.verifyFalse(ismember(int32(b.id), terminal_ids));
+        end
+
+        function layerBooleanPreserveSourcesKeepsInputs(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.add_layer("m1", gds_layer=10, gds_datatype=0);
+            ctx.add_layer("m2", gds_layer=11, gds_datatype=0);
+            ctx.add_layer("m3", gds_layer=12, gds_datatype=0);
+
+            a = primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="m1");
+            b = primitives.Rectangle(ctx, center=[8 0], width=20, height=10, layer="m2");
+            out = ctx.intersect_layers("m1", "m2", output_layer="m3", preserve_sources=true);
+
+            terminal_ids = cellfun(@(n) int32(n.id), ctx.terminal_nodes());
+            testCase.verifyTrue(ismember(int32(a.id), terminal_ids));
+            testCase.verifyTrue(ismember(int32(b.id), terminal_ids));
+            testCase.verifyTrue(ismember(int32(out.id), terminal_ids));
+        end
+
+        function layerBooleanScopeAllIncludesConsumedNodes(testCase)
+            ctx_terminal = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx_terminal.add_layer("m1", gds_layer=10, gds_datatype=0);
+            ctx_terminal.add_layer("m2", gds_layer=11, gds_datatype=0);
+            ctx_terminal.add_layer("m3", gds_layer=12, gds_datatype=0);
+            seed_t = primitives.Rectangle(ctx_terminal, center=[0 0], width=20, height=10, layer="m1");
+            ops.Move(ctx_terminal, seed_t, delta=[30 0], layer="m1");
+            primitives.Rectangle(ctx_terminal, center=[10 0], width=20, height=10, layer="m2");
+            out_terminal = ctx_terminal.merge_layers("m1", "m2", scope="terminal", output_layer="m3");
+
+            m1_union_terminal = out_terminal.inputs{1};
+            testCase.verifyEqual(numel(m1_union_terminal.inputs), 1);
+
+            ctx_all = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx_all.add_layer("m1", gds_layer=10, gds_datatype=0);
+            ctx_all.add_layer("m2", gds_layer=11, gds_datatype=0);
+            ctx_all.add_layer("m3", gds_layer=12, gds_datatype=0);
+            seed_a = primitives.Rectangle(ctx_all, center=[0 0], width=20, height=10, layer="m1");
+            ops.Move(ctx_all, seed_a, delta=[30 0], layer="m1");
+            primitives.Rectangle(ctx_all, center=[10 0], width=20, height=10, layer="m2");
+            out_all = ctx_all.merge_layers("m1", "m2", scope="all", output_layer="m3");
+
+            m1_union_all = out_all.inputs{1};
+            testCase.verifyEqual(numel(m1_union_all.inputs), 2);
+        end
+
+        function layerBooleanRejectsEmptyInputByDefault(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.add_layer("m1", gds_layer=10, gds_datatype=0);
+            ctx.add_layer("m2", gds_layer=11, gds_datatype=0);
+            primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="m1");
+
+            testCase.verifyError(@() ctx.merge_layers("m1", "m2"), ...
+                "GeometryPipeline:LayerBooleanEmptyInput");
+        end
+
+        function layerBooleanAllowEmptySubtractWorks(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.add_layer("m1", gds_layer=10, gds_datatype=0);
+            ctx.add_layer("m2", gds_layer=11, gds_datatype=0);
+            ctx.add_layer("m3", gds_layer=12, gds_datatype=0);
+            primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="m1");
+
+            out = ctx.subtract_layers("m1", "m2", allow_empty=true, output_layer="m3");
+            testCase.verifyEqual(string(out.layer.name), "m3");
+            testCase.verifyClass(out, "ops.Move");
+        end
+
+        function layerBooleanRejectsWorkplaneMismatchWhenComsolRequested(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.comsol = struct('mock', true); % Enable COMSOL-only validation path without server startup.
+            ctx.add_layer("m1", gds_layer=10, gds_datatype=0, comsol_workplane="wp1");
+            ctx.add_layer("m2", gds_layer=11, gds_datatype=0, comsol_workplane="wp2");
+            primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="m1");
+            primitives.Rectangle(ctx, center=[8 0], width=20, height=10, layer="m2");
+
+            testCase.verifyError(@() ctx.merge_layers("m1", "m2"), ...
+                "GeometryPipeline:LayerBooleanWorkplaneMismatch");
+        end
+
+        function copyLayerCopiesToExistingOutputLayer(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            src = ctx.add_layer("src", gds_layer=20, gds_datatype=0);
+            dst = ctx.add_layer("dst", gds_layer=21, gds_datatype=0);
+
+            r1 = primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer=src);
+            r2 = primitives.Rectangle(ctx, center=[30 0], width=20, height=10, layer=src);
+            src_union = ops.Union(ctx, {r1, r2}, layer=src, keep_input_objects=false);
+            out = ctx.copy_layer(src, dst);
+
+            testCase.verifyClass(out, "ops.Union");
+            testCase.verifyEqual(string(out.layer.name), "dst");
+
+            copied_move = out.inputs{1};
+            testCase.verifyClass(copied_move, "ops.Move");
+            testCase.verifyEqual(int32(copied_move.target.id), int32(src_union.id));
+
+            terminal_ids = cellfun(@(n) int32(n.id), ctx.terminal_nodes());
+            testCase.verifyTrue(ismember(int32(src_union.id), terminal_ids));
+            testCase.verifyTrue(ismember(int32(out.id), terminal_ids));
+        end
+
+        function copyLayerAllowEmptyReturnsEmptyFeature(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.add_layer("src", gds_layer=20, gds_datatype=0);
+            ctx.add_layer("dst", gds_layer=21, gds_datatype=0);
+
+            out = ctx.copy_layer("src", "dst", allow_empty=true, add_to_comsol=false);
+            testCase.verifyClass(out, "ops.Union");
+            testCase.verifyEqual(string(out.layer.name), "dst");
+            testCase.verifyEqual(numel(out.inputs), 0);
+        end
+
+        function copyLayerRejectsEmptySourceByDefault(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.add_layer("src", gds_layer=20, gds_datatype=0);
+            ctx.add_layer("dst", gds_layer=21, gds_datatype=0);
+
+            testCase.verifyError(@() ctx.copy_layer("src", "dst"), ...
+                "GeometryPipeline:LayerCopyEmptyInput");
+        end
+
+        function copyLayerRejectsWorkplaneMismatchWhenComsolRequested(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            ctx.comsol = struct('mock', true); % Enable COMSOL-only validation path without server startup.
+            ctx.add_layer("src", gds_layer=20, gds_datatype=0, comsol_workplane="wp1");
+            ctx.add_layer("dst", gds_layer=21, gds_datatype=0, comsol_workplane="wp2");
+            primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="src");
+
+            testCase.verifyError(@() ctx.copy_layer("src", "dst"), ...
+                "GeometryPipeline:LayerBooleanWorkplaneMismatch");
+        end
+
         function buildSkipsDisabledBackends(testCase)
             ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             out = ctx.build(report=false);

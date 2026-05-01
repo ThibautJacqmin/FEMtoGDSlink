@@ -50,6 +50,44 @@ classdef GeomFeature < handle
             ctx = obj.ctx;
         end
 
+        function y = plus(lhs, rhs)
+            % Boolean union sugar: a + b => ops.Union({a, b}).
+            left = core.GeomFeature.normalize_feature_inputs(lhs, "plus");
+            right = core.GeomFeature.normalize_feature_inputs(rhs, "plus");
+            y = ops.Union([left, right]);
+        end
+
+        function y = minus(lhs, rhs)
+            % Boolean difference sugar: a - b => ops.Difference(a, {b}).
+            left = core.GeomFeature.normalize_feature_inputs(lhs, "minus");
+            if numel(left) ~= 1
+                error("minus left operand must be a scalar GeomFeature.");
+            end
+            tools = core.GeomFeature.normalize_feature_inputs(rhs, "minus");
+            y = ops.Difference(left{1}, tools);
+        end
+
+        function y = and(lhs, rhs)
+            % Boolean intersection sugar: a & b => ops.Intersection({a, b}).
+            left = core.GeomFeature.normalize_feature_inputs(lhs, "and");
+            right = core.GeomFeature.normalize_feature_inputs(rhs, "and");
+            y = ops.Intersection([left, right]);
+        end
+
+        function y = or(lhs, rhs)
+            % Boolean union sugar alias: a | b => ops.Union({a, b}).
+            left = core.GeomFeature.normalize_feature_inputs(lhs, "or");
+            right = core.GeomFeature.normalize_feature_inputs(rhs, "or");
+            y = ops.Union([left, right]);
+        end
+
+        function y = intersect(lhs, rhs)
+            % Method alias for boolean intersection.
+            left = core.GeomFeature.normalize_feature_inputs(lhs, "intersect");
+            right = core.GeomFeature.normalize_feature_inputs(rhs, "intersect");
+            y = ops.Intersection([left, right]);
+        end
+
         function add_input(obj, feature)
             % Append an upstream dependency node.
             obj.inputs{end+1} = feature;

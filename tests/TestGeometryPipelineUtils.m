@@ -84,6 +84,28 @@ classdef TestGeometryPipelineUtils < matlab.unittest.TestCase
             testCase.verifyEqual(numel(sf), 4);
         end
 
+        function geomFeatureBooleanOperatorSugarMapsToOps(testCase)
+            ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
+            r1 = primitives.Rectangle(ctx, center=[0 0], width=20, height=10, layer="default");
+            r2 = primitives.Rectangle(ctx, center=[8 0], width=20, height=10, layer="default");
+
+            u_plus = r1 + r2;
+            d_minus = r1 - r2;
+            i_and = r1 & r2;
+            u_or = r1 | r2;
+            i_fn = intersect(r1, r2);
+
+            testCase.verifyClass(u_plus, "ops.Union");
+            testCase.verifyClass(d_minus, "ops.Difference");
+            testCase.verifyClass(i_and, "ops.Intersection");
+            testCase.verifyClass(u_or, "ops.Union");
+            testCase.verifyClass(i_fn, "ops.Intersection");
+
+            testCase.verifyEqual(numel(u_plus.inputs), 2);
+            testCase.verifyEqual(int32(d_minus.base.id), int32(r1.id));
+            testCase.verifyEqual(int32(d_minus.tools{1}.id), int32(r2.id));
+        end
+
         function layerBooleanMergeConsumesSourcesByDefault(testCase)
             ctx = core.GeometryPipeline(enable_comsol=false, enable_gds=false, snap_on_grid=false);
             l1 = ctx.add_layer("m1", gds_layer=10, gds_datatype=0);

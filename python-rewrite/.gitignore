@@ -1,0 +1,6 @@
+# Local reference copies, kept available without adding large PDFs to Git.
+/references/manuals/*.pdf
+/.venv/
+/output/
+__pycache__/
+*.pyc
